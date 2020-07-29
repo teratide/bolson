@@ -15,11 +15,11 @@
 #include <random>
 #include <iostream>
 #include <algorithm>
-#include <CLI/CLI.hpp>
 
-#include "rapidjson/document.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/prettywriter.h"
+#include <CLI/CLI.hpp>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
 
 #define TWEET_LENGTH_MAX 280
 
@@ -94,7 +94,8 @@ inline auto GetRandomText(std::mt19937_64 *engine, int mean, int dev) -> string 
  * @return A random Twitter ID string.
  */
 inline auto GetRandomTwitterID(std::mt19937_64 *engine) -> string {
-  return std::to_string((*engine)());
+  uint64_t value = (*engine)();
+  return std::to_string(value);
 }
 
 /**
@@ -116,11 +117,7 @@ auto GenerateTweets(int seed, size_t num_tweets, size_t max_refs, int len_mean, 
 
     Value tweet(rapidjson::kObjectType);
     Value data(rapidjson::kObjectType);
-    Value id;
-    Value created_at;
-    Value author_id;
-    Value text;
-    Value in_reply_to_user_id;
+
     Value ref_tweets(rapidjson::kArrayType);
     Value format("compact");
 
@@ -130,11 +127,11 @@ auto GenerateTweets(int seed, size_t num_tweets, size_t max_refs, int len_mean, 
     auto text_str = GetRandomText(&gen, len_mean, len_stdev);
     auto in_reply_to_user_id_str = GetRandomTwitterID(&gen);
 
-    id.SetString(id_str.c_str(), id_str.length(), a);
-    created_at.SetString(created_at_str.c_str(), created_at_str.length(), a);
-    author_id.SetString(author_id_str.c_str(), id_str.length(), a);
-    text.SetString(text_str.c_str(), text_str.length(), a);
-    in_reply_to_user_id.SetString(in_reply_to_user_id_str.c_str(), id_str.length(), a);
+    Value id(id_str.c_str(), id_str.size(), a);
+    Value created_at(created_at_str.c_str(), created_at_str.size(), a);
+    Value author_id(author_id_str.c_str(), author_id_str.size(), a);
+    Value text(text_str.c_str(), text_str.size(), a);
+    Value in_reply_to_user_id(in_reply_to_user_id_str.c_str(), in_reply_to_user_id_str.size(), a);
 
     data.AddMember("id", id, a);
     data.AddMember("created_at", created_at, a);
@@ -150,8 +147,8 @@ auto GenerateTweets(int seed, size_t num_tweets, size_t max_refs, int len_mean, 
 
       auto rt_type_str = GetRandomRefTweetType(&gen);
       auto rt_id_str = GetRandomTwitterID(&gen);
-      rt_type.SetString(rt_type_str.c_str(), rt_type_str.length(), a);
-      rt_id.SetString(rt_id_str.c_str(), rt_id_str.length(), a);
+      rt_type.SetString(rt_type_str.c_str(), rt_type_str.size(), a);
+      rt_id.SetString(rt_id_str.c_str(), rt_id_str.size(), a);
       rt_obj.AddMember("type", rt_type, a);
       rt_obj.AddMember("id", rt_id, a);
 
@@ -183,7 +180,7 @@ auto main(int argc, char *argv[]) -> int {
   bool verbose = false;
 
   // CLI options:
-  app.add_option("-s,--seed", seed, "Random generator seed (default = 0).");
+  app.add_option("-s,--seed", seed, "Random generator seed (default: taken from random device).");
 
   app.add_option("-n,--no-tweets", tweets, "Number of tweets (default = 1).");
   app.add_option("-u,--length-mean", tweet_len_mean, "Tweet length average.");
