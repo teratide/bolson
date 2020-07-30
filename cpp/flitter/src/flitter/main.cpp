@@ -104,7 +104,7 @@ auto main(int argc, char *argv[]) -> int {
     std::cout << batch->num_rows() << ", ";
     std::cout << json_file_size << ", ";
     std::cout << batch_size << ", ";
-    std::cout << ipc_buffer << std::endl;
+    std::cout << ipc_size << std::endl;
   } else {
     std::cout << std::setw(42) << "Number of tweets" << ": " << batch->num_rows() << std::endl;
     std::cout << std::setw(42) << "JSON File size (GiB)" << ": " << json_file_size_GiB << std::endl;

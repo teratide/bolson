@@ -24,7 +24,8 @@
 
 #include "./pulsar.h"
 
-auto SetupClientProducer(pulsar::LoggerFactory* logger) -> std::pair<std::shared_ptr<pulsar::Client>, std::shared_ptr<pulsar::Producer>> {
+auto SetupClientProducer(pulsar::LoggerFactory *logger) -> std::pair<std::shared_ptr<pulsar::Client>,
+                                                                     std::shared_ptr<pulsar::Producer>> {
   auto config = pulsar::ClientConfiguration();
   config.setLogger(logger);
   auto client = std::make_shared<pulsar::Client>("pulsar://localhost:6650", config);
@@ -40,9 +41,8 @@ auto SetupClientProducer(pulsar::LoggerFactory* logger) -> std::pair<std::shared
 
 auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
                         const std::shared_ptr<arrow::Buffer> &buffer) -> int {
-//  pulsar::Message msg = pulsar::MessageBuilder().setAllocatedContent(reinterpret_cast<void *>(buffer->mutable_data()),
-//                                                                     buffer->size()).build();
-  pulsar::Message msg = pulsar::MessageBuilder().setContent(buffer->data(), buffer->size()).build();
+  pulsar::Message msg = pulsar::MessageBuilder().setAllocatedContent(reinterpret_cast<void *>(buffer->mutable_data()),
+                                                                     buffer->size()).build();
   pulsar::Result res = producer->send(msg);
 
   return 0;
