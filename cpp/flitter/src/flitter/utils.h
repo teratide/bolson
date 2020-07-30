@@ -36,7 +36,7 @@ auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch> &batch) -> int64_t;
 auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> std::shared_ptr<arrow::Buffer>;
 
 /// @brief Report some gigabytes per second.
-void ReportGBps(const std::string &text, size_t bytes, double s);
+void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct = false);
 
 /**
  * @brief Read num_bytes from a file and buffer it in memory.

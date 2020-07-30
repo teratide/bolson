@@ -48,12 +48,16 @@ auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch> &batch) -> int64_t {
   return batch_size;
 }
 
-void ReportGBps(const std::string &text, size_t bytes, double s) {
+void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct) {
   double GB = static_cast<double>(bytes) * std::pow(10.0, -9);
-  std::cout << std::setw(42) << std::left << text << ": "
-            << std::setw(8) << std::setprecision(3) << s << " s | "
-            << std::setw(8) << std::setprecision(3) << (GB / s) << " GB/s"
-            << std::endl;
+  if (succinct) {
+    std::cout << s << ", " << (GB / s) << ", ";
+  } else {
+    std::cout << std::setw(42) << std::left << text << ": "
+              << std::setw(8) << std::setprecision(3) << s << " s | "
+              << std::setw(8) << std::setprecision(3) << (GB / s) << " GB/s"
+              << std::endl;
+  }
 }
 
 auto LoadFile(const std::string &file_name, size_t num_bytes) -> std::vector<char> {
