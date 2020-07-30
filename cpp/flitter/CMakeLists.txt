@@ -38,6 +38,7 @@ add_compile_unit(
   SRCS
     src/flitter/main.cpp
     src/flitter/tweets.cpp
+    src/flitter/utils.cpp
   DEPS
     arrow_shared
     CLI11::CLI11

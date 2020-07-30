@@ -17,135 +17,13 @@
 #include <filesystem>
 #include <iomanip>
 
-#include <arrow/io/api.h>
-#include <arrow/ipc/api.h>
-
 #include <CLI/CLI.hpp>
 
-#include <rapidjson/document.h>
-
 #include "./tweets.h"
+#include "./utils.h"
 #include "./timer.h"
 
 namespace fs = std::filesystem;
-
-/// @brief Parse a referenced tweet type.
-auto parse_ref_type(const std::string &s) -> uint8_t {
-  if (s == "retweeted") return 0;
-  if (s == "quoted") return 1;
-  if (s == "replied_to") return 2;
-
-  // TODO(johanpel): improve this:
-  throw std::runtime_error("Unkown referenced_tweet type:" + s);
-}
-
-/// @brief Report some gigabytes per second.
-void report_GBps(const std::string &text, size_t bytes, double s) {
-  double GB = static_cast<double>(bytes) * std::pow(10.0, -9);
-  std::cout << std::setw(42) << std::left << text << ": "
-            << std::setw(8) << std::setprecision(3) << s << " s | "
-            << std::setw(8) << std::setprecision(3) << (GB / s) << " GB/s"
-            << std::endl;
-}
-
-/**
- * @brief Read num_bytes from a file and buffer it in memory.
- * @param file_name The file to load.
- * @param num_bytes The number of bytes to read into the buffer.
- * @return The buffer.
- */
-auto LoadFile(const std::string &file_name, size_t num_bytes) -> std::vector<char> {
-  std::ifstream ifs(file_name, std::ios::binary);
-  std::vector<char> buffer(num_bytes);
-  if (!ifs.read(buffer.data(), num_bytes)) {
-    // TODO(johanpel): don't throw
-    throw std::runtime_error("Could not read file " + file_name + " into memory.");
-  }
-  return buffer;
-}
-
-/**
- * @brief Returns the total size in memory of all (nested) buffers backing Arrow ArrayData.
- *
- * Returns int64_t because Arrow.
- * @param array_data The ArrayData to analyze.
- * @returns The total size of all (nested) buffer contents in bytes.
- */
-auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData> &array_data) -> int64_t {
-  int64_t result = 0;
-
-  // First obtain the size of all children:
-  for (const auto &child : array_data->child_data) {
-    result += GetArrayDataSize(child);
-  }
-  // Obtain the size of all buffers at this level of ArrayData
-  for (const auto &buffer : array_data->buffers) {
-    // Buffers can be nullptrs in Arrow, hurray.
-    if (buffer != nullptr) {
-      result += buffer->size();
-    }
-  }
-
-  return result;
-}
-
-/**
- * @brief Return the total size in memory of an Arrow RecordBatch.
- * @param batch The RecordBatch to analyze.
- * @return The total size in bytes.
- */
-auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch> &batch) -> int64_t {
-  int64_t batch_size = 0;
-  for (const auto &column : batch->columns()) {
-    batch_size += GetArrayDataSize(column->data());
-  }
-  return batch_size;
-}
-
-/**
- * @brief Convert a parsed JSON document with tweets into an Arrow RecordBatch
- * @param doc The rapidjson document.
- * @return The Arrow RecordBatch.
- */
-auto CreateRecordBatch(const rapidjson::Document &doc) -> shared_ptr<RecordBatch> {
-  // Set up Arrow RecordBatch builder for tweets:
-  TweetsBuilder t;
-  // Iterate over every tweet:
-  for (const auto &tweet : doc.GetArray()) {
-    const auto &d = tweet["data"];
-
-    // Parse referenced tweets:
-    vector<pair<uint8_t, uint64_t>> ref_tweets;
-    for (const auto &r : d["referenced_tweets"].GetArray()) {
-      ref_tweets.emplace_back(parse_ref_type(r["type"].GetString()),
-                              strtoul(r["id"].GetString(), nullptr, 10));
-    }
-
-    t.Append(strtoul(d["id"].GetString(), nullptr, 10),
-             d["created_at"].GetString(),
-             d["text"].GetString(),
-             strtoul(d["author_id"].GetString(), nullptr, 10),
-             strtoul(d["in_reply_to_user_id"].GetString(), nullptr, 10),
-             ref_tweets);
-  }
-  // Finalize the builder:
-  shared_ptr<RecordBatch> batch;
-  t.Finish(&batch);
-  return batch;
-}
-
-/// @brief Write an Arrow RecordBatch into a file as an Arrow IPC message.
-auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> std::shared_ptr<arrow::Buffer> {
-  auto buffer = arrow::io::BufferOutputStream::Create(GetBatchSize(batch)).ValueOrDie();
-  std::shared_ptr<arrow::ipc::RecordBatchWriter>
-      writer = arrow::ipc::NewStreamWriter(buffer.get(), batch->schema()).ValueOrDie();
-  auto status = writer->WriteRecordBatch(*batch);
-  if (!status.ok()) {
-    throw std::runtime_error("Error writing RecordBatch to file.");
-  }
-  status = writer->Close();
-  return buffer->Finish().ValueOrDie();
-}
 
 auto main(int argc, char *argv[]) -> int {
   Timer timer;
@@ -179,29 +57,29 @@ auto main(int argc, char *argv[]) -> int {
   timer.start();
   auto buffer = LoadFile(json_file, json_file_size);
   timer.stop();
-  report_GBps("Load JSON file", json_file_size, timer.seconds());
+  ReportGBps("Load JSON file", json_file_size, timer.seconds());
 
   // Parse JSON in-place
   timer.start();
   rapidjson::Document doc;
   doc.ParseInsitu(buffer.data());
   timer.stop();
-  report_GBps("Parse JSON file (rapidjson)", json_file_size, timer.seconds());
+  ReportGBps("Parse JSON file (rapidjson)", json_file_size, timer.seconds());
 
   // Convert to Arrow:
   timer.start();
-  shared_ptr<RecordBatch> batch = CreateRecordBatch(doc);
+  auto batch = CreateRecordBatch(doc);
   timer.stop();
   int64_t batch_size = GetBatchSize(batch);
-  report_GBps("Convert to Arrow RecordBatch (input)", json_file_size, timer.seconds());
-  report_GBps("Convert to Arrow RecordBatch (output)", batch_size, timer.seconds());
+  ReportGBps("Convert to Arrow RecordBatch (input)", json_file_size, timer.seconds());
+  ReportGBps("Convert to Arrow RecordBatch (output)", batch_size, timer.seconds());
 
   // Write as IPC message into a file:
   timer.start();
   auto ipc_buffer = WriteIPCMessageBuffer(batch);
   timer.stop();
   auto ipc_size = ipc_buffer->size();
-  report_GBps("Write into Arrow IPC message buffer: ", ipc_size, timer.seconds());
+  ReportGBps("Write into Arrow IPC message buffer: ", ipc_size, timer.seconds());
 
   // Report some additional properties:
   double ipc_file_size_GiB = static_cast<double>(ipc_size) / std::pow(2.0, 30);
