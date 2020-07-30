@@ -49,6 +49,22 @@ void report_GBps(const std::string &text, size_t bytes, double s) {
 }
 
 /**
+ * @brief Read num_bytes from a file and buffer it in memory.
+ * @param file_name The file to load.
+ * @param num_bytes The number of bytes to read into the buffer.
+ * @return The buffer.
+ */
+auto LoadFile(const std::string &file_name, size_t num_bytes) -> std::vector<char> {
+  std::ifstream ifs(file_name, std::ios::binary);
+  std::vector<char> buffer(num_bytes);
+  if (!ifs.read(buffer.data(), num_bytes)) {
+    // TODO(johanpel): don't throw
+    throw std::runtime_error("Could not read file " + file_name + " into memory.");
+  }
+  return buffer;
+}
+
+/**
  * @brief Returns the total size in memory of all (nested) buffers backing Arrow ArrayData.
  *
  * Returns int64_t because Arrow.
@@ -73,21 +89,6 @@ auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData> &array_data) -> in
   return result;
 }
 
-/// @brief Write an Arrow RecordBatch into a file as an Arrow IPC message.
-auto WriteIPCMessageFile(const std::shared_ptr<arrow::RecordBatch> &batch, const std::string &file) -> int64_t {
-  std::shared_ptr<arrow::io::FileOutputStream> f = arrow::io::FileOutputStream::Open(file).ValueOrDie();
-  std::shared_ptr<arrow::ipc::RecordBatchWriter>
-      writer = arrow::ipc::NewFileWriter(f.get(), batch->schema()).ValueOrDie();
-  auto status = writer->WriteRecordBatch(*batch);
-  int64_t ipc_file_size = f->Tell().ValueOrDie();
-  if (!status.ok()) {
-    throw std::runtime_error("Error writing RecordBatch to file.");
-  }
-  status = writer->Close();
-  f->Close();
-  return ipc_file_size;
-}
-
 /**
  * @brief Return the total size in memory of an Arrow RecordBatch.
  * @param batch The RecordBatch to analyze.
@@ -99,22 +100,6 @@ auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch> &batch) -> int64_t {
     batch_size += GetArrayDataSize(column->data());
   }
   return batch_size;
-}
-
-/**
- * @brief Read num_bytes from a file and buffer it in memory.
- * @param file_name The file to load.
- * @param num_bytes The number of bytes to read into the buffer.
- * @return The buffer.
- */
-auto LoadFile(const std::string &file_name, size_t num_bytes) -> std::vector<char> {
-  std::ifstream ifs(file_name, std::ios::binary);
-  std::vector<char> buffer(num_bytes);
-  if (!ifs.read(buffer.data(), num_bytes)) {
-    // TODO(johanpel): don't throw
-    throw std::runtime_error("Could not read file " + file_name + " into memory.");
-  }
-  return buffer;
 }
 
 /**
@@ -147,6 +132,19 @@ auto CreateRecordBatch(const rapidjson::Document &doc) -> shared_ptr<RecordBatch
   shared_ptr<RecordBatch> batch;
   t.Finish(&batch);
   return batch;
+}
+
+/// @brief Write an Arrow RecordBatch into a file as an Arrow IPC message.
+auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> std::shared_ptr<arrow::Buffer> {
+  auto buffer = arrow::io::BufferOutputStream::Create(GetBatchSize(batch)).ValueOrDie();
+  std::shared_ptr<arrow::ipc::RecordBatchWriter>
+      writer = arrow::ipc::NewStreamWriter(buffer.get(), batch->schema()).ValueOrDie();
+  auto status = writer->WriteRecordBatch(*batch);
+  if (!status.ok()) {
+    throw std::runtime_error("Error writing RecordBatch to file.");
+  }
+  status = writer->Close();
+  return buffer->Finish().ValueOrDie();
 }
 
 auto main(int argc, char *argv[]) -> int {
@@ -200,19 +198,20 @@ auto main(int argc, char *argv[]) -> int {
 
   // Write as IPC message into a file:
   timer.start();
-  auto ipc_file_size = WriteIPCMessageFile(batch, "test.rb");
+  auto ipc_buffer = WriteIPCMessageBuffer(batch);
   timer.stop();
-  report_GBps("Write into Arrow IPC message file: ", ipc_file_size, timer.seconds());
+  auto ipc_size = ipc_buffer->size();
+  report_GBps("Write into Arrow IPC message buffer: ", ipc_size, timer.seconds());
 
   // Report some additional properties:
-  double ipc_file_size_GiB = static_cast<double>(ipc_file_size) / std::pow(2.0, 30);
+  double ipc_file_size_GiB = static_cast<double>(ipc_size) / std::pow(2.0, 30);
   double batch_size_GiB = static_cast<double>(batch_size) / std::pow(2.0, 30);
   double json_file_size_GiB = static_cast<double>(json_file_size) / std::pow(2.0, 30);
 
   std::cout << std::setw(42) << "Number of tweets" << ": " << batch->num_rows() << std::endl;
   std::cout << std::setw(42) << "JSON File size (GiB)" << ": " << json_file_size_GiB << std::endl;
-  std::cout << std::setw(42) << "Arrow RecordBatch size in memory (GiB)" << ": " << batch_size_GiB << std::endl;
-  std::cout << std::setw(42) << "Arrow IPC message file size (GiB)" << ": " << ipc_file_size_GiB << std::endl;
+  std::cout << std::setw(42) << "Arrow RecordBatch size (GiB)" << ": " << batch_size_GiB << std::endl;
+  std::cout << std::setw(42) << "Arrow IPC message size (GiB)" << ": " << ipc_file_size_GiB << std::endl;
 
   return 0;
 }
