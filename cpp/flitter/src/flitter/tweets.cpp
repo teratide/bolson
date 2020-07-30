@@ -14,6 +14,25 @@
 
 #include "./tweets.h"
 
+using std::vector;
+using std::string;
+using std::pair;
+using std::shared_ptr;
+using std::make_shared;
+
+using arrow::DataType;
+using arrow::Field;
+using arrow::Schema;
+using arrow::Array;
+using arrow::RecordBatch;
+using arrow::UInt8Builder;
+using arrow::UInt64Builder;
+using arrow::StringBuilder;
+using arrow::StructBuilder;
+using arrow::ListBuilder;
+using arrow::ArrayBuilder;
+using arrow::Status;
+
 TweetsBuilder::TweetsBuilder() {
   // Set up the schema first.
   // For ID's, Twitter uses string types to not get in trouble with JavaScript, but we can use
@@ -113,4 +132,40 @@ auto TweetsBuilder::Finish(std::shared_ptr<RecordBatch> *batch) -> Status {
                              vector({id, created_at, text, author_id, in_reply_to_user_id, ref_tweets}));
 
   return Status::OK();
+}
+
+auto ParseRefType(const string &s) -> uint8_t {
+  if (s == "retweeted") return 0;
+  if (s == "quoted") return 1;
+  if (s == "replied_to") return 2;
+
+  // TODO(johanpel): improve this:
+  throw std::runtime_error("Unkown referenced_tweet type:" + s);
+}
+
+auto CreateRecordBatch(const rapidjson::Document &doc) -> shared_ptr<RecordBatch> {
+  // Set up Arrow RecordBatch builder for tweets:
+  TweetsBuilder t;
+  // Iterate over every tweet:
+  for (const auto &tweet : doc.GetArray()) {
+    const auto &d = tweet["data"];
+
+    // Parse referenced tweets:
+    vector<pair<uint8_t, uint64_t>> ref_tweets;
+    for (const auto &r : d["referenced_tweets"].GetArray()) {
+      ref_tweets.emplace_back(ParseRefType(r["type"].GetString()),
+                              strtoul(r["id"].GetString(), nullptr, 10));
+    }
+
+    t.Append(strtoul(d["id"].GetString(), nullptr, 10),
+             d["created_at"].GetString(),
+             d["text"].GetString(),
+             strtoul(d["author_id"].GetString(), nullptr, 10),
+             strtoul(d["in_reply_to_user_id"].GetString(), nullptr, 10),
+             ref_tweets);
+  }
+  // Finalize the builder:
+  shared_ptr<RecordBatch> batch;
+  t.Finish(&batch);
+  return batch;
 }
