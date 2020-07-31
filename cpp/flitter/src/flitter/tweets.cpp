@@ -87,7 +87,7 @@ auto TweetsBuilder::Append(uint64_t id,
 auto TweetsBuilder::schema() -> shared_ptr<Schema> {
   return make_shared<Schema>(
       vector<shared_ptr<Field>>({make_shared<Field>("id", arrow::uint64(), false),
-                                 make_shared<Field>("created_at", arrow::date64(), false),
+                                 make_shared<Field>("created_at", arrow::utf8(), false),
                                  make_shared<Field>("text", arrow::utf8(), false),
                                  make_shared<Field>("author_id", arrow::uint64(), false),
                                  make_shared<Field>("in_reply_to_user_id", arrow::uint64(), false),
