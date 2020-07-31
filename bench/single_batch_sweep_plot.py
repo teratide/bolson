@@ -14,13 +14,9 @@ y = df[['Load JSON (GB/s)', 'Parse JSON (GB/s)',
         'Write Arrow IPC message (GB/s)', 'Publish IPC message in Pulsar (GB/s)']]
 
 
-# Some Teratide colors
-def rgb(uint):
-    return [x / 255 for x in uint]
 
-
-tt_bg = rgb([241, 231, 220])
-tt_colors = [rgb(x) for x in [[0, 0, 0], [1, 125, 127], [1, 63, 127], [189, 158, 64], [1, 32, 64], [84, 84, 85]]]
+background = '#f5ebdf'
+line_colors = ['#000000', '#c0a040', '#007e80', '#e06055', '#3f5fbf', '#d275de', '#7bb144', '#888888']
 markers = ['o', 's', 'd', 'v', '^', '<', '>']
 
 # Create figs and plot
@@ -29,13 +25,11 @@ ax = fig.add_subplot(1, 1, 1)
 
 ax.set_title('JSON $\\rightarrow$ Arrow $\\rightarrow$ Pulsar', fontweight="bold", fontsize=20)
 
-i = 0
-
-for (name, data) in y.iteritems():
-    ax.plot(x, data, color=tt_colors[i], marker=markers[i], markersize=8)
+for (i, (name, data)) in enumerate(y.iteritems()):
+    ax.plot(x, data, color=line_colors[i], marker=markers[i], markersize=8)
     i = i + 1
 
-ax.set_xlabel('JSON file size (GiB)')
+ax.set_xlabel('JSON file size (B)')
 ax.set_xscale('log', base=2)
 ax.set_xticks([2 ** n for n in range(8, math.ceil(math.log2(x.max()) / 2 + 1) * 2, 2)])
 
@@ -43,7 +37,7 @@ ax.set_ylabel('GB/s')
 ax.set_ylim([-0.1, 1.1 * y.max().max()])
 
 ax.grid(which='both')
-ax.set_facecolor(tt_bg)
+ax.set_facecolor(background)
 
 fig.set_facecolor('white')
 fig.tight_layout()
