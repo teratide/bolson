@@ -13,8 +13,6 @@ y = df[['Load JSON (GB/s)', 'Parse JSON (GB/s)',
         'Convert to Arrow (in) (GB/s)', 'Convert to Arrow (out) (GB/s)',
         'Write Arrow IPC message (GB/s)', 'Publish IPC message in Pulsar (GB/s)']]
 
-
-
 background = '#f5ebdf'
 line_colors = ['#000000', '#c0a040', '#007e80', '#e06055', '#3f5fbf', '#d275de', '#7bb144', '#888888']
 markers = ['o', 's', 'd', 'v', '^', '<', '>']

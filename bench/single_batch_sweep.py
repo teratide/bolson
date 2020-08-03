@@ -25,9 +25,9 @@ with open('single_batch_sweep_result.csv', 'w') as f:
             "Publish IPC message in Pulsar (s),"
             "Publish IPC message in Pulsar (GB/s),"
             "Number of tweets,"
-            "JSON File size (GiB),"
-            "Arrow RecordBatch size (GiB),"
-            "Arrow IPC message size (GiB)\n"
+            "JSON File size (B),"
+            "Arrow RecordBatch size (B),"
+            "Arrow IPC message size (B)\n"
             )
     f.flush()
 
