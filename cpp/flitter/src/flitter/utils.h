@@ -33,7 +33,7 @@ auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData> &array_data) -> in
 auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch> &batch) -> int64_t;
 
 /// @brief Write an Arrow RecordBatch into a file as an Arrow IPC message.
-auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> std::shared_ptr<arrow::Buffer>;
+auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> arrow::Result<std::shared_ptr<arrow::Buffer>>;
 
 /// @brief Report some gigabytes per second.
 void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct = false);

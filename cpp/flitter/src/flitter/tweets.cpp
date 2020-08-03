@@ -32,6 +32,7 @@ using arrow::StructBuilder;
 using arrow::ListBuilder;
 using arrow::ArrayBuilder;
 using arrow::Status;
+using arrow::Result;
 
 TweetsBuilder::TweetsBuilder() {
   // Set up the schema first.
@@ -143,7 +144,7 @@ auto ParseRefType(const string &s) -> uint8_t {
   throw std::runtime_error("Unkown referenced_tweet type:" + s);
 }
 
-auto CreateRecordBatch(const rapidjson::Document &doc) -> shared_ptr<RecordBatch> {
+auto CreateRecordBatch(const rapidjson::Document &doc) -> Result<shared_ptr<RecordBatch>> {
   // Set up Arrow RecordBatch builder for tweets:
   TweetsBuilder t;
   // Iterate over every tweet:
@@ -157,15 +158,18 @@ auto CreateRecordBatch(const rapidjson::Document &doc) -> shared_ptr<RecordBatch
                               strtoul(r["id"].GetString(), nullptr, 10));
     }
 
-    t.Append(strtoul(d["id"].GetString(), nullptr, 10),
-             d["created_at"].GetString(),
-             d["text"].GetString(),
-             strtoul(d["author_id"].GetString(), nullptr, 10),
-             strtoul(d["in_reply_to_user_id"].GetString(), nullptr, 10),
-             ref_tweets);
+    auto status = t.Append(strtoul(d["id"].GetString(), nullptr, 10),
+                           d["created_at"].GetString(),
+                           d["text"].GetString(),
+                           strtoul(d["author_id"].GetString(), nullptr, 10),
+                           strtoul(d["in_reply_to_user_id"].GetString(), nullptr, 10),
+                           ref_tweets);
+
+    if (!status.ok()) return arrow::Result<shared_ptr<RecordBatch>>(status);
   }
   // Finalize the builder:
   shared_ptr<RecordBatch> batch;
-  t.Finish(&batch);
+  auto status = t.Finish(&batch);
+  if (!status.ok()) return arrow::Result<shared_ptr<RecordBatch>>(status);
   return batch;
 }

@@ -19,6 +19,7 @@
 #include <pulsar/Producer.h>
 
 // Some stuff to shut the default logger in Pulsar up.
+/// A logger that is completely silent.
 class SilentLogger : public pulsar::Logger {
   std::string _logger;
  public:
@@ -37,8 +38,25 @@ class SilentLoggerFactory : public pulsar::LoggerFactory {
   }
 };
 
-auto SetupClientProducer(pulsar::LoggerFactory *logger) -> std::pair<std::shared_ptr<pulsar::Client>,
-                                                              std::shared_ptr<pulsar::Producer>>;
+/**
+ * Set a Pulsar client and producer up.
+ * @param pulsar_url    The Pulsar broker service URL.
+ * @param pulsar_topic  The Pulsar topic to produce message in.
+ * @param logger        A logging device.
+ * @param out           A pair with shared pointers to the client and producer objects.
+ * @return              The Pulsar result of connecting the producer.
+ */
+auto SetupClientProducer(const std::string &pulsar_url,
+                         const std::string &pulsar_topic,
+                         pulsar::LoggerFactory *logger,
+                         std::pair<std::shared_ptr<pulsar::Client>,
+                                   std::shared_ptr<pulsar::Producer>> *out) -> pulsar::Result;
 
+/**
+ * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
+ * @param producer      The Pulsar producer to publish the message through.
+ * @param buffer        The Arrow buffer to publish.
+ * @return              The Pulsar result of sending the message.
+ */
 auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
-                        const std::shared_ptr<arrow::Buffer> &buffer) -> int;
+                        const std::shared_ptr<arrow::Buffer> &buffer) -> pulsar::Result;

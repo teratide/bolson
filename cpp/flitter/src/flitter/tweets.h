@@ -25,7 +25,7 @@ auto ParseRefType(const std::string &s) -> uint8_t;
  * @param doc The rapidjson document.
  * @return The Arrow RecordBatch.
  */
-auto CreateRecordBatch(const rapidjson::Document &doc) -> std::shared_ptr<arrow::RecordBatch>;
+auto CreateRecordBatch(const rapidjson::Document &doc) -> arrow::Result<std::shared_ptr<arrow::RecordBatch>>;
 
 /**
  * @brief A RecordBatchBuilder for Tweets

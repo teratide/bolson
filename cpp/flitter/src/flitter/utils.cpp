@@ -70,14 +70,18 @@ auto LoadFile(const std::string &file_name, size_t num_bytes) -> std::vector<cha
   return buffer;
 }
 
-auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> std::shared_ptr<arrow::Buffer> {
-  auto buffer = arrow::io::BufferOutputStream::Create(GetBatchSize(batch)).ValueOrDie();
-  std::shared_ptr<arrow::ipc::RecordBatchWriter>
-      writer = arrow::ipc::NewStreamWriter(buffer.get(), batch->schema()).ValueOrDie();
-  auto status = writer->WriteRecordBatch(*batch);
-  if (!status.ok()) {
-    throw std::runtime_error("Error writing RecordBatch to file.");
-  }
-  status = writer->Close();
-  return buffer->Finish().ValueOrDie();
+auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> arrow::Result<std::shared_ptr<arrow::Buffer>> {
+  auto buffer = arrow::io::BufferOutputStream::Create(GetBatchSize(batch));
+  if (!buffer.ok()) return arrow::Result<std::shared_ptr<arrow::Buffer>>(buffer.status());
+
+  auto writer = arrow::ipc::NewStreamWriter(buffer.ValueOrDie().get(), batch->schema());
+  if (!writer.ok()) return arrow::Result<std::shared_ptr<arrow::Buffer>>(writer.status());
+
+  auto status = writer.ValueOrDie()->WriteRecordBatch(*batch);
+  if (!status.ok()) return arrow::Result<std::shared_ptr<arrow::Buffer>>(status);
+
+  status = writer.ValueOrDie()->Close();
+  if (!status.ok()) return arrow::Result<std::shared_ptr<arrow::Buffer>>(status);
+
+  return buffer.ValueOrDie()->Finish();
 }

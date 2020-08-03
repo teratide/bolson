@@ -24,26 +24,23 @@
 
 #include "./pulsar.h"
 
-auto SetupClientProducer(pulsar::LoggerFactory *logger) -> std::pair<std::shared_ptr<pulsar::Client>,
-                                                                     std::shared_ptr<pulsar::Producer>> {
+auto SetupClientProducer(const std::string &pulsar_url,
+                         const std::string &pulsar_topic,
+                         pulsar::LoggerFactory *logger,
+                         std::pair<std::shared_ptr<pulsar::Client>,
+                                   std::shared_ptr<pulsar::Producer>> *out) -> pulsar::Result {
   auto config = pulsar::ClientConfiguration();
   config.setLogger(logger);
-  auto client = std::make_shared<pulsar::Client>("pulsar://localhost:6650", config);
+  auto client = std::make_shared<pulsar::Client>(pulsar_url, config);
   auto producer = std::make_shared<pulsar::Producer>();
-  pulsar::Result result = client->createProducer("flitter", *producer);
-  if (result != pulsar::ResultOk) {
-    std::cerr << "Error creating producer: " << result << std::endl;
-    // TODO(johanpel): resolve this madness
-    return {nullptr, nullptr};
-  }
-  return {client, producer};
+  pulsar::Result result = client->createProducer(pulsar_topic, *producer);
+  *out = {client, producer};
+  return result;
 }
 
 auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
-                        const std::shared_ptr<arrow::Buffer> &buffer) -> int {
+                        const std::shared_ptr<arrow::Buffer> &buffer) -> pulsar::Result {
   pulsar::Message msg = pulsar::MessageBuilder().setAllocatedContent(reinterpret_cast<void *>(buffer->mutable_data()),
                                                                      buffer->size()).build();
-  pulsar::Result res = producer->send(msg);
-
-  return 0;
+  return producer->send(msg);
 }
