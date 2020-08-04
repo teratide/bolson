@@ -15,6 +15,8 @@
 #include <iostream>
 
 #include "./tweets.h"
+#include "./timer.h"
+#include "./utils.h"
 
 using std::vector;
 using std::string;
@@ -36,7 +38,7 @@ using arrow::ArrayBuilder;
 using arrow::Status;
 using arrow::Result;
 
-TweetsBuilder::TweetsBuilder(int64_t size_limit) : size_limit_(size_limit) {
+TweetsBuilder::TweetsBuilder() {
   // Set up the schema first.
   // For ID's, Twitter uses string types to not get in trouble with JavaScript, but we can use
   // 64-bit unsigned ints; it should be enough to store those IDs.
@@ -161,7 +163,7 @@ auto ParseRefType(const string &s) -> uint8_t {
   if (s == "quoted") return 1;
   if (s == "replied_to") return 2;
   // TODO(johanpel): improve this:
-  throw std::runtime_error("Unkown referenced_tweet type:" + s);
+  throw std::runtime_error("Unknown referenced_tweet type:" + s);
 }
 
 auto CreateRecordBatches(const rapidjson::Document &doc, size_t max_size) -> Result<vector<shared_ptr<RecordBatch>>> {
@@ -217,4 +219,22 @@ void ReportParserError(const rapidjson::Document &doc, const std::vector<char> &
   std::cerr << "  Around: "
             << std::string_view(&file_buffer[offset < 40UL ? 0 : offset - 40], std::min(40UL, file_buffer.size()))
             << std::endl;
+}
+
+void TweetsBuilder::RunBenchmark(size_t num_records) {
+  Timer t;
+
+  TweetsBuilder b;
+
+  t.start();
+  for (size_t i = 0; i < num_records; i++) {
+    b.Append(0, "2014-02-26T03:45:38.000Z", "anrqvytlbbtdl", 0, 0, {{0, 0}, {0, 0}});
+  }
+  t.stop();
+  shared_ptr<RecordBatch> batch;
+  auto status = b.Finish(&batch);
+
+  auto size = GetBatchSize(batch);
+  ReportGBps("TweetsBuilder throughput", size, t.seconds());
+  std::cout << std::setw(42) << "TweetsBuilder RecordBatch size" << ": " << size << std::endl;
 }

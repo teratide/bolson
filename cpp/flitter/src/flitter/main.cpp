@@ -34,6 +34,18 @@ auto main(int argc, char *argv[]) -> int {
     return opt.return_value;
   }
 
+  // Run microbenchmarks.
+  if (opt.micro_bench.must_run()) {
+    if (opt.micro_bench.tweets_builder) {
+      TweetsBuilder::RunBenchmark(1024 * 1024 * 16);
+    }
+    return AppOptions::success();
+  }
+
+  if (opt.json_file.empty()) {
+    return AppOptions::failure();
+  }
+
   // Setup a Pulsar client and shut the logger up.
   auto pulsar_logger = FlitterLoggerFactory::create();
   // Create Pulsar client and producer objects and attempt to connect to broker.

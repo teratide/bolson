@@ -18,6 +18,13 @@
 
 #pragma once
 
+/// @brief Micro-benchmark options
+struct MicroBenchOptions {
+  bool tweets_builder = false;
+
+  [[nodiscard]] auto must_run() const -> bool { return tweets_builder; }
+};
+
 /// @brief Pulsar options.
 struct PulsarOptions {
   std::string url = "pulsar://localhost:6650/";
@@ -38,4 +45,7 @@ struct AppOptions {
   bool succinct = false;
   bool exit = false;
   int return_value = 0;
+
+  // Micro-benchmarks
+  MicroBenchOptions micro_bench;
 };

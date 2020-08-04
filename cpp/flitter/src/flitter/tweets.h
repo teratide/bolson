@@ -38,7 +38,10 @@ auto CreateRecordBatches(const rapidjson::Document &doc,
  */
 class TweetsBuilder {
  public:
-  explicit TweetsBuilder(int64_t size_limit = -1);
+  TweetsBuilder();
+
+  /// @brief Run a microbenchmark of Tweets builder throughput.
+  static void RunBenchmark(size_t num_records);
 
   static auto schema() -> std::shared_ptr<arrow::Schema>;
 

@@ -30,8 +30,7 @@ with open('single_batch_sweep_result.csv', 'w') as f:
             "Arrow RecordBatches total size (GiB),"
             "Arrow RecordBatch avg. size (B),"
             "Arrow IPC messages total size (GiB),"
-            "Arrow IPC messages avg. size (B),"
-            )
+            "Arrow IPC messages avg. size (B)\n")
     f.flush()
 
     for i in range(0, N):
