@@ -42,14 +42,13 @@ with open('single_batch_sweep_result.csv', 'w') as f:
         subprocess.run([tweetgen,
                         '-s', '42',
                         '-o', json_file,
-                        '-n', str(num_tweets),
-                        '-m', str(5 * 1024 * 1024 - 20 * 1024)])
+                        '-n', str(num_tweets)])
+
+        # Run flitter
+        process = subprocess.run([flitter, '-s', json_file, '-m', str(5 * 1024 * 1024 - 20 * 1024)], stdout=f)
         # Message size is limited to 5 * 1024 * 1024 - 20 * 1024.
         #   Default in Pulsar is 5 * 1024 * 1024 - 10 * 1024, but give some margin for referenced tweets array in a
         #   json tweet object to grow large.
-
-        # Run flitter
-        process = subprocess.run([flitter, '-s', json_file], stdout=f)
 
         # Remove file
         os.remove(json_file)
