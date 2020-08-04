@@ -21,6 +21,7 @@
 #include <pulsar/Producer.h>
 #include <pulsar/Result.h>
 #include <pulsar/Logger.h>
+#include <pulsar/defines.h>
 
 #include "./pulsar.h"
 

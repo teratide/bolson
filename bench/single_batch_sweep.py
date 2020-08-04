@@ -16,18 +16,21 @@ with open('single_batch_sweep_result.csv', 'w') as f:
             "Load JSON (GB/s),"
             "Parse JSON (s),"
             "Parse JSON (GB/s),"
-            "Convert to Arrow (in) (s),"
-            "Convert to Arrow (in) (GB/s),"
-            "Convert to Arrow (out) (s),"
-            "Convert to Arrow (out) (GB/s),"
-            "Write Arrow IPC message (s),"
-            "Write Arrow IPC message (GB/s),"
-            "Publish IPC message in Pulsar (s),"
-            "Publish IPC message in Pulsar (GB/s),"
+            "Convert to Arrow RecordBatches (in) (s),"
+            "Convert to Arrow RecordBatches (in) (GB/s),"
+            "Convert to Arrow RecordBatches (out) (s),"
+            "Convert to Arrow RecordBatches (out) (GB/s),"
+            "Write Arrow IPC messages (s),"
+            "Write Arrow IPC messages (GB/s),"
+            "Publish IPC messages in Pulsar (s),"
+            "Publish IPC messages in Pulsar (GB/s),"
+            "JSON File size (GiB),"
             "Number of tweets,"
-            "JSON File size (B),"
-            "Arrow RecordBatch size (B),"
-            "Arrow IPC message size (B)\n"
+            "Number of RecordBatches,"
+            "Arrow RecordBatches total size (GiB),"
+            "Arrow RecordBatch avg. size (B),"
+            "Arrow IPC messages total size (GiB),"
+            "Arrow IPC messages avg. size (B),"
             )
     f.flush()
 
@@ -36,7 +39,14 @@ with open('single_batch_sweep_result.csv', 'w') as f:
         json_file = 'random_{:08d}.json'.format(num_tweets)
 
         # Run tweetgen
-        subprocess.run([tweetgen, '-s', '42', '-o', json_file, '-n', str(num_tweets)])
+        subprocess.run([tweetgen,
+                        '-s', '42',
+                        '-o', json_file,
+                        '-n', str(num_tweets),
+                        '-m', str(5 * 1024 * 1024 - 20 * 1024)])
+        # Message size is limited to 5 * 1024 * 1024 - 20 * 1024.
+        #   Default in Pulsar is 5 * 1024 * 1024 - 10 * 1024, but give some margin for referenced tweets array in a
+        #   json tweet object to grow large.
 
         # Run flitter
         process = subprocess.run([flitter, '-s', json_file], stdout=f)

@@ -19,8 +19,11 @@ AppOptions::AppOptions(int argc, char **argv) {
 
   // CLI options:
   app.add_option("i,-i,--input", json_file, "Input file with Tweets.")->check(CLI::ExistingFile)->required();
-  app.add_option("-p,--pulsar-url", pulsar.url, "Pulsar broker service URL (default=\"pulsar://localhost:6650/\"");
-  app.add_option("-t,--pulsar-topic", pulsar.topic, "Pulsar topic (default=flitter)");
+  app.add_option("-p,--pulsar-url", pulsar.url, "Pulsar broker service URL (default: pulsar://localhost:6650/");
+  app.add_option("-t,--pulsar-topic", pulsar.topic, "Pulsar topic (default: flitter)");
+  app.add_option("-m,--pulsar-max-message-size",
+                 pulsar.max_message_size,
+                 "Pulsar maximum message size (default: 5 MiB - 10 KiB)");
   app.add_flag("-s,--succinct-stats", succinct, "Prints measurements to stdout on a single line.");
 
   // Attempt to parse the CLI arguments.

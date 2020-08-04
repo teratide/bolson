@@ -22,6 +22,8 @@
 struct PulsarOptions {
   std::string url = "pulsar://localhost:6650/";
   std::string topic = "flitter";
+  // From an obscure place in the Pulsar sources
+  size_t max_message_size = (5 * 1024 * 1024 - (10 * 1024));
 };
 
 /// @brief Application options.

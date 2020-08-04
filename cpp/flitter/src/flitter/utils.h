@@ -26,7 +26,7 @@
 auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData> &array_data) -> int64_t;
 
 /**
- * @brief Return the total size in memory of an Arrow RecordBatch.
+ * @brief Return the total size in memory of the data in an Arrow RecordBatch. Does not include buffer padding.
  * @param batch The RecordBatch to analyze.
  * @return The total size in bytes.
  */
@@ -39,10 +39,9 @@ auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> 
 void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct = false);
 
 /**
- * @brief Read num_bytes from a file and buffer it in memory.
+ * @brief Read num_bytes from a file and buffer it in memory. Appends a C-style string terminator to please rapidjson.
  * @param file_name The file to load.
  * @param num_bytes The number of bytes to read into the buffer.
- * @return The buffer.
+ * @return The buffer, will be size num_bytes + 1 to accommodate the terminator character.
  */
 auto LoadFile(const std::string &file_name, size_t num_bytes) -> std::vector<char>;
-

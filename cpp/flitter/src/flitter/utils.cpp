@@ -62,11 +62,12 @@ void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct) 
 
 auto LoadFile(const std::string &file_name, size_t num_bytes) -> std::vector<char> {
   std::ifstream ifs(file_name, std::ios::binary);
-  std::vector<char> buffer(num_bytes);
+  std::vector<char> buffer(num_bytes + 1);
   if (!ifs.read(buffer.data(), num_bytes)) {
     // TODO(johanpel): don't throw
     throw std::runtime_error("Could not read file " + file_name + " into memory.");
   }
+  buffer[num_bytes] = '\0';
   return buffer;
 }
 

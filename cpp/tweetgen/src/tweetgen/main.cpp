@@ -78,7 +78,7 @@ inline auto GetRandomDate(std::mt19937_64 *engine) -> string {
  */
 inline auto GetRandomText(std::mt19937_64 *engine, int mean, int dev) -> string {
   std::normal_distribution<float> len_dist(mean, dev);
-  std::uniform_int_distribution<> chars_dist('0', 'Z');
+  std::uniform_int_distribution<> chars_dist('a', 'z');
   // Generate a random length, but clip between 1 and maximum tweet length.
   string result(std::max(1, std::min(static_cast<int>(len_dist(*engine)), TWEET_LENGTH_MAX)), ' ');
   for (char &c : result) {
@@ -110,7 +110,8 @@ inline auto GetRandomTwitterID(std::mt19937_64 *engine) -> string {
  */
 auto GenerateTweets(int seed, size_t num_tweets, size_t max_refs, int len_mean, int len_stdev) -> Document {
   std::mt19937_64 gen(seed);
-  Document doc(rapidjson::kArrayType);
+  Document doc(rapidjson::kObjectType);
+  Value tweet_array(rapidjson::kArrayType);
   auto &a = doc.GetAllocator();
 
   for (int i = 0; i < num_tweets; i++) {
@@ -160,8 +161,10 @@ auto GenerateTweets(int seed, size_t num_tweets, size_t max_refs, int len_mean, 
     tweet.AddMember("data", data, a);
     tweet.AddMember("format", format, a);
 
-    doc.PushBack(tweet, a);
+    tweet_array.PushBack(tweet, a);
   }
+
+  doc.AddMember("tweets", tweet_array, a);
 
   return doc;
 }

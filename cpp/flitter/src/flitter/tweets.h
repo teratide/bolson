@@ -16,23 +16,29 @@
 
 #include <arrow/api.h>
 #include <rapidjson/document.h>
+#include <rapidjson/error/en.h>
+
+/// @brief Report errors when parsing a JSON document from a file buffer to stderr.
+void ReportParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer);
 
 /// @brief Parse a referenced tweet type.
 auto ParseRefType(const std::string &s) -> uint8_t;
 
 /**
  * @brief Convert a parsed JSON document with tweets into an Arrow RecordBatch
- * @param doc The rapidjson document.
+ * @param doc       The rapidjson document.
+ * @param max_size  The maximum size of the resulting RecordBatch
  * @return The Arrow RecordBatch.
  */
-auto CreateRecordBatch(const rapidjson::Document &doc) -> arrow::Result<std::shared_ptr<arrow::RecordBatch>>;
+auto CreateRecordBatches(const rapidjson::Document &doc,
+                         size_t max_size) -> arrow::Result<std::vector<std::shared_ptr<arrow::RecordBatch>>>;
 
 /**
  * @brief A RecordBatchBuilder for Tweets
  */
 class TweetsBuilder {
  public:
-  TweetsBuilder();
+  explicit TweetsBuilder(int64_t size_limit = -1);
 
   static auto schema() -> std::shared_ptr<arrow::Schema>;
 
@@ -45,8 +51,12 @@ class TweetsBuilder {
 
   auto Finish(std::shared_ptr<arrow::RecordBatch> *batch) -> arrow::Status;
 
+  auto size() -> int64_t;
+
+  [[nodiscard]] auto rows() const -> int64_t { return num_rows_; }
+
  private:
-  std::shared_ptr<arrow::UInt8Builder> id_;
+  std::shared_ptr<arrow::UInt64Builder> id_;
   std::shared_ptr<arrow::StringBuilder> created_at_;
   std::shared_ptr<arrow::StringBuilder> text_;
   std::shared_ptr<arrow::UInt64Builder> author_id_;
@@ -56,6 +66,9 @@ class TweetsBuilder {
   std::shared_ptr<arrow::StructBuilder> ref_tweets_struct_;
   std::shared_ptr<arrow::ListBuilder> ref_tweets_;
   std::shared_ptr<arrow::Schema> schema_;
+
+  int64_t num_rows_ = 0;
+  int64_t size_limit_ = -1;
 
   static auto rt_fields() -> std::vector<std::shared_ptr<arrow::Field>>;
   static auto rt_struct() -> std::shared_ptr<arrow::DataType>;

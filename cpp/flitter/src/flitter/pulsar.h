@@ -18,23 +18,26 @@
 #include <pulsar/Client.h>
 #include <pulsar/Producer.h>
 
-// Some stuff to shut the default logger in Pulsar up.
-/// A logger that is completely silent.
-class SilentLogger : public pulsar::Logger {
+#include <memory>
+
+// A custom logger for Pulsar.
+class FlitterLogger : public pulsar::Logger {
   std::string _logger;
  public:
-  explicit SilentLogger(std::string logger) : _logger(std::move(logger)) {}
-  auto isEnabled(Level level) -> bool override { return false; }
-  void log(Level level, int line, const std::string &message) override {}
+  explicit FlitterLogger(std::string logger) : _logger(std::move(logger)) {}
+  auto isEnabled(Level level) -> bool override { return level >= Level::LEVEL_WARN; }
+  void log(Level level, int line, const std::string &message) override {
+    std::cerr << "" << message << std::endl;
+  }
 };
 
-class SilentLoggerFactory : public pulsar::LoggerFactory {
+class FlitterLoggerFactory : public pulsar::LoggerFactory {
  public:
   auto getLogger(const std::string &fileName) -> pulsar::Logger * override {
-    return new SilentLogger(fileName);
+    return new FlitterLogger(fileName);
   }
-  static auto create() -> std::unique_ptr<LoggerFactory> {
-    return std::unique_ptr<LoggerFactory>(new SilentLoggerFactory());
+  static auto create() -> std::unique_ptr<FlitterLoggerFactory> {
+    return std::make_unique<FlitterLoggerFactory>();
   }
 };
 

@@ -15,6 +15,7 @@
 #include <iostream>
 #include <filesystem>
 #include <iomanip>
+#include <algorithm>
 
 #include <rapidjson/error/en.h>
 
@@ -33,6 +34,18 @@ auto main(int argc, char *argv[]) -> int {
     return opt.return_value;
   }
 
+  // Setup a Pulsar client and shut the logger up.
+  auto pulsar_logger = FlitterLoggerFactory::create();
+  // Create Pulsar client and producer objects and attempt to connect to broker.
+  std::pair<std::shared_ptr<pulsar::Client>, std::shared_ptr<pulsar::Producer>> client_producer;
+  pulsar::Result pulsar_result = SetupClientProducer(opt.pulsar.url, opt.pulsar.topic,
+                                                     pulsar_logger.get(), &client_producer);
+  // Check for errors.
+  if (pulsar_result != pulsar::ResultOk) {
+    std::cerr << "Could not set up Pulsar client/producer: " << pulsar::strResult(pulsar_result) << std::endl;
+    return AppOptions::failure();
+  }
+
   Timer timer;
 
   // Obtain the file size
@@ -49,87 +62,96 @@ auto main(int argc, char *argv[]) -> int {
   timer.start();
   rapidjson::Document doc;
   doc.ParseInsitu(file_buffer.data());
+  // Check for errors.
   if (doc.HasParseError()) {
-    auto code = doc.GetParseError();
-    auto offset = doc.GetErrorOffset();
-    std::cerr << "Could not parse JSON file: " << rapidjson::GetParseError_En(code) << " Offset: " << offset
-              << std::endl;
+    std::cerr << "Could not parse JSON file: " << opt.json_file << std::endl;
+    ReportParserError(doc, file_buffer);
+    return AppOptions::failure();
   }
   timer.stop();
   ReportGBps("Parse JSON file (rapidjson)", json_file_size, timer.seconds(), opt.succinct);
 
-  // Convert to Arrow RecordBatch.
+  // Convert to Arrow RecordBatches.
   timer.start();
-  auto batch = CreateRecordBatch(doc);
+  auto batches = CreateRecordBatches(doc, opt.pulsar.max_message_size);
   timer.stop();
-
   // Check for errors.
-  if (!batch.ok()) {
-    std::cerr << "Could not create RecordBatch: " << batch.status().CodeAsString() << std::endl;
+  if (!batches.ok()) {
+    std::cerr << "Could not create RecordBatch: " << batches.status().CodeAsString() << std::endl;
     return AppOptions::failure();
   }
 
-  // Extract properties.
-  auto num_rows = batch.ValueOrDie()->num_rows();
-  auto batch_size = GetBatchSize(batch.ValueOrDie());
+  // Extract properties and statistics.
+  auto num_batches = batches.ValueOrDie().size();
+  size_t batches_total_size = 0;
+  size_t num_tweets = 0;
+  for (const auto &batch : batches.ValueOrDie()) {
+    num_tweets += batch->num_rows();
+    batches_total_size += GetBatchSize(batch);
+  }
+  auto batches_avg_rows = static_cast<double>(num_tweets) / num_batches;
+  auto batches_avg_size = static_cast<double>(batches_total_size) / num_batches;
 
   ReportGBps("Convert to Arrow RecordBatch (input)", json_file_size, timer.seconds(), opt.succinct);
-  ReportGBps("Convert to Arrow RecordBatch (output)", batch_size, timer.seconds(), opt.succinct);
+  ReportGBps("Convert to Arrow RecordBatch (output)", batches_total_size, timer.seconds(), opt.succinct);
 
-  // Write as IPC message into a buffer.
+  // Write every batch as IPC message.
   timer.start();
-  auto ipc_buffer = WriteIPCMessageBuffer(batch.ValueOrDie());
+  size_t ipc_total_size = 0;
+  std::vector<std::shared_ptr<arrow::Buffer>> ipc_buffers;
+  for (const auto &batch : batches.ValueOrDie()) {
+    // Write into buffer
+    auto ipc_buffer = WriteIPCMessageBuffer(batch);
+    // Check for errors.
+    if (!ipc_buffer.ok()) {
+      std::cerr << "Could not write Arrow IPC message: " << ipc_buffer.status().CodeAsString() << std::endl;
+      return AppOptions::failure();
+    }
+    ipc_total_size += ipc_buffer.ValueOrDie()->size();
+    ipc_buffers.push_back(ipc_buffer.ValueOrDie());
+  }
   timer.stop();
 
-  // Check for errors.
-  if (!ipc_buffer.ok()) {
-    std::cerr << "Could not write Arrow IPC message: " << ipc_buffer.status().CodeAsString() << std::endl;
-    return AppOptions::failure();
-  }
-
   // Extract properties.
-  auto ipc_size = ipc_buffer.ValueOrDie()->size();
-  ReportGBps("Write into Arrow IPC message buffer: ", ipc_size, timer.seconds(), opt.succinct);
-
-  // Setup a Pulsar client and shut the logger up.
-  auto pulsar_logger = SilentLoggerFactory::create();
-
-  // Create Pulsar client and producer objects and attempt to connect to broker.
-  std::pair<std::shared_ptr<pulsar::Client>, std::shared_ptr<pulsar::Producer>> client_producer;
-  pulsar::Result pulsar_result = SetupClientProducer(opt.pulsar.url, opt.pulsar.topic,
-                                                     pulsar_logger.get(), &client_producer);
-  // Check for errors.
-  if (pulsar_result != pulsar::ResultOk) {
-    std::cerr << "Could not set up Pulsar client/producer: " << pulsar::strResult(pulsar_result) << std::endl;
-    return AppOptions::failure();
-  }
+  auto ipc_avg_size = static_cast<double>(ipc_total_size) / num_batches;
+  ReportGBps("Write into Arrow IPC message buffer: ", ipc_total_size, timer.seconds(), opt.succinct);
 
   // Publish the buffer in Pulsar:
   timer.start();
-  pulsar_result = PublishArrowBuffer(client_producer.second, ipc_buffer.ValueOrDie());
+  for (const auto &ipc_buffer : ipc_buffers) {
+    pulsar_result = PublishArrowBuffer(client_producer.second, ipc_buffer);
+  }
   timer.stop();
   // Check for errors.
   if (pulsar_result != pulsar::ResultOk) {
-    std::cerr << "Could publish Arrow buffer with Pulsar producer: " << pulsar::strResult(pulsar_result) << std::endl;
+    std::cerr << "Could not publish Arrow buffer with Pulsar producer: "
+              << pulsar::strResult(pulsar_result)
+              << std::endl;
     return AppOptions::failure();
   }
-  ReportGBps("Publish IPC message in Pulsar: ", ipc_size, timer.seconds(), opt.succinct);
+  ReportGBps("Publish IPC message in Pulsar: ", ipc_total_size, timer.seconds(), opt.succinct);
 
   // Report some additional properties:
-  double ipc_size_GiB = static_cast<double>(ipc_size) / std::pow(2.0, 30);
-  double batch_size_GiB = static_cast<double>(batch_size) / std::pow(2.0, 30);
+  double ipc_total_size_GiB = static_cast<double>(ipc_total_size) / std::pow(2.0, 30);
+  double batches_total_size_GiB = static_cast<double>(batches_total_size) / std::pow(2.0, 30);
   double json_file_size_GiB = static_cast<double>(json_file_size) / std::pow(2.0, 30);
 
   if (opt.succinct) {
-    std::cout << num_rows << ", ";
     std::cout << json_file_size << ", ";
-    std::cout << batch_size << ", ";
-    std::cout << ipc_size << std::endl;
+    std::cout << num_tweets << ", ";
+    std::cout << num_batches << ", ";
+    std::cout << batches_total_size << ", ";
+    std::cout << batches_avg_size << ", ";
+    std::cout << ipc_total_size << ", ";
+    std::cout << ipc_avg_size << std::endl;
   } else {
-    std::cout << std::setw(42) << "Number of tweets" << ": " << num_rows << std::endl;
     std::cout << std::setw(42) << "JSON File size (GiB)" << ": " << json_file_size_GiB << std::endl;
-    std::cout << std::setw(42) << "Arrow RecordBatch size (GiB)" << ": " << batch_size_GiB << std::endl;
-    std::cout << std::setw(42) << "Arrow IPC message size (GiB)" << ": " << ipc_size_GiB << std::endl;
+    std::cout << std::setw(42) << "Number of tweets" << ": " << num_tweets << std::endl;
+    std::cout << std::setw(42) << "Number of RecordBatches" << ": " << num_batches << std::endl;
+    std::cout << std::setw(42) << "Arrow RecordBatches total size (GiB)" << ": " << batches_total_size_GiB << std::endl;
+    std::cout << std::setw(42) << "Arrow RecordBatch avg. size (B)" << ": " << batches_avg_size << std::endl;
+    std::cout << std::setw(42) << "Arrow IPC messages total size (GiB)" << ": " << ipc_total_size_GiB << std::endl;
+    std::cout << std::setw(42) << "Arrow IPC messages avg. size (B)" << ": " << ipc_avg_size << std::endl;
   }
 
   return AppOptions::success();
