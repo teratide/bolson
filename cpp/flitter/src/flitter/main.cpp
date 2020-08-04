@@ -34,18 +34,14 @@ auto main(int argc, char *argv[]) -> int {
     return opt.return_value;
   }
 
-  // Run microbenchmarks.
+  // Run micro-benchmarks.
   if (opt.micro_bench.must_run()) {
     if (opt.micro_bench.tweets_builder) {
       TweetsBuilder::RunBenchmark(1024 * 1024 * 16);
     }
     return AppOptions::success();
   }
-
-  if (opt.json_file.empty()) {
-    return AppOptions::failure();
-  }
-
+  
   // Setup a Pulsar client and shut the logger up.
   auto pulsar_logger = FlitterLoggerFactory::create();
   // Create Pulsar client and producer objects and attempt to connect to broker.
@@ -144,9 +140,6 @@ auto main(int argc, char *argv[]) -> int {
   ReportGBps("Publish IPC message in Pulsar: ", ipc_total_size, timer.seconds(), opt.succinct);
 
   // Report some additional properties:
-  double ipc_total_size_GiB = static_cast<double>(ipc_total_size) / std::pow(2.0, 30);
-  double batches_total_size_GiB = static_cast<double>(batches_total_size) / std::pow(2.0, 30);
-  double json_file_size_GiB = static_cast<double>(json_file_size) / std::pow(2.0, 30);
 
   if (opt.succinct) {
     std::cout << json_file_size << ", ";
@@ -157,12 +150,12 @@ auto main(int argc, char *argv[]) -> int {
     std::cout << ipc_total_size << ", ";
     std::cout << ipc_avg_size << std::endl;
   } else {
-    std::cout << std::setw(42) << "JSON File size (GiB)" << ": " << json_file_size_GiB << std::endl;
+    std::cout << std::setw(42) << "JSON File size (B)" << ": " << json_file_size << std::endl;
     std::cout << std::setw(42) << "Number of tweets" << ": " << num_tweets << std::endl;
     std::cout << std::setw(42) << "Number of RecordBatches" << ": " << num_batches << std::endl;
-    std::cout << std::setw(42) << "Arrow RecordBatches total size (GiB)" << ": " << batches_total_size_GiB << std::endl;
+    std::cout << std::setw(42) << "Arrow RecordBatches total size (B)" << ": " << batches_total_size << std::endl;
     std::cout << std::setw(42) << "Arrow RecordBatch avg. size (B)" << ": " << batches_avg_size << std::endl;
-    std::cout << std::setw(42) << "Arrow IPC messages total size (GiB)" << ": " << ipc_total_size_GiB << std::endl;
+    std::cout << std::setw(42) << "Arrow IPC messages total size (B)" << ": " << ipc_total_size << std::endl;
     std::cout << std::setw(42) << "Arrow IPC messages avg. size (B)" << ": " << ipc_avg_size << std::endl;
   }
 

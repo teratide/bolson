@@ -12,7 +12,7 @@ markers = ['o', 's', 'd', 'v', '^', '<', '>']
 
 def plot_throughput():
     df = pd.read_csv("single_batch_sweep_result.csv")
-    x = df['Arrow IPC messages total size (GiB)']
+    x = df['Arrow IPC messages total size (B)']
     y = df[['Load JSON (GB/s)', 'Parse JSON (GB/s)',
             'Convert to Arrow RecordBatches (in) (GB/s)', 'Convert to Arrow RecordBatches (out) (GB/s)',
             'Write Arrow IPC messages (GB/s)', 'Publish IPC messages in Pulsar (GB/s)']]
@@ -29,7 +29,8 @@ def plot_throughput():
 
     ax.set_xlabel(x.name)
     ax.set_xscale('log', base=2)
-    ax.set_xticks([2 ** n for n in range(8, math.ceil(math.log2(x.max()) / 2 + 1) * 2, 2)])
+    ax.set_xticks([2 ** n for n in
+                   range(math.ceil(math.log2(x.min()) / 2 - 1) * 2, math.ceil(math.log2(x.max()) / 2 + 1) * 2, 2)])
 
     ax.set_ylabel('GB/s')
     ax.set_ylim([-0.1, 1.1 * y.max().max()])
@@ -56,7 +57,7 @@ def plot_throughput():
 
 def plot_latency():
     df = pd.read_csv("single_batch_sweep_result.csv")
-    x = df['Arrow IPC messages total size (GiB)']
+    x = df['Arrow IPC messages total size (B)']
     y = df[['Load JSON (s)', 'Parse JSON (s)', 'Convert to Arrow RecordBatches (in) (s)',
             'Convert to Arrow RecordBatches (out) (s)',
             'Write Arrow IPC messages (s)', 'Publish IPC messages in Pulsar (s)']]
@@ -72,6 +73,7 @@ def plot_latency():
         i = i + 1
 
     fig.savefig("single_batch_sweep_latency.png")
+
 
 plot_throughput()
 plot_latency()
