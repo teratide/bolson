@@ -21,9 +21,6 @@
 /// @brief Report errors when parsing a JSON document from a file buffer to stderr.
 void ReportParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer);
 
-/// @brief Parse a referenced tweet type.
-auto ParseRefType(const std::string &s) -> uint8_t;
-
 /**
  * @brief Convert a parsed JSON document with tweets into an Arrow RecordBatch
  * @param doc       The rapidjson document.
@@ -33,32 +30,55 @@ auto ParseRefType(const std::string &s) -> uint8_t;
 auto CreateRecordBatches(const rapidjson::Document &doc,
                          size_t max_size) -> arrow::Result<std::vector<std::shared_ptr<arrow::RecordBatch>>>;
 
+struct ReferencedTweet {
+  ReferencedTweet() = default;
+  ReferencedTweet(uint8_t type, uint64_t id) : type(type), id(id) {}
+  static const size_t max_referenced = 32;
+  uint8_t type;
+  uint64_t id;
+};
+
 /**
- * @brief A RecordBatchBuilder for Tweets
+ * @brief A RecordBatch builder for tweets
  */
 class TweetsBuilder {
  public:
-  TweetsBuilder();
+  /**
+   * @brief Construct a RecordBatch builder for tweets.
+   * @param tweets_reserve              The number of tweets to reserve in builders.
+   * @param text_reserve                The number of characters to reserve for text.
+   * @param referenced_tweets_reserve   The number of referenced tweets to reserve.
+   */
+  explicit TweetsBuilder(int64_t tweets_reserve = 1, int64_t text_reserve = 50, int64_t referenced_tweets_reserve = 4);
 
   /// @brief Run a microbenchmark of Tweets builder throughput.
   static void RunBenchmark(size_t num_records);
 
+  /// @brief Return the Arrow schema of the Tweets RecordBatch.
   static auto schema() -> std::shared_ptr<arrow::Schema>;
 
+  /// @brief Append a tweet to the RecordBatch.
   auto Append(uint64_t id,
-              const std::string &created_at,
-              const std::string &text,
+              const std::string_view &created_at,
+              const std::string_view &text,
               uint64_t author_id,
               uint64_t in_reply_to_user_id,
-              const std::vector<std::pair<uint8_t, uint64_t>> &referenced_tweets) -> arrow::Status;
+              const std::vector<ReferencedTweet> &referenced_tweets) -> arrow::Status;
 
+  /// @brief Finalize the builder and obtain the resulting RecordBatch.
   auto Finish(std::shared_ptr<arrow::RecordBatch> *batch) -> arrow::Status;
 
-  auto size() -> int64_t;
+  /// @brief Reset the builder. This should retain allocated space.
+  void Reset();
 
+  /// @brief Return the total in-memory size of all values currently held by the builders.
+  [[nodiscard]] auto size() const -> int64_t;
+
+  /// @brief Return the number of rows.
   [[nodiscard]] auto rows() const -> int64_t { return num_rows_; }
 
  private:
+  // Builders for every column and their children
   std::shared_ptr<arrow::UInt64Builder> id_;
   std::shared_ptr<arrow::StringBuilder> created_at_;
   std::shared_ptr<arrow::StringBuilder> text_;
@@ -73,6 +93,7 @@ class TweetsBuilder {
   int64_t num_rows_ = 0;
   int64_t size_limit_ = -1;
 
+  // Helper functions to construct the schema
   static auto rt_fields() -> std::vector<std::shared_ptr<arrow::Field>>;
   static auto rt_struct() -> std::shared_ptr<arrow::DataType>;
 };
