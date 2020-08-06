@@ -117,6 +117,7 @@ void TweetsBuilder::Reset() {
   ref_tweets_id_->Reset();
   ref_tweets_struct_->Reset();
   ref_tweets_->Reset();
+  num_rows_ = 0;
 }
 
 auto TweetsBuilder::rt_fields() -> vector<shared_ptr<Field>> {
@@ -199,6 +200,8 @@ auto CreateRecordBatches(const rapidjson::Document &doc, size_t max_size) -> Res
   // Set up Arrow RecordBatch builder for tweets:
   vector<shared_ptr<RecordBatch>> batches;
   const auto &tweets = doc["tweets"].GetArray();
+
+  size_t num_tweets = tweets.Size();
   size_t tweet_idx = 0;
 
   // Pre-allocate a buffer to hold referenced tweets.
@@ -210,10 +213,10 @@ auto CreateRecordBatches(const rapidjson::Document &doc, size_t max_size) -> Res
   TweetsBuilder t;
 
   // Keep going until we have put all Tweets in batches.
-  while (tweet_idx < tweets.Size()) {
+  while (tweet_idx < num_tweets) {
 
     // Keep adding tweets to this batch, until it runs over the maximum size or there are no tweets left.
-    while ((t.size() < max_size) && (tweet_idx < tweets.Size())) {
+    while ((t.size() < max_size) && (tweet_idx < num_tweets)) {
       const auto &tweet = tweets[tweet_idx]["data"];  // Get a ref to the tweet.
       auto iter = tweet.MemberBegin();  // Create an iterator over all tweet data members.
 
