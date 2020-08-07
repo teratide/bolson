@@ -12,34 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <CLI/CLI.hpp>
-
-#include "./pulsar.h"
-#include "./file.h"
-#include "./stream.h"
-#include "./bench.h"
-
 #pragma once
+
+#include <flitter/protocol.h>
 
 namespace flitter {
 
-/// @brief Application options.
-struct AppOptions {
-  AppOptions(int argc, char *argv[]);
+struct StreamOptions {
+  std::string host = "localhost";
 
-  static auto failure() -> int { return -1; };
-  static auto success() -> int { return 0; };
-
-  enum class SubCommand { FILE, STREAM, BENCH } sub;
-
-  MicroBenchOptions bench;
-  FileOptions file;
-  StreamOptions stream;
-
-  bool succinct = false;
-  bool exit = false;
-  int return_value = 0;
+  StreamProtocol protocol;
 };
+
+auto StreamClient(const StreamOptions &opts) -> int;
 
 }  // namespace flitter

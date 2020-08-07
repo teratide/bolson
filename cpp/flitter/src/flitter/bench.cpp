@@ -12,34 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <CLI/CLI.hpp>
-
-#include "./pulsar.h"
-#include "./file.h"
-#include "./stream.h"
 #include "./bench.h"
-
-#pragma once
+#include "./tweets.h"
 
 namespace flitter {
 
-/// @brief Application options.
-struct AppOptions {
-  AppOptions(int argc, char *argv[]);
+auto RunMicroBenchmarks(const MicroBenchOptions &opts) -> int {
+  if (opts.tweets_builder) {
+    TweetsBuilder::RunBenchmark(1024 * 1024 * 16);
+  }
 
-  static auto failure() -> int { return -1; };
-  static auto success() -> int { return 0; };
-
-  enum class SubCommand { FILE, STREAM, BENCH } sub;
-
-  MicroBenchOptions bench;
-  FileOptions file;
-  StreamOptions stream;
-
-  bool succinct = false;
-  bool exit = false;
-  int return_value = 0;
-};
+  return 0;
+}
 
 }  // namespace flitter

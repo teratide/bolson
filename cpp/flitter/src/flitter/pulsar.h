@@ -14,11 +14,22 @@
 
 #pragma once
 
+#include <spdlog/spdlog.h>
 #include <arrow/api.h>
 #include <pulsar/Client.h>
 #include <pulsar/Producer.h>
 
 #include <memory>
+
+namespace flitter {
+
+/// @brief Pulsar options.
+struct PulsarOptions {
+  std::string url = "pulsar://localhost:6650/";
+  std::string topic = "flitter";
+  // From an obscure place in the Pulsar sources
+  size_t max_msg_size = (5 * 1024 * 1024 - (10 * 1024));
+};
 
 // A custom logger for Pulsar.
 class FlitterLogger : public pulsar::Logger {
@@ -27,7 +38,11 @@ class FlitterLogger : public pulsar::Logger {
   explicit FlitterLogger(std::string logger) : _logger(std::move(logger)) {}
   auto isEnabled(Level level) -> bool override { return level >= Level::LEVEL_WARN; }
   void log(Level level, int line, const std::string &message) override {
-    std::cerr << "" << message << std::endl;
+    if (level == Level::LEVEL_WARN) {
+      spdlog::warn("[pulsar] {}", message);
+    } else {
+      spdlog::error("[pulsar] {}", message);
+    }
   }
 };
 
@@ -43,14 +58,14 @@ class FlitterLoggerFactory : public pulsar::LoggerFactory {
 
 /**
  * Set a Pulsar client and producer up.
- * @param pulsar_url    The Pulsar broker service URL.
- * @param pulsar_topic  The Pulsar topic to produce message in.
+ * @param url    The Pulsar broker service URL.
+ * @param topic  The Pulsar topic to produce message in.
  * @param logger        A logging device.
  * @param out           A pair with shared pointers to the client and producer objects.
  * @return              The Pulsar result of connecting the producer.
  */
-auto SetupClientProducer(const std::string &pulsar_url,
-                         const std::string &pulsar_topic,
+auto SetupClientProducer(const std::string &url,
+                         const std::string &topic,
                          pulsar::LoggerFactory *logger,
                          std::pair<std::shared_ptr<pulsar::Client>,
                                    std::shared_ptr<pulsar::Producer>> *out) -> pulsar::Result;
@@ -63,3 +78,6 @@ auto SetupClientProducer(const std::string &pulsar_url,
  */
 auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
                         const std::shared_ptr<arrow::Buffer> &buffer) -> pulsar::Result;
+
+
+}  // namespace flitter

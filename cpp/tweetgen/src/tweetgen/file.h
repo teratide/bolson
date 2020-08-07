@@ -12,34 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <CLI/CLI.hpp>
-
-#include "./pulsar.h"
-#include "./file.h"
-#include "./stream.h"
-#include "./bench.h"
-
 #pragma once
 
-namespace flitter {
+#include <string>
 
-/// @brief Application options.
-struct AppOptions {
-  AppOptions(int argc, char *argv[]);
+#include "./generate.h"
 
-  static auto failure() -> int { return -1; };
-  static auto success() -> int { return 0; };
+namespace tweetgen {
 
-  enum class SubCommand { FILE, STREAM, BENCH } sub;
-
-  MicroBenchOptions bench;
-  FileOptions file;
-  StreamOptions stream;
-
-  bool succinct = false;
-  bool exit = false;
-  int return_value = 0;
+struct FileOptions {
+  GenerateOptions gen;
+  std::string output;
+  bool verbose = false;
 };
 
-}  // namespace flitter
+auto GenerateFile(const FileOptions &opt) -> int;
+
+}  // namespace tweetgen

@@ -13,9 +13,7 @@
 // limitations under the License.
 
 #include <utility>
-
 #include <arrow/api.h>
-
 #include <pulsar/Client.h>
 #include <pulsar/ClientConfiguration.h>
 #include <pulsar/Producer.h>
@@ -25,16 +23,18 @@
 
 #include "./pulsar.h"
 
-auto SetupClientProducer(const std::string &pulsar_url,
-                         const std::string &pulsar_topic,
+namespace flitter {
+
+auto SetupClientProducer(const std::string &url,
+                         const std::string &topic,
                          pulsar::LoggerFactory *logger,
                          std::pair<std::shared_ptr<pulsar::Client>,
                                    std::shared_ptr<pulsar::Producer>> *out) -> pulsar::Result {
   auto config = pulsar::ClientConfiguration();
   config.setLogger(logger);
-  auto client = std::make_shared<pulsar::Client>(pulsar_url, config);
+  auto client = std::make_shared<pulsar::Client>(url, config);
   auto producer = std::make_shared<pulsar::Producer>();
-  pulsar::Result result = client->createProducer(pulsar_topic, *producer);
+  pulsar::Result result = client->createProducer(topic, *producer);
   *out = {client, producer};
   return result;
 }
@@ -45,3 +45,5 @@ auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
                                                                      buffer->size()).build();
   return producer->send(msg);
 }
+
+}  // namespace flitter

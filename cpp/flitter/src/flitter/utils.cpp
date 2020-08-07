@@ -16,11 +16,14 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-
 #include <arrow/ipc/api.h>
 #include <arrow/io/api.h>
+#include <rapidjson/document.h>
+#include <rapidjson/error/en.h>
 
 #include "./utils.h"
+
+namespace flitter {
 
 auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData> &array_data) -> int64_t {
   int64_t result = 0;
@@ -86,3 +89,17 @@ auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> 
 
   return buffer.ValueOrDie()->Finish();
 }
+
+void ReportParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer) {
+  auto code = doc.GetParseError();
+  auto offset = doc.GetErrorOffset();
+  std::cerr << "  Parser error: " << rapidjson::GetParseError_En(code) << std::endl;
+  std::cerr << "  Offset: " << offset << std::endl;
+  std::cerr << "  Character: " << file_buffer[offset] << " / 0x"
+            << std::hex << static_cast<uint8_t>(file_buffer[offset]) << std::endl;
+  std::cerr << "  Around: "
+            << std::string_view(&file_buffer[offset < 40UL ? 0 : offset - 40], std::min(40UL, file_buffer.size()))
+            << std::endl;
+}
+
+}  // namespace flitter

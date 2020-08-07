@@ -14,12 +14,15 @@
 
 #pragma once
 
+#include <sstream>
 #include <arrow/api.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 
-/// @brief Report errors when parsing a JSON document from a file buffer to stderr.
-void ReportParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer);
+namespace flitter {
+
+/// Length of a date string in ISO 8601
+#define DATE_LENGTH 24
 
 /**
  * @brief Convert a parsed JSON document with tweets into an Arrow RecordBatch
@@ -30,12 +33,40 @@ void ReportParserError(const rapidjson::Document &doc, const std::vector<char> &
 auto CreateRecordBatches(const rapidjson::Document &doc,
                          size_t max_size) -> arrow::Result<std::vector<std::shared_ptr<arrow::RecordBatch>>>;
 
+/// @brief Parse a reference type. Since all types have different string lengths, this only needs the string length.
+inline auto ParseRefType(size_t l) -> uint8_t {
+  if (l == sizeof("retweeted") - 1) return 0;
+  if (l == sizeof("quoted") - 1) return 1;
+  if (l == sizeof("replied_to") - 1) return 2;
+  // TODO(johanpel): improve this:
+  throw std::runtime_error("Unknown referenced_tweet type string length.");
+}
+
 struct ReferencedTweet {
   ReferencedTweet() = default;
   ReferencedTweet(uint8_t type, uint64_t id) : type(type), id(id) {}
   static const size_t max_referenced = 32;
   uint8_t type;
   uint64_t id;
+};
+
+struct Tweet {
+  uint64_t id;
+  std::string_view created_at;
+  std::string_view text;
+  uint64_t author_id;
+  uint64_t in_reply_to_user_id;
+  std::vector<ReferencedTweet> referenced_tweets;
+
+  auto ToString() -> std::string;
+};
+
+auto ParseTweet(const rapidjson::GenericValue<rapidjson::UTF8<>> &json_tweet, Tweet *out) -> void;
+
+struct ReservationSpec {
+  int64_t tweets = 16;
+  int64_t text = 280;
+  int64_t refs = 16;
 };
 
 /**
@@ -49,7 +80,7 @@ class TweetsBuilder {
    * @param text_reserve                The number of characters to reserve for text.
    * @param referenced_tweets_reserve   The number of referenced tweets to reserve.
    */
-  explicit TweetsBuilder(int64_t tweets_reserve = 1, int64_t text_reserve = 50, int64_t referenced_tweets_reserve = 4);
+  explicit TweetsBuilder(const ReservationSpec &reservations = ReservationSpec());
 
   /// @brief Run a microbenchmark of Tweets builder throughput.
   static void RunBenchmark(size_t num_records);
@@ -58,12 +89,7 @@ class TweetsBuilder {
   static auto schema() -> std::shared_ptr<arrow::Schema>;
 
   /// @brief Append a tweet to the RecordBatch.
-  auto Append(uint64_t id,
-              const std::string_view &created_at,
-              const std::string_view &text,
-              uint64_t author_id,
-              uint64_t in_reply_to_user_id,
-              const std::vector<ReferencedTweet> &referenced_tweets) -> arrow::Status;
+  auto Append(const Tweet &tweet) -> arrow::Status;
 
   /// @brief Finalize the builder and obtain the resulting RecordBatch.
   auto Finish(std::shared_ptr<arrow::RecordBatch> *batch) -> arrow::Status;
@@ -97,3 +123,5 @@ class TweetsBuilder {
   static auto rt_fields() -> std::vector<std::shared_ptr<arrow::Field>>;
   static auto rt_struct() -> std::shared_ptr<arrow::DataType>;
 };
+
+}  // namespace flitter
