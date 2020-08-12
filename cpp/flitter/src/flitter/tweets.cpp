@@ -15,7 +15,7 @@
 #include <iostream>
 
 #include "./tweets.h"
-#include "./timer.h"
+#include "./utils.h"
 #include "./utils.h"
 
 using std::vector;
@@ -39,10 +39,9 @@ using arrow::ArrayBuilder;
 using arrow::Status;
 using arrow::Result;
 
-/// Length of a date string in ISO 8601
-#define DATE_LENGTH 24
+namespace flitter {
 
-TweetsBuilder::TweetsBuilder(int64_t tweets_reserve, int64_t text_reserve, int64_t referenced_tweets_reserve) {
+TweetsBuilder::TweetsBuilder(const ReservationSpec &spec) {
   // Set up the schema first.
   // For ID's, Twitter uses string types to not get in trouble with JavaScript, but we can use
   // 64-bit unsigned ints; it should be enough to store those IDs.
@@ -68,35 +67,30 @@ TweetsBuilder::TweetsBuilder(int64_t tweets_reserve, int64_t text_reserve, int64
   // Builder for the referenced_tweets field that is a JSON array that we will store as an Arrow list.
   ref_tweets_ = make_shared<ListBuilder>(arrow::default_memory_pool(), ref_tweets_struct_, rt_struct());
 
-  id_->Reserve(tweets_reserve);
-  created_at_->Reserve(tweets_reserve + 1); // + 1 for final offset
-  created_at_->ReserveData(tweets_reserve * DATE_LENGTH);
-  text_->Reserve(tweets_reserve + 1);
-  text_->ReserveData(tweets_reserve * text_reserve);
-  author_id_->Reserve(tweets_reserve);
-  in_reply_to_user_id_->Reserve(tweets_reserve);
-  ref_tweets_type_->Reserve(tweets_reserve * referenced_tweets_reserve);
-  ref_tweets_id_->Reserve(tweets_reserve * referenced_tweets_reserve);
-  ref_tweets_struct_->Reserve(tweets_reserve * referenced_tweets_reserve);
-  ref_tweets_->Reserve(tweets_reserve + 1);
+  id_->Reserve(spec.tweets);
+  created_at_->Reserve(spec.tweets + 1); // + 1 for final offset
+  created_at_->ReserveData(spec.tweets * DATE_LENGTH);
+  text_->Reserve(spec.tweets + 1);
+  text_->ReserveData(spec.tweets * spec.text);
+  author_id_->Reserve(spec.tweets);
+  in_reply_to_user_id_->Reserve(spec.tweets);
+  ref_tweets_type_->Reserve(spec.tweets * spec.refs);
+  ref_tweets_id_->Reserve(spec.tweets * spec.refs);
+  ref_tweets_struct_->Reserve(spec.tweets * spec.refs);
+  ref_tweets_->Reserve(spec.tweets + 1);
 }
 
-auto TweetsBuilder::Append(uint64_t id,
-                           const string_view &created_at,
-                           const string_view &text,
-                           uint64_t author_id,
-                           uint64_t in_reply_to_user_id,
-                           const vector<ReferencedTweet> &referenced_tweets) -> Status {
-  ARROW_RETURN_NOT_OK(this->id_->Append(id));
-  ARROW_RETURN_NOT_OK(this->created_at_->Append(created_at.data(), created_at.size()));
-  ARROW_RETURN_NOT_OK(this->text_->Append(text.data(), text.size()));
-  ARROW_RETURN_NOT_OK(this->author_id_->Append(author_id));
-  ARROW_RETURN_NOT_OK(this->in_reply_to_user_id_->Append(in_reply_to_user_id));
+auto TweetsBuilder::Append(const Tweet &tweet) -> Status {
+  ARROW_RETURN_NOT_OK(this->id_->Append(tweet.id));
+  ARROW_RETURN_NOT_OK(this->created_at_->Append(tweet.created_at.data(), tweet.created_at.size()));
+  ARROW_RETURN_NOT_OK(this->text_->Append(tweet.text.data(), tweet.text.size()));
+  ARROW_RETURN_NOT_OK(this->author_id_->Append(tweet.author_id));
+  ARROW_RETURN_NOT_OK(this->in_reply_to_user_id_->Append(tweet.in_reply_to_user_id));
 
   // Reserve a new list slot.
   ARROW_RETURN_NOT_OK(ref_tweets_->Append());
 
-  for (const auto &p : referenced_tweets) {
+  for (const auto &p : tweet.referenced_tweets) {
     ARROW_RETURN_NOT_OK(ref_tweets_type_->Append(p.type));
     ARROW_RETURN_NOT_OK(ref_tweets_id_->Append(p.id));
     ARROW_RETURN_NOT_OK(ref_tweets_struct_->Append());
@@ -187,13 +181,35 @@ auto TweetsBuilder::size() const -> int64_t {
   }
 }
 
-// Parse reference type by looking at the string length
-static auto ParseRefType(size_t l) -> uint8_t {
-  if (l == sizeof("retweeted") - 1) return 0;
-  if (l == sizeof("quoted") - 1) return 1;
-  if (l == sizeof("replied_to") - 1) return 2;
-  // TODO(johanpel): improve this:
-  throw std::runtime_error("Unknown referenced_tweet type string length.");
+auto ParseTweet(const rapidjson::GenericValue<rapidjson::UTF8<>> &json_tweet, Tweet *out) -> void {
+  // Get a ref to the tweet "data" member, which is the first member.
+  const auto &data = json_tweet.MemberBegin()->value;
+  auto iter = data.MemberBegin();  // Create an iterator over all tweet data members.
+
+  // Rather than using strings to index the tweet data DOM object fields, we use an iterator
+  // to prevent the extensive use of string comparison operations in getting the field values
+  // from some field index.
+
+  out->id = strtoul(iter->value.GetString(), nullptr, 10);
+  iter++;
+  out->created_at = std::string_view(iter->value.GetString(), iter->value.GetStringLength());
+  iter++;
+  out->text = std::string_view(iter->value.GetString(), iter->value.GetStringLength());
+  iter++;
+  out->author_id = strtoul(iter->value.GetString(), nullptr, 10);
+  iter++;
+  out->in_reply_to_user_id = strtoul(iter->value.GetString(), nullptr, 10);
+  iter++;
+
+  // Parse referenced tweets:
+  out->referenced_tweets.clear();  // Clear the buffer for referenced tweets.
+  for (const auto &r : iter->value.GetArray()) {
+    auto rt_iter = r.MemberBegin();
+    auto rt_type = ParseRefType(rt_iter->value.GetStringLength());
+    rt_iter++;
+    uint64_t rt_id = strtoul(rt_iter->value.GetString(), nullptr, 10);
+    out->referenced_tweets.emplace_back(rt_type, rt_id);
+  }
 }
 
 auto CreateRecordBatches(const rapidjson::Document &doc, size_t max_size) -> Result<vector<shared_ptr<RecordBatch>>> {
@@ -204,10 +220,11 @@ auto CreateRecordBatches(const rapidjson::Document &doc, size_t max_size) -> Res
   size_t num_tweets = tweets.Size();
   size_t tweet_idx = 0;
 
+  Tweet parsed_tweet;
   // Pre-allocate a buffer to hold referenced tweets.
   // If it is not large enough, it will, grow through emplace_back.
   // After clearing it for a new tweet, it should retain its reserved allocation.
-  vector<ReferencedTweet> rtb(ReferencedTweet::max_referenced);
+  parsed_tweet.referenced_tweets.reserve(ReferencedTweet::max_referenced);
 
   // Set up a batch builder.
   TweetsBuilder t;
@@ -217,36 +234,10 @@ auto CreateRecordBatches(const rapidjson::Document &doc, size_t max_size) -> Res
 
     // Keep adding tweets to this batch, until it runs over the maximum size or there are no tweets left.
     while ((t.size() < max_size) && (tweet_idx < num_tweets)) {
-      const auto &tweet = tweets[tweet_idx]["data"];  // Get a ref to the tweet.
-      auto iter = tweet.MemberBegin();  // Create an iterator over all tweet data members.
-
-      // Rather than using strings to index the tweet data DOM object fields, we use an iterator
-      // to prevent the extensive use of string comparison operations in getting the field values
-      // from some field index.
-
-      uint64_t id = strtoul(iter->value.GetString(), nullptr, 10);
-      iter++;
-      std::string_view created_at(iter->value.GetString(), iter->value.GetStringLength());
-      iter++;
-      std::string_view text(iter->value.GetString(), iter->value.GetStringLength());
-      iter++;
-      uint64_t author_id = strtoul(iter->value.GetString(), nullptr, 10);
-      iter++;
-      uint64_t in_reply_to_user_id = strtoul(iter->value.GetString(), nullptr, 10);
-      iter++;
-
-      // Parse referenced tweets:
-      rtb.clear();  // Clear the buffer for referenced tweets.
-      for (const auto &r : iter->value.GetArray()) {
-        auto rt_iter = r.MemberBegin();
-        auto rt_type = ParseRefType(rt_iter->value.GetStringLength());
-        rt_iter++;
-        uint64_t rt_id = strtoul(rt_iter->value.GetString(), nullptr, 10);
-        rtb.emplace_back(rt_type, rt_id);
-      }
-
+      const auto &tweet = tweets[tweet_idx];  // Get a ref to the tweet.
+      ParseTweet(tweet, &parsed_tweet);
       // Append the tweet.
-      auto status = t.Append(id, created_at, text, author_id, in_reply_to_user_id, rtb);
+      auto status = t.Append(parsed_tweet);
       if (!status.ok()) return arrow::Result<vector<shared_ptr<RecordBatch>>>(status);
       tweet_idx++;
     }
@@ -264,31 +255,19 @@ auto CreateRecordBatches(const rapidjson::Document &doc, size_t max_size) -> Res
   return batches;
 }
 
-void ReportParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer) {
-  auto code = doc.GetParseError();
-  auto offset = doc.GetErrorOffset();
-  std::cerr << "  Parser error: " << rapidjson::GetParseError_En(code) << std::endl;
-  std::cerr << "  Offset: " << offset << std::endl;
-  std::cerr << "  Character: " << file_buffer[offset] << " / 0x"
-            << std::hex << static_cast<uint8_t>(file_buffer[offset]) << std::endl;
-  std::cerr << "  Around: "
-            << std::string_view(&file_buffer[offset < 40UL ? 0 : offset - 40], std::min(40UL, file_buffer.size()))
-            << std::endl;
-}
-
 void TweetsBuilder::RunBenchmark(size_t num_records) {
   Timer t;
 
-  t.start();
+  t.Start();
   TweetsBuilder b;
-  t.stop();
+  t.Stop();
   std::cout << std::setw(42) << "Builder construction" << " : " << t.seconds() << std::endl;
 
-  t.start();
+  t.Start();
   for (size_t i = 0; i < num_records; i++) {
-    b.Append(0, "2014-02-26T03:45:38.000Z", "anrqvytlbbtdl", 0, 0, {{0, 0}, {0, 0}});
+    b.Append(Tweet{0, "2014-02-26T03:45:38.000Z", "anrqvytlbbtdl", 0, 0, {{0, 0}, {0, 0}}});
   }
-  t.stop();
+  t.Stop();
   shared_ptr<RecordBatch> batch;
   auto status = b.Finish(&batch);
 
@@ -296,3 +275,15 @@ void TweetsBuilder::RunBenchmark(size_t num_records) {
   ReportGBps("TweetsBuilder throughput", size, t.seconds());
   std::cout << std::setw(42) << "TweetsBuilder RecordBatch size" << ": " << size << std::endl;
 }
+
+auto Tweet::ToString() -> std::string {
+  std::stringstream str;
+  str << id << "," << created_at << "," << text << "," << author_id << "," << in_reply_to_user_id << "[";
+  for (const auto &rt : referenced_tweets) {
+    str << "{" << static_cast<uint32_t>(rt.type) << ", " << rt.id << "},";
+  }
+  str << "]";
+  return str.str();
+}
+
+}  // namespace flitter

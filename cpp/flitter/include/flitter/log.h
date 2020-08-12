@@ -12,34 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <CLI/CLI.hpp>
-
-#include "./pulsar.h"
-#include "./file.h"
-#include "./stream.h"
-#include "./bench.h"
-
 #pragma once
+
+#ifndef NDEBUG
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
+#endif
+
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
 namespace flitter {
 
-/// @brief Application options.
-struct AppOptions {
-  AppOptions(int argc, char *argv[]);
-
-  static auto failure() -> int { return -1; };
-  static auto success() -> int { return 0; };
-
-  enum class SubCommand { FILE, STREAM, BENCH } sub;
-
-  MicroBenchOptions bench;
-  FileOptions file;
-  StreamOptions stream;
-
-  bool succinct = false;
-  bool exit = false;
-  int return_value = 0;
-};
+inline void StartLogger() {
+  auto logger = spdlog::stdout_logger_mt("flitter");
+  spdlog::set_default_logger(logger);
+#ifndef NDEBUG
+  spdlog::set_level(spdlog::level::debug);
+#endif
+}
 
 }  // namespace flitter

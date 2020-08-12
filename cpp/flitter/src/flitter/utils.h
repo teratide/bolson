@@ -14,7 +14,14 @@
 
 #pragma once
 
+#include <chrono>
+#include <sstream>
+#include <iomanip>
+#include <iostream>
 #include <arrow/api.h>
+#include <rapidjson/document.h>
+
+namespace flitter {
 
 /**
  * @brief Returns the total size in memory of all (nested) buffers backing Arrow ArrayData.
@@ -45,3 +52,51 @@ void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct =
  * @return The buffer, will be size num_bytes + 1 to accommodate the terminator character.
  */
 auto LoadFile(const std::string &file_name, size_t num_bytes) -> std::vector<char>;
+
+/**
+ * @brief Report a rapidjson parsing error on stderr.
+ * @param doc The document that has a presumed error.
+ * @param file_buffer The buffer from which the document was attempted to be parsed.
+ */
+void ReportParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer);
+
+/// @brief A timer using the C++11 steady monotonic clock.
+struct Timer {
+  using steady_clock = std::chrono::steady_clock;
+  using nanoseconds = std::chrono::nanoseconds;
+  using time_point = std::chrono::time_point<steady_clock, nanoseconds>;
+  using duration = std::chrono::duration<double>;
+
+  Timer() = default;
+
+  /// @brief Timer start point.
+  time_point start_{};
+  /// @brief Timer stop point.
+  time_point stop_{};
+
+  /// @brief Start the timer.
+  inline void Start() { start_ = std::chrono::steady_clock::now(); }
+
+  /// @brief Stop the timer.
+  inline void Stop() { stop_ = std::chrono::steady_clock::now(); }
+
+  /// @brief Retrieve the interval in seconds.
+  inline double seconds() {
+    duration diff = stop_ - start_;
+    return diff.count();
+  }
+
+  /// @brief Return the interval in seconds as a formatted string.
+  inline std::string str(int width = 14) {
+    std::stringstream ss;
+    ss << std::setprecision(width - 5) << std::setw(width) << std::fixed << seconds();
+    return ss.str();
+  }
+
+  /// @brief Print the interval on some output stream
+  inline void report(std::ostream &os = std::cout, bool last = false, int width = 15) {
+    os << std::setw(width) << ((last ? " " : "") + str() + (last ? "\n" : ",")) << std::flush;
+  }
+};
+
+}  // namespace flitter

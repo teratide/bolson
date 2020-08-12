@@ -12,24 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <flitter/log.h>
+
 #include "./cli.h"
+
+namespace flitter {
 
 AppOptions::AppOptions(int argc, char **argv) {
   CLI::App app{"Flitter : Exploring Pulsar, Arrow, and FPGA."};
 
   // CLI options:
-  auto prod = app.add_subcommand("prod", "Produce Pulsar messages from a JSON file.");
-  prod->add_option("i,-i,--input", json_file, "Input file with Tweets.")->check(CLI::ExistingFile)->required();
-  prod->add_option("-p,--pulsar-url", pulsar.url, "Pulsar broker service URL (default: pulsar://localhost:6650/");
-  prod->add_option("-t,--pulsar-topic", pulsar.topic, "Pulsar topic (default: flitter)");
-  prod->add_option("-m,--pulsar-max-message-size",
-                   pulsar.max_message_size,
-                   "Pulsar maximum message size (default: 5 MiB - 10 KiB)");
-  prod->add_flag("-s,--succinct-stats", succinct, "Prints measurements to stdout on a single line.");
+  auto *sub_file = app.add_subcommand("file", "Produce Pulsar messages from a JSON file.");
+  sub_file->add_option("i,-i,--input", file.input, "Input file with Tweets.")->check(CLI::ExistingFile)->required();
+  sub_file->add_option("-p,--pulsar-url",
+                       file.pulsar.url,
+                       "Pulsar broker service URL (default: pulsar://localhost:6650/");
+  sub_file->add_option("-t,--pulsar-topic", file.pulsar.topic, "Pulsar topic (default: flitter)");
+  sub_file->add_option("-m,--pulsar-max-msg-size",
+                       file.pulsar.max_msg_size,
+                       "Pulsar max. message size (default: 5 MiB - 10 KiB)");
+  sub_file->add_flag("-s,--succinct-stats", file.succinct, "Prints measurements to stdout on a single line.");
 
-  auto bench = app.add_subcommand("bench", "Run microbenchmarks on internals.");
-  bench->add_flag("--tweets-builder", micro_bench.tweets_builder,
-                  "Run TweetsBuilder microbenchmark. Enabling any microbenchmark flag disables all other functionality.");
+  auto *sub_bench = app.add_subcommand("bench", "Run microbenchmarks on internals.");
+  sub_bench->add_flag("--tweets-builder",
+                      bench.tweets_builder,
+                      "Run TweetsBuilder microbenchmark. Enabling any microbenchmark flag disables all other functionality.");
+
+  auto *sub_stream = app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
 
   // Attempt to parse the CLI arguments.
   try {
@@ -37,12 +46,20 @@ AppOptions::AppOptions(int argc, char **argv) {
   } catch (CLI::CallForHelp &e) {
     // User wants to see help.
     std::cout << app.help() << std::endl;
+    return_value = success();
     exit = true;
   } catch (CLI::Error &e) {
     // There is some error.
-    std::cerr << e.get_name() << ":\n" << e.what() << std::endl;
+    spdlog::error("{} : {}", e.get_name(), e.what());
     std::cerr << app.help() << std::endl;
+    return_value = failure();
     exit = true;
-    return_value = -1;
   }
+
+  if (sub_file->parsed()) this->sub = SubCommand::FILE;
+  else if (sub_stream->parsed()) this->sub = SubCommand::STREAM;
+  else if (sub_bench->parsed()) this->sub = SubCommand::BENCH;
+
 }
+
+}  // namespace flitter
