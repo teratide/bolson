@@ -69,8 +69,8 @@ void drone_thread(Drone *drone) {
         Tweet parsed_tweet;
         rapidjson::Document json_doc;
         json_doc.ParseInsitu(data.data());
-        ParseTweet(json_doc["tweets"].GetArray()[0].GetObject(), &parsed_tweet);
-        drone->builder.Append(parsed_tweet);
+        // ParseTweet(json_doc["tweets"].GetArray()[0].GetObject(), &parsed_tweet);
+        // drone->builder.Append(parsed_tweet);
         SPDLOG_DEBUG("[Worker {}] popped: {}", drone->id, parsed_tweet.ToString());
         popped++;
       }

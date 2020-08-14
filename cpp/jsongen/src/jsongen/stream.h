@@ -14,18 +14,27 @@
 
 #pragma once
 
-#include <string>
+#include <arrow/api.h>
+#include <flitter/protocol.h>
 
-#include "./generate.h"
+#include "./document.h"
 
-namespace tweetgen {
+namespace jsongen {
 
-struct FileOptions {
+/// @brief Options for the stream subcommand.
+struct StreamOptions {
+  /// The Arrow schema to base the JSON messages on.
+  std::shared_ptr<arrow::Schema> schema;
+  /// The number of messages to send.
+  size_t num_messages = 1;
+  /// Options for the random generators.
   GenerateOptions gen;
-  std::string output;
-  bool verbose = false;
+  /// Properties of the message protocol.
+  flitter::StreamProtocol protocol;
+  /// Whether to pretty-print the JSON messages.
+  bool pretty = false;
 };
 
-auto GenerateFile(const FileOptions &opt) -> int;
+auto StreamServer(const StreamOptions &opt) -> int;
 
-}  // namespace tweetgen
+}  // namespace jsongen
