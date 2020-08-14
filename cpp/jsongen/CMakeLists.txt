@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
-project(tweetgen VERSION 0.0.1 LANGUAGES CXX)
+project(jsongen VERSION 0.0.1 LANGUAGES CXX)
 
+find_package(Arrow 1.0 CONFIG REQUIRED)
 find_library(zmqpp REQUIRED)
+find_library(zmq REQUIRED)
 
 include(FetchContent)
 
@@ -38,24 +40,43 @@ FetchContent_Declare(spdlog
   )
 FetchContent_MakeAvailable(spdlog)
 
+# Common headers
+include_directories(../flitter/include)
+
 add_compile_unit(
-  NAME tweetgen
+  NAME jsongen::obj
+  TYPE OBJECT
+  PRPS
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+  SRCS
+    src/jsongen/cli.cpp
+    src/jsongen/file.cpp
+    src/jsongen/stream.cpp
+    src/jsongen/arrow.cpp
+    src/jsongen/document.cpp
+    src/jsongen/value.cpp
+  DEPS
+    arrow_shared
+    CLI11::CLI11
+    spdlog::spdlog
+    zmqpp
+    zmq
+  TSTS
+    test/jsongen/test_arrow.cpp
+    test/jsongen/test_gen.cpp
+)
+
+add_compile_unit(
+  NAME jsongen
   TYPE EXECUTABLE
   PRPS
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
   SRCS
-    src/tweetgen/main.cpp
-    src/tweetgen/cli.cpp
-    src/tweetgen/generate.cpp
-    src/tweetgen/file.cpp
-    src/tweetgen/stream.cpp
+    src/jsongen/main.cpp
   DEPS
-    CLI11::CLI11
-    spdlog::spdlog
-    zmqpp
+    jsongen::obj
 )
-
-include_directories(../flitter/include)
 
 compile_units()

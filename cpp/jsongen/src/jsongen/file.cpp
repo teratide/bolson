@@ -14,34 +14,43 @@
 
 #include <iostream>
 #include <fstream>
-#include <rapidjson/rapidjson.h>
+#include <rapidjson/prettywriter.h>
 
+#include "./document.h"
 #include "./file.h"
+#include "./arrow.h"
 
-namespace tweetgen {
+namespace jsongen {
 
 auto GenerateFile(const FileOptions &opt) -> int {
   // Generate the document:
-  auto json_tweets = GenerateTweets(opt.gen);
+  auto gen = FromSchema(*opt.schema, opt.gen);
+  auto json = gen.Get();
 
   // Write it to a StringBuffer
-  StringBuffer buffer;
-  rapidjson::PrettyWriter<StringBuffer> writer(buffer);
-  json_tweets.Accept(writer);
+  rapidjson::StringBuffer buffer;
+  if (opt.pretty) {
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+    writer.SetFormatOptions(rj::PrettyFormatOptions::kFormatSingleLineArray);
+    json.Accept(writer);
+  } else {
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+  }
   const char *output = buffer.GetString();
 
   // Print it to stdout if requested.
-  if (opt.verbose || opt.output.empty()) {
+  if (opt.verbose || opt.out_path.empty()) {
     std::cout << output << std::endl;
   }
 
   // Write it to a file.
-  if (!opt.output.empty()) {
-    std::ofstream of(opt.output);
+  if (!opt.out_path.empty()) {
+    std::ofstream of(opt.out_path);
     of << output << std::endl;
   }
 
   return 0;
 }
 
-}  // namespace tweetgen
+}  // namespace jsongen

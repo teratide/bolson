@@ -33,7 +33,7 @@ AppOptions::AppOptions(int argc, char **argv) {
                        "Pulsar max. message size (default: 5 MiB - 10 KiB)");
   sub_file->add_flag("-s,--succinct-stats", file.succinct, "Prints measurements to stdout on a single line.");
 
-  auto *sub_bench = app.add_subcommand("bench", "Run microbenchmarks on internals.");
+  auto *sub_bench = app.add_subcommand("bench", "Run micro-benchmarks on internals.");
   sub_bench->add_flag("--tweets-builder",
                       bench.tweets_builder,
                       "Run TweetsBuilder microbenchmark. Enabling any microbenchmark flag disables all other functionality.");

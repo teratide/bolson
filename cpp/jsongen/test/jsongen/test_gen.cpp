@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include <gtest/gtest.h>
+#include <rapidjson/writer.h>
 
-#include <flitter/protocol.h>
+#include "jsongen/document.h"
+#include "jsongen/value.h"
 
-#include "./generate.h"
+namespace jsongen::test {
 
-namespace tweetgen {
+TEST(Generators, EmptyDocument) {
+  DocumentGenerator doc(0);
+  rapidjson::StringBuffer b;
+  rapidjson::Writer p(b);
+  doc.Get().Accept(p);
+  ASSERT_STREQ(b.GetString(), "null");
+}
 
-struct StreamOptions {
-  size_t num_messages = 1;
-  GenerateOptions gen;
-  flitter::StreamProtocol protocol;
-};
-
-auto StreamServer(const StreamOptions &opt) -> int;
-
-}  // namespace tweetgen
+}

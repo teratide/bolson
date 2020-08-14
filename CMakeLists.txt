@@ -5,11 +5,11 @@ project(flitter)
 include(FetchContent)
 
 FetchContent_Declare(cmake-modules
-        GIT_REPOSITORY  https://github.com/abs-tudelft/cmake-modules.git
-        GIT_TAG         master
-        )
+  GIT_REPOSITORY  https://github.com/abs-tudelft/cmake-modules.git
+  GIT_TAG         master
+)
 FetchContent_MakeAvailable(cmake-modules)
 include(CompileUnits)
 
-add_subdirectory(cpp/tweetgen)
+add_subdirectory(cpp/jsongen)
 add_subdirectory(cpp/flitter)

@@ -8,7 +8,7 @@ args = parser.parse_args()
 
 N = args.N[0] + 1
 
-tweetgen = '../release/cpp/tweetgen/tweetgen'
+jsongen = '../release/cpp/jsongen/jsongen'
 flitter = '../release/cpp/flitter/flitter'
 
 with open('single_batch_sweep_result.csv', 'w') as f:
@@ -37,8 +37,8 @@ with open('single_batch_sweep_result.csv', 'w') as f:
         num_tweets = 2 ** i
         json_file = 'random_{:08d}.json'.format(num_tweets)
 
-        # Run tweetgen
-        subprocess.run([tweetgen,
+        # Run jsongen
+        subprocess.run([jsongen,
                         '-s', '42',
                         '-o', json_file,
                         '-n', str(num_tweets)])

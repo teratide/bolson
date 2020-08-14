@@ -16,26 +16,25 @@
 #include <flitter/log.h>
 
 #include "./cli.h"
-#include "./generate.h"
 #include "./file.h"
 #include "./stream.h"
 
-using tweetgen::AppOptions;
-using tweetgen::GenerateFile;
-using tweetgen::StreamServer;
+using jsongen::AppOptions;
+using jsongen::GenerateFile;
+using jsongen::StreamServer;
 
 auto main(int argc, char *argv[]) -> int {
   // Set up logger.
   flitter::StartLogger();
 
   // Parse command-line arguments:
-  auto opt = tweetgen::AppOptions(argc, argv);
+  auto opt = jsongen::AppOptions(argc, argv);
   if (opt.exit) { return opt.return_value; }
 
   // Run the requested sub-program:
   switch (opt.sub) {
-    case AppOptions::SubCommand::FILE: return GenerateFile(opt.file);
-    case AppOptions::SubCommand::STREAM: return StreamServer(opt.stream);
+    case jsongen::SubCommand::FILE: return GenerateFile(opt.file);
+    case jsongen::SubCommand::STREAM: return StreamServer(opt.stream);
   }
 
   return 0;

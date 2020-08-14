@@ -1,0 +1,245 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema",
+  "id": "http://example.com/example.json",
+  "type": "object",
+  "description": "A JSON Schema for the trip report on https://www.allstate.com/landingpages/drivewisedevice.aspx",
+  "required": [
+    "timestamp",
+    "timezone",
+    "vin",
+    "odometer",
+    "hypermiling",
+    "avgspeed",
+    "sec_in_band",
+    "miles_in_time_range",
+    "const_speed_miles_in_band",
+    "vary_speed_miles_in_band",
+    "sec_decel",
+    "sec_accel",
+    "braking",
+    "accel",
+    "orientation",
+    "small_speed_var",
+    "large_speed_var",
+    "accel_decel",
+    "speed_changes"
+  ],
+  "properties": {
+    "timestamp": {
+      "id": "#/properties/timestamp",
+      "type": "string",
+      "pattern": "^(-?(?:[1-9][0-9]*)?[0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])T(2[0-3]|[01][0-9]):([0-5][0-9]):([0-5][0-9])(\\.[0-9]+)?(Z)?$",
+      "description": "Timestamp in GMT (Greenwich Mean Time) at trip start and trip end."
+    },
+    "timezone": {
+      "id": "#/properties/timezone",
+      "type": "integer",
+      "description": "Time zone at trip start used to convert trips to local time."
+    },
+    "vin": {
+      "id": "#/properties/vin",
+      "type": "integer",
+      "description": "VIN (Vehicle Identification Number)."
+    },
+    "odometer": {
+      "id": "#/properties/odometer",
+      "type": "integer",
+      "description": "Odometer."
+    },
+    "hypermiling": {
+      "id": "#/properties/hypermiling",
+      "type": "boolean",
+      "description": "Indicator suggesting that hyper-miling took place."
+    },
+    "avgspeed": {
+      "id": "#/properties/avgspeed",
+      "type": "integer",
+      "description": "Average speed while the vehicle is in motion (not including 0 mph)."
+    },
+    "sec_in_band": {
+      "id": "#/properties/sec_in_band",
+      "type": "array",
+      "description": "Seconds driven in speed bands (each band is 10 mph up to 120 mph).",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "id": "#/properties/sec_in_band/items",
+        "anyOf": [
+          {
+            "id": "#/properties/sec_in_band/items/anyOf/0",
+            "type": "integer",
+            "description": "An explanation about the purpose of this instance."
+          }
+        ]
+      }
+    },
+    "miles_in_time_range": {
+      "id": "#/properties/miles_in_time_range",
+      "type": "array",
+      "description": "Miles driven in each time range (each time range is 1 hour totaling 24 ranges).",
+      "minItems": 24,
+      "maxItems": 24,
+      "items": {
+        "id": "#/properties/miles_in_time_range/items",
+        "anyOf": [
+          {
+            "id": "#/properties/miles_in_time_range/items/anyOf/0",
+            "type": "integer",
+            "description": "An explanation about the purpose of this instance."
+          }
+        ]
+      }
+    },
+    "const_speed_miles_in_band": {
+      "id": "#/properties/const_speed_miles_in_band",
+      "type": "array",
+      "description": "Constant speed mile driven in speed bands (each band is 10 mph up to 120 mph).",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "id": "#/properties/const_speed_miles_in_band/items",
+        "anyOf": [
+          {
+            "id": "#/properties/const_speed_miles_in_band/items/anyOf/0",
+            "type": "integer",
+            "description": "An explanation about the purpose of this instance."
+          }
+        ]
+      }
+    },
+    "vary_speed_miles_in_band": {
+      "id": "#/properties/vary_speed_miles_in_band",
+      "type": "array",
+      "description": "Varying speed miles driven in speed bands (each band is 10 mph up to 120 mph).",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "id": "#/properties/vary_speed_miles_in_band/items",
+        "anyOf": [
+          {
+            "id": "#/properties/vary_speed_miles_in_band/items/anyOf/0",
+            "type": "integer",
+            "description": "An explanation about the purpose of this instance."
+          }
+        ]
+      }
+    },
+    "sec_decel": {
+      "id": "#/properties/sec_decel",
+      "type": "array",
+      "description": "Seconds driven during deceleration in 1 mph/s bands up to 10 mph/s.",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "id": "#/properties/sec_decel/items",
+        "anyOf": [
+          {
+            "id": "#/properties/sec_decel/items/anyOf/0",
+            "type": "integer",
+            "description": "An explanation about the purpose of this instance."
+          }
+        ]
+      }
+    },
+    "sec_accel": {
+      "id": "#/properties/sec_accel",
+      "type": "array",
+      "description": "Seconds driven during acceleration in 1 mph/s bands up to 10 mph/s.",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "id": "#/properties/sec_accel/items",
+        "anyOf": [
+          {
+            "id": "#/properties/sec_accel/items/anyOf/0",
+            "type": "integer",
+            "description": "An explanation about the purpose of this instance."
+          }
+        ]
+      }
+    },
+    "braking": {
+      "id": "#/properties/braking",
+      "type": "array",
+      "description": "Count of occurrences braking more than 10 seconds in 6 bands over 6 mph/s.",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "id": "#/properties/braking/items",
+        "anyOf": [
+          {
+            "id": "#/properties/braking/items/anyOf/0",
+            "type": "integer",
+            "description": "An explanation about the purpose of this instance."
+          }
+        ]
+      }
+    },
+    "accel": {
+      "id": "#/properties/accel",
+      "type": "array",
+      "description": "Count of occurrences accelerating more than 10 seconds in 6 bands over 6 mph/s.",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "id": "#/properties/accel/items",
+        "anyOf": [
+          {
+            "id": "#/properties/accel/items/anyOf/0",
+            "type": "integer",
+            "description": "An explanation about the purpose of this instance."
+          }
+        ]
+      }
+    },
+    "orientation": {
+      "id": "#/properties/orientation",
+      "type": "boolean",
+      "description": "Accelerometer orientation flag - indicating whether the device oriented with vehicle."
+    },
+    "small_speed_var": {
+      "id": "#/properties/small_speed_var",
+      "type": "array",
+      "description": "Miles driven with small speed variation in 13 individual 5 mph bands.",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": {
+        "id": "#/properties/small_speed_var/items",
+        "anyOf": [
+          {
+            "id": "#/properties/small_speed_var/items/anyOf/0",
+            "type": "integer",
+            "description": "An explanation about the purpose of this instance."
+          }
+        ]
+      }
+    },
+    "large_speed_var": {
+      "id": "#/properties/large_speed_var",
+      "type": "array",
+      "description": "Miles driven with larger speed variation in 13 individual 5 mph bands ",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": {
+        "id": "#/properties/large_speed_var/items",
+        "anyOf": [
+          {
+            "id": "#/properties/large_speed_var/items/anyOf/0",
+            "type": "integer",
+            "description": "An explanation about the purpose of this instance."
+          }
+        ]
+      }
+    },
+    "accel_decel": {
+      "id": "#/properties/accel_decel",
+      "type": "integer",
+      "description": "An explanation about the purpose of this instance."
+    },
+    "speed_changes": {
+      "id": "#/properties/speed_changes",
+      "type": "integer",
+      "description": "An explanation about the purpose of this instance."
+    }
+  }
+}

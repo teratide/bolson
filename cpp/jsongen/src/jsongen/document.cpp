@@ -12,32 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include <iostream>
+#include <utility>
 
-#include <random>
-#include <cstdint>
-#include <string>
-#include <CLI/CLI.hpp>
+#include "./value.h"
+#include "./document.h"
 
-#include "./file.h"
-#include "./stream.h"
+namespace jsongen {
 
-namespace tweetgen {
+namespace rj = rapidjson;
 
-/// @brief Application options.
-struct AppOptions {
-  AppOptions(int argc, char *argv[]);
+DocumentGenerator::DocumentGenerator(int seed) : engine_(RandomEngine(seed)) {
+  context_.engine_ = &engine_;
+  context_.allocator_ = &doc_.GetAllocator();
+  root_ = std::make_shared<Null>();
+}
 
-  static auto failure() -> int { return -1; };
-  static auto success() -> int { return 0; };
+void DocumentGenerator::SetRoot(std::shared_ptr<Value> root) {
+  root_ = std::move(root);
+  root_->SetContext(context_);
+}
 
-  enum class SubCommand { FILE, STREAM } sub;
+auto DocumentGenerator::root() -> std::shared_ptr<Value> { return root_; }
 
-  FileOptions file;
-  StreamOptions stream;
+auto DocumentGenerator::Get() -> rj::Value { return root_->Get(); }
 
-  bool exit = false;
-  int return_value = 0;
-};
-
-} // namespace tweetgen
+}

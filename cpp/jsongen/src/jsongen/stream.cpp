@@ -16,15 +16,18 @@
 #include <iostream>
 #include <zmqpp/zmqpp.hpp>
 #include <flitter/log.h>
+#include <rapidjson/prettywriter.h>
 
 #include "./stream.h"
+#include "./document.h"
+#include "./arrow.h"
 
-namespace tweetgen {
+namespace jsongen {
 
-auto StreamServer(const StreamOptions &opts) -> int {
+auto StreamServer(const StreamOptions &opt) -> int {
   spdlog::info("Starting stream server.");
 
-  const std::string endpoint = "tcp://*:" + std::to_string(opts.protocol.port);
+  const std::string endpoint = "tcp://*:" + std::to_string(opt.protocol.port);
 
   // Initialize the 0MQ context
   zmqpp::context context;
@@ -36,14 +39,22 @@ auto StreamServer(const StreamOptions &opts) -> int {
   socket.bind(endpoint);
 
   // Receive the message
-  spdlog::info("Producing {} messages.", opts.num_messages);
+  spdlog::info("Producing {} messages.", opt.num_messages);
 
-  for (size_t m = 0; m < opts.num_messages; m++) {
+  for (size_t m = 0; m < opt.num_messages; m++) {
     // Generate a message with tweets in JSON format.
-    auto json = GenerateTweets(opts.gen);
-    StringBuffer buffer;
-    rapidjson::Writer<StringBuffer> writer(buffer);
-    json.Accept(writer);
+    auto gen = FromSchema(*opt.schema, opt.gen);
+    auto json = gen.Get();
+
+    rapidjson::StringBuffer buffer;
+    if (opt.pretty) {
+      rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+      writer.SetFormatOptions(rj::PrettyFormatOptions::kFormatSingleLineArray);
+      json.Accept(writer);
+    } else {
+      rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+      json.Accept(writer);
+    }
 
     // Send the message.
     zmqpp::message message;
@@ -53,7 +64,7 @@ auto StreamServer(const StreamOptions &opts) -> int {
 
   // Send the end-of-stream marker.
   zmqpp::message stop;
-  stop << opts.protocol.eos_marker;
+  stop << opt.protocol.eos_marker;
   socket.send(stop);
 
   spdlog::info("Stream server shutting down.");
@@ -61,4 +72,4 @@ auto StreamServer(const StreamOptions &opts) -> int {
   return 0;
 }
 
-}  // namespace tweetgen
+}  // namespace jsongen
