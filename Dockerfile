@@ -11,7 +11,8 @@ RUN apt-get update && \
     curl -L -O https://downloads.apache.org/pulsar/pulsar-2.6.0/DEB/apache-pulsar-client.deb && \
     dpkg -i apache-pulsar-client.deb && \
     curl -L -O https://downloads.apache.org/pulsar/pulsar-2.6.0/DEB/apache-pulsar-client-dev.deb && \
-    dpkg -i apache-pulsar-client-dev.deb
+    dpkg -i apache-pulsar-client-dev.deb && \
+    apt-get install -y libzmqpp-dev
 
 ADD . /src
 

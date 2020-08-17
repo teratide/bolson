@@ -1,0 +1,47 @@
+name: Test
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+
+env:
+  ARROW_VERSION: '1.0.0'
+  PULSAR_VERSION: '2.6.0'
+
+jobs:
+  cpp:
+    name: 'C++'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+        - flitter
+        - jsongen
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Apache Arrow
+      run: |
+        wget https://apache.bintray.com/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-archive-keyring-latest-$(lsb_release --codename --short).deb
+        sudo apt-get install -y ./apache-arrow-archive-keyring-latest-$(lsb_release --codename --short).deb
+        sudo apt-get update
+        sudo apt-get install -y libarrow-dev=$ARROW_VERSION-1
+    - name: Install Pulsar
+      run: |
+        curl -L -O https://downloads.apache.org/pulsar/pulsar-$PULSAR_VERSION/DEB/apache-pulsar-client.deb && \
+        sudo dpkg -i apache-pulsar-client.deb && \
+        curl -L -O https://downloads.apache.org/pulsar/pulsar-$PULSAR_VERSION/DEB/apache-pulsar-client-dev.deb && \
+        sudo dpkg -i apache-pulsar-client-dev.deb
+    - name: Install zeromq
+      run: sudo apt-get install -y libzmqpp-dev
+    - name: CMake
+      env:
+        CC: gcc-9
+        CXX: g++-9
+      run: cmake cpp/${{ matrix.project }} -DBUILD_TESTS=ON
+    - name: Build
+      run: make -j
+    - name: Test
+      run: make test
