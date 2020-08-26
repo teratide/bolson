@@ -11,5 +11,6 @@ FetchContent_Declare(cmake-modules
 FetchContent_MakeAvailable(cmake-modules)
 include(CompileUnits)
 
+add_subdirectory(cpp/putong)
 add_subdirectory(cpp/jsongen)
 add_subdirectory(cpp/flitter)

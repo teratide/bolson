@@ -14,14 +14,15 @@
 
 #include <filesystem>
 #include <rapidjson/document.h>
+#include <putong/timer.h>
 
 #include "./utils.h"
 #include "./file.h"
 #include "./pulsar.h"
-#include "./tweets.h"
 #include "./hive.h"
 
 namespace fs = std::filesystem;
+namespace pt = putong;
 
 namespace flitter {
 
@@ -38,7 +39,7 @@ auto ProduceFromFile(const FileOptions &opt) -> int {
     return -1;
   }
 
-  Timer timer;
+  pt::Timer timer;
 
   // Obtain the file size
   fs::path p = fs::current_path() / opt.input;
@@ -64,49 +65,49 @@ auto ProduceFromFile(const FileOptions &opt) -> int {
   ReportGBps("Parse JSON file (rapidjson)", json_file_size, timer.seconds(), opt.succinct);
 
   // Convert to Arrow RecordBatches.
-  timer.Start();
-  auto batches = CreateRecordBatches(doc, opt.pulsar.max_msg_size);
-  timer.Stop();
-  // Check for errors.
-  if (!batches.ok()) {
-    spdlog::error("Could not create RecordBatch: ", batches.status().CodeAsString());
-    return -1;
-  }
+//  timer.Start();
+//  auto batches = CreateRecordBatches(doc, opt.pulsar.max_msg_size);
+//  timer.Stop();
+//  // Check for errors.
+//  if (!batches.ok()) {
+//    spdlog::error("Could not create RecordBatch: ", batches.status().CodeAsString());
+//    return -1;
+//  }
 
   // Extract properties and statistics.
-  auto num_batches = batches.ValueOrDie().size();
-  size_t batches_total_size = 0;
-  size_t num_tweets = 0;
-  for (const auto &batch : batches.ValueOrDie()) {
-    num_tweets += batch->num_rows();
-    batches_total_size += GetBatchSize(batch);
-  }
-  auto batches_avg_rows = static_cast<double>(num_tweets) / num_batches;
-  auto batches_avg_size = static_cast<double>(batches_total_size) / num_batches;
-
-  ReportGBps("Convert to Arrow RecordBatch (input)", json_file_size, timer.seconds(), opt.succinct);
-  ReportGBps("Convert to Arrow RecordBatch (output)", batches_total_size, timer.seconds(), opt.succinct);
+//  auto num_batches = batches.ValueOrDie().size();
+//  size_t batches_total_size = 0;
+//  size_t num_tweets = 0;
+//  for (const auto &batch : batches.ValueOrDie()) {
+//    num_tweets += batch->num_rows();
+//    batches_total_size += GetBatchSize(batch);
+//  }
+//  auto batches_avg_rows = static_cast<double>(num_tweets) / num_batches;
+//  auto batches_avg_size = static_cast<double>(batches_total_size) / num_batches;
+//
+//  ReportGBps("Convert to Arrow RecordBatch (input)", json_file_size, timer.seconds(), opt.succinct);
+//  ReportGBps("Convert to Arrow RecordBatch (output)", batches_total_size, timer.seconds(), opt.succinct);
 
   // Write every batch as IPC message.
   timer.Start();
   size_t ipc_total_size = 0;
   std::vector<std::shared_ptr<arrow::Buffer>> ipc_buffers;
-  for (const auto &batch : batches.ValueOrDie()) {
-    // Write into buffer
-    auto ipc_buffer = WriteIPCMessageBuffer(batch);
-    // Check for errors.
-    if (!ipc_buffer.ok()) {
-      spdlog::error("Could not write Arrow IPC message: {}", ipc_buffer.status().CodeAsString());
-      return -1;
-    }
-    ipc_total_size += ipc_buffer.ValueOrDie()->size();
-    ipc_buffers.push_back(ipc_buffer.ValueOrDie());
-  }
+//  for (const auto &batch : batches.ValueOrDie()) {
+//    // Write into buffer
+//    auto ipc_buffer = WriteIPCMessageBuffer(batch);
+//    // Check for errors.
+//    if (!ipc_buffer.ok()) {
+//      spdlog::error("Could not write Arrow IPC message: {}", ipc_buffer.status().CodeAsString());
+//      return -1;
+//    }
+//    ipc_total_size += ipc_buffer.ValueOrDie()->size();
+//    ipc_buffers.push_back(ipc_buffer.ValueOrDie());
+//  }
   timer.Stop();
 
   // Extract properties.
-  auto ipc_avg_size = static_cast<double>(ipc_total_size) / num_batches;
-  ReportGBps("Write into Arrow IPC message buffer: ", ipc_total_size, timer.seconds(), opt.succinct);
+//  auto ipc_avg_size = static_cast<double>(ipc_total_size) / num_batches;
+//  ReportGBps("Write into Arrow IPC message buffer: ", ipc_total_size, timer.seconds(), opt.succinct);
 
   // Publish the buffer in Pulsar:
   timer.Start();
@@ -123,23 +124,23 @@ auto ProduceFromFile(const FileOptions &opt) -> int {
 
   // Report some additional properties:
 
-  if (opt.succinct) {
-    std::cout << json_file_size << ", ";
-    std::cout << num_tweets << ", ";
-    std::cout << num_batches << ", ";
-    std::cout << batches_total_size << ", ";
-    std::cout << batches_avg_size << ", ";
-    std::cout << ipc_total_size << ", ";
-    std::cout << ipc_avg_size << std::endl;
-  } else {
-    std::cout << std::setw(42) << "JSON File size (B)" << ": " << json_file_size << std::endl;
-    std::cout << std::setw(42) << "Number of tweets" << ": " << num_tweets << std::endl;
-    std::cout << std::setw(42) << "Number of RecordBatches" << ": " << num_batches << std::endl;
-    std::cout << std::setw(42) << "Arrow RecordBatches total size (B)" << ": " << batches_total_size << std::endl;
-    std::cout << std::setw(42) << "Arrow RecordBatch avg. size (B)" << ": " << batches_avg_size << std::endl;
-    std::cout << std::setw(42) << "Arrow IPC messages total size (B)" << ": " << ipc_total_size << std::endl;
-    std::cout << std::setw(42) << "Arrow IPC messages avg. size (B)" << ": " << ipc_avg_size << std::endl;
-  }
+//  if (opt.succinct) {
+//    std::cout << json_file_size << ", ";
+//    std::cout << num_tweets << ", ";
+//    std::cout << num_batches << ", ";
+//    std::cout << batches_total_size << ", ";
+//    std::cout << batches_avg_size << ", ";
+//    std::cout << ipc_total_size << ", ";
+//    std::cout << ipc_avg_size << std::endl;
+//  } else {
+//    std::cout << std::setw(42) << "JSON File size (B)" << ": " << json_file_size << std::endl;
+//    std::cout << std::setw(42) << "Number of tweets" << ": " << num_tweets << std::endl;
+//    std::cout << std::setw(42) << "Number of RecordBatches" << ": " << num_batches << std::endl;
+//    std::cout << std::setw(42) << "Arrow RecordBatches total size (B)" << ": " << batches_total_size << std::endl;
+//    std::cout << std::setw(42) << "Arrow RecordBatch avg. size (B)" << ": " << batches_avg_size << std::endl;
+//    std::cout << std::setw(42) << "Arrow IPC messages total size (B)" << ": " << ipc_total_size << std::endl;
+//    std::cout << std::setw(42) << "Arrow IPC messages avg. size (B)" << ": " << ipc_avg_size << std::endl;
+//  }
 
   return 0;
 }

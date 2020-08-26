@@ -24,12 +24,10 @@
 #include <iostream>
 #include <arrow/api.h>
 
-#include "./tweets.h"
-
 namespace flitter {
 
 struct Drone {
-  Drone(int drone_id, size_t max_size, ReservationSpec reservation_spec);
+  Drone(int drone_id, size_t max_size);
 
 //  // Builders for every column and their children
 //  std::vector<uint64_t> id_val;
@@ -47,7 +45,6 @@ struct Drone {
 //  // ref_tweets_struct_ has no buffers
 //  std::vector<int32_t> ref_tweets_off;
 
-  TweetsBuilder builder;
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
 
   const size_t max_size = 0;
@@ -59,9 +56,7 @@ struct Drone {
 void drone_thread(Drone *drone);
 
 struct Hive {
-  explicit Hive(int num_workers = 1,
-                size_t max_size = 5 * 1024 * 1024 - 11 * 1024, // arrow ipc header seems to be less than a KiB
-                ReservationSpec reservations = ReservationSpec());
+  explicit Hive(int num_workers = 1, size_t max_size = 5 * 1024 * 1024 - 11 * 1024);
 
   std::vector<Drone> workers;
   std::vector<std::thread> threads;

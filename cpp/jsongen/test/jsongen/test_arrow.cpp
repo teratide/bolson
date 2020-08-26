@@ -23,7 +23,7 @@
 namespace jsongen::test {
 
 static auto GenerateJSON(const arrow::Schema &schema, int seed = 0) -> std::string {
-  auto gen = FromSchema(schema, GenerateOptions(seed));
+  auto gen = FromArrowSchema(schema, GenerateOptions(seed));
   rapidjson::StringBuffer b;
   rapidjson::Writer p(b);
   gen.Get().Accept(p);

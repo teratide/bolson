@@ -14,27 +14,37 @@
 
 #pragma once
 
+#include <zmqpp/zmqpp.hpp>
 #include <arrow/api.h>
-#include <flitter/protocol.h>
+#include <jsongen/protocol.h>
 
-#include "./document.h"
+#include "jsongen/status.h"
+#include "jsongen/document.h"
+#include "jsongen/producer.h"
 
 namespace jsongen {
 
 /// @brief Options for the stream subcommand.
 struct StreamOptions {
-  /// The Arrow schema to base the JSON messages on.
-  std::shared_ptr<arrow::Schema> schema;
-  /// The number of messages to send.
-  size_t num_messages = 1;
-  /// Options for the random generators.
-  GenerateOptions gen;
   /// Properties of the message protocol.
-  flitter::StreamProtocol protocol;
-  /// Whether to pretty-print the JSON messages.
-  bool pretty = false;
+  StreamProtocol protocol;
+  /// Options for the JSON production facilities.
+  ProductionOptions production;
 };
 
-auto StreamServer(const StreamOptions &opt) -> int;
+/// @brief Streaming statistics.
+struct StreamStatistics {
+  /// Number of messages transmitted.
+  size_t num_messages = 0;
+  /// Number of bytes transmitted.
+  size_t num_bytes = 0;
+  /// Total time spent transmitting.
+  double time = 0.0;
+  /// Statistics of the production facilities.
+  ProductionStats producer;
+};
 
-}  // namespace jsongen
+/// @brief Run the stream subcommand.
+auto RunStream(const StreamOptions &options) -> Status;
+
+}

@@ -14,11 +14,11 @@
 
 #include <iostream>
 #include <CLI/CLI.hpp>
+#include <jsongen/zmq_protocol.h>
 
-#include "./pulsar.h"
-#include "./file.h"
-#include "./stream.h"
-#include "./bench.h"
+#include "flitter/pulsar.h"
+#include "flitter/file.h"
+#include "flitter/stream.h"
 
 #pragma once
 
@@ -33,7 +33,6 @@ struct AppOptions {
 
   enum class SubCommand { FILE, STREAM, BENCH } sub;
 
-  MicroBenchOptions bench;
   FileOptions file;
   StreamOptions stream;
 

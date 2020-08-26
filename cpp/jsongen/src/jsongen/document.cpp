@@ -15,8 +15,8 @@
 #include <iostream>
 #include <utility>
 
-#include "./value.h"
-#include "./document.h"
+#include "jsongen/value.h"
+#include "jsongen/document.h"
 
 namespace jsongen {
 

@@ -15,34 +15,34 @@
 #include <memory>
 #include <arrow/api.h>
 
-#include "./value.h"
-#include "./document.h"
+#include "jsongen/value.h"
+#include "jsongen/document.h"
 
 #pragma once
 
 namespace jsongen {
 
 /**
- * @brief From an Arrow schema, look up a metadata value by key.
- * @param schema The schema to inspect.
- * @param key The key to look up.
- * @return The value, if the KV-pair exists.
+ * \brief From an Arrow schema, look up a metadata value by key.
+ * \param schema The schema to inspect.
+ * \param key The key to look up.
+ * \return The value, if the KV-pair exists.
  */
 auto GetMeta(const arrow::Schema &schema, const std::string &key) -> std::optional<std::string>;
 
 /**
- * @brief From an Arrow Field, look up a metadata value by key.
- * @param field The field to inspect.
- * @param key The key to look up.
- * @return The value, if the KV-pair exists.
+ * \brief From an Arrow Field, look up a metadata value by key.
+ * \param field The field to inspect.
+ * \param key The key to look up.
+ * \return The value, if the KV-pair exists.
  */
 auto GetMeta(const arrow::Field &field, const std::string &key) -> std::optional<std::string>;
 
 /**
- * @brief From an Arrow Field, look up a metadata value by key, and convert it to an uint64_t.
- * @param field The field to inspect.
- * @param key The key to look up.
- * @return The uint64_t value, if the KV-pair exists and was successfully converted.
+ * \brief From an Arrow Field, look up a metadata value by key, and convert it to an uint64_t.
+ * \param field The field to inspect.
+ * \param key The key to look up.
+ * \return The uint64_t value, if the KV-pair exists and was successfully converted.
  */
 auto GetUInt64Meta(const arrow::Field &field, const std::string &key) -> std::optional<uint64_t>;
 
@@ -87,19 +87,19 @@ class FieldAnalyzer : public arrow::TypeVisitor {
 };
 
 /**
- * @brief Read an Arrow schema from file. Schema must be stored as raw output of Arrow's serialization functions.
- * @param file The file containing the schema.
- * @param out A shared pointer to store the resulting schema in.
- * @return true if successful, false otherwise.
+ * \brief Read an Arrow schema from file. Schema must be stored as raw output of Arrow's serialization functions.
+ * \param file The file containing the schema.
+ * \param out A shared pointer to store the resulting schema in.
+ * \return true if successful, false otherwise.
  */
 auto ReadSchemaFromFile(const std::string &file, std::shared_ptr<arrow::Schema> *out) -> bool;
 
 /**
- * @brief Construct a DocumentGenerator from an Arrow schema.
- * @param schema The Arrow schema to use.
- * @param options Options for the generator tree.
- * @return A DocumentGenerator able to generate JSON objects derived from the Arrow schema.
+ * \brief Construct a DocumentGenerator from an Arrow schema.
+ * \param schema The Arrow schema to use.
+ * \param options Options for the generator tree.
+ * \return A DocumentGenerator able to generate JSON objects derived from the Arrow schema.
  */
-auto FromSchema(const arrow::Schema &schema, GenerateOptions options = GenerateOptions()) -> DocumentGenerator;
+auto FromArrowSchema(const arrow::Schema &schema, GenerateOptions options = GenerateOptions()) -> DocumentGenerator;
 
 }

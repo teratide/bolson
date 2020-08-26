@@ -16,10 +16,9 @@
 #include <arrow/io/api.h>
 #include <arrow/ipc/api.h>
 
-#include <flitter/log.h>
-
-#include "./value.h"
-#include "./arrow.h"
+#include "jsongen/log.h"
+#include "jsongen/value.h"
+#include "jsongen/arrow.h"
 
 #define META(X) "JSONGEN_"#X
 
@@ -154,7 +153,7 @@ auto ReadSchemaFromFile(const std::string &file, std::shared_ptr<arrow::Schema> 
   return true;
 }
 
-auto FromSchema(const arrow::Schema &schema, GenerateOptions options) -> DocumentGenerator {
+auto FromArrowSchema(const arrow::Schema &schema, GenerateOptions options) -> DocumentGenerator {
   DocumentGenerator doc(options.seed);
   auto sa = SchemaAnalyzer(&doc);
   sa.Analyze(schema);

@@ -14,13 +14,10 @@
 
 #pragma once
 
-namespace flitter {
+#include "putong/status.h"
+#include "putong/timer.h"
 
-/// @brief Micro-benchmark options
-struct MicroBenchOptions {
-  bool tweets_builder = false;
-};
-
-auto RunMicroBenchmarks(const MicroBenchOptions &opts) -> int;
-
-}  // namespace flitter
+/// @brief A collection of arguably useful templates and functions.
+///
+/// The name is derived from the Pinyin rendering of the Chinese word for "common" (as in: ordinary).
+namespace putong {}

@@ -30,7 +30,7 @@ using RandomEngine = std::ranlux48_base;
 using Allocator = rj::Document::AllocatorType;
 
 /**
- * @brief Context for generators to operate in.
+ * \brief Context for generators to operate in.
  */
 struct Context {
   /// The random engine to use in distributions.
@@ -40,7 +40,7 @@ struct Context {
 };
 
 /**
- * @brief Abstract class representing a value generator.
+ * \brief Abstract class representing a value generator.
  */
 class Value {
  public:
@@ -173,8 +173,8 @@ class Member {
   [[nodiscard]] auto name() const -> std::string { return name_; }
 
   /**
-   * @brief Generate and add a member to the supplied object.
-   * @param object The value to add the member to. Must be a rapidjson Object.
+   * \brief Generate and add a member to the supplied object.
+   * \param object The value to add the member to. Must be a rapidjson Object.
    */
   void AddTo(rj::Value *object);
  protected:

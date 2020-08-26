@@ -16,9 +16,9 @@
 #include <utility>
 #include <rapidjson/document.h>
 #include <rapidjson/allocators.h>
-#include <flitter/log.h>
 
-#include "./value.h"
+#include "jsongen/log.h"
+#include "jsongen/value.h"
 
 namespace jsongen {
 

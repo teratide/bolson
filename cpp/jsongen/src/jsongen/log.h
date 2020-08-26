@@ -14,13 +14,22 @@
 
 #pragma once
 
-namespace flitter {
+#ifndef NDEBUG
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
+#endif
 
-struct StreamProtocol {
-/// Default port, derived from alphabet index of F L I T (arrays start at one)
-  uint16_t port = 61292;
-/// End of stream marker.
-  std::string eos_marker = "stahp";
-};
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
-}  // namespace flitter
+namespace jsongen {
+
+/// \brief Start the logging facility.
+inline void StartLogger() {
+  auto logger = spdlog::stdout_logger_mt("jsongen");
+  spdlog::set_default_logger(logger);
+#ifndef NDEBUG
+  spdlog::set_level(spdlog::level::debug);
+#endif
+}
+
+}

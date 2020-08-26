@@ -15,8 +15,11 @@
 #include <chrono>
 #include <atomic>
 #include <concurrentqueue.h>
-#include <flitter/log.h>
+#include <rapidjson/prettywriter.h>
 
+#include <putong/timer.h>
+
+#include "./log.h"
 #include "./utils.h"
 #include "./hive.h"
 
@@ -30,13 +33,12 @@ static struct ObjectQueue {
   std::atomic<size_t> consumed = 0;
   bool stop = false;
   // remove these:
-  Timer timer;
+  putong::Timer<> timer;
   double t_msg = 0.;
   double t_q2q = 0.;
 } docs;
 
-Drone::Drone(int drone_id, size_t max_size, ReservationSpec reservation_spec)
-    : id(drone_id), max_size(max_size), builder(TweetsBuilder(reservation_spec)) {
+Drone::Drone(int drone_id, size_t max_size) : id(drone_id), max_size(max_size) {
 //  id_val.reserve(reservation_spec.tweets);
 //  created_at_off.reserve(reservation_spec.tweets + 1); // + 1 for final offset
 //  created_at_val.reserve(reservation_spec.tweets * DATE_LENGTH);
@@ -57,46 +59,51 @@ Drone::Drone(int drone_id, size_t max_size, ReservationSpec reservation_spec)
 
 void drone_thread(Drone *drone) {
   SPDLOG_DEBUG("[Drone {}] Started.", drone->id);
-  Timer t;
+  putong::Timer t;
   // Continue to try and pull until the global stop signal is given.
   while (!docs.stop) {
     size_t popped = 0;
     // Make several attempts to pull before synchronizing with the total consumed counter.
-    for (int i = 0; (i < drone->attempts_before_sync) && (drone->builder.size() < drone->max_size); i++) {
+    //for (int i = 0; (i < drone->attempts_before_sync) && (drone->builder.size() < drone->max_size); i++) {
+    for (int i = 0; i < drone->attempts_before_sync; i++) {
       std::string data;
       if (docs.json_queue.try_dequeue(data)) {
         t.Start();
-        Tweet parsed_tweet;
+        //Tweet parsed_tweet;
         rapidjson::Document json_doc;
         json_doc.ParseInsitu(data.data());
-        // ParseTweet(json_doc["tweets"].GetArray()[0].GetObject(), &parsed_tweet);
+        //ParseTweet(json_doc["tweets"].GetArray()[0].GetObject(), &parsed_tweet);
         // drone->builder.Append(parsed_tweet);
-        SPDLOG_DEBUG("[Worker {}] popped: {}", drone->id, parsed_tweet.ToString());
+        rapidjson::StringBuffer buffer;
+        rapidjson::PrettyWriter writer(buffer);
+        json_doc.Accept(writer);
+
+        SPDLOG_DEBUG("[Worker {}] popped: {}", drone->id, buffer.GetString());
         popped++;
       }
     }
     // Check if we can finish the builder.
-    if (docs.stop || (drone->builder.size() >= drone->max_size)) {
-      if (drone->builder.rows() > 0) {
-        SPDLOG_DEBUG("[Drone {}] Finalizing builder.", drone->id);
-        std::shared_ptr<arrow::RecordBatch> batch;
-        auto status = drone->builder.Finish(&batch);
-        drone->batches.push_back(batch);
-        docs.timer.Stop();
-        t.Stop();
-        docs.t_q2q += docs.timer.seconds();
-        docs.t_msg += t.seconds();
-        //std::cout << t.seconds() << " / " << docs.timer.seconds() << std::endl;
-        // Reset the builder, so we can reuse it.
-        drone->builder.Reset();
-      }
-    }
+//    if (docs.stop || (drone->builder.size() >= drone->max_size)) {
+//      if (drone->builder.rows() > 0) {
+//        SPDLOG_DEBUG("[Drone {}] Finalizing builder.", drone->id);
+//        std::shared_ptr<arrow::RecordBatch> batch;
+//        auto status = drone->builder.Finish(&batch);
+//        drone->batches.push_back(batch);
+//        docs.timer.Stop();
+//        t.Stop();
+//        docs.t_q2q += docs.timer.seconds();
+//        docs.t_msg += t.seconds();
+//        //std::cout << t.seconds() << " / " << docs.timer.seconds() << std::endl;
+//        // Reset the builder, so we can reuse it.
+//        drone->builder.Reset();
+//      }
+//    }
     docs.consumed.fetch_add(popped, std::memory_order_relaxed);
-    SPDLOG_DEBUG("[Drone {}] Popped {} items. Builder rows: {}. Buffer size: {}",
+    SPDLOG_DEBUG("[Drone {}] Popped {} items.", // Builder rows: {}. Buffer size: {}",
                  drone->id,
-                 popped,
-                 drone->builder.rows(),
-                 drone->builder.size());
+                 popped);
+//                 drone->builder.rows(),
+//                 drone->builder.size());
 
   }
   SPDLOG_DEBUG("[Drone {}] Stopped.", drone->id);
@@ -110,11 +117,11 @@ void Hive::Start() {
   }
 }
 
-Hive::Hive(int num_workers, size_t max_size, ReservationSpec reservations) {
+Hive::Hive(int num_workers, size_t max_size) {
   spdlog::info("Initializing Flitter hive with {} drones.", num_workers);
   // Construct worker instances.
   for (int i = 0; i < num_workers; i++) {
-    workers.emplace_back(i, max_size, reservations);
+    workers.emplace_back(i, max_size);
   }
   docs.stop = false;
 }
@@ -129,7 +136,9 @@ void Hive::Stop() {
     thread.join();
   }
 
-  spdlog::info("q2q avg: {} us, msg avg: {} us", (docs.t_q2q / docs.produced) * 1E6, (docs.t_msg / docs.produced) * 1E6);
+  spdlog::info("q2q avg: {} us, msg avg: {} us",
+               (docs.t_q2q / docs.produced) * 1E6,
+               (docs.t_msg / docs.produced) * 1E6);
   spdlog::info("Stopping server. {}/{} items processed.", docs.produced, docs.consumed);
 }
 

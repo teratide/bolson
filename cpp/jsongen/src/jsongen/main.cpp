@@ -13,28 +13,32 @@
 // limitations under the License.
 
 #include <iostream>
-#include <flitter/log.h>
 
-#include "./cli.h"
-#include "./file.h"
-#include "./stream.h"
-
-using jsongen::AppOptions;
-using jsongen::GenerateFile;
-using jsongen::StreamServer;
+#include "jsongen/log.h"
+#include "jsongen/cli.h"
+#include "jsongen/file.h"
+#include "jsongen/zmq_server.h"
+#include "jsongen/status.h"
+#include "jsongen/stream.h"
 
 auto main(int argc, char *argv[]) -> int {
   // Set up logger.
-  flitter::StartLogger();
+  jsongen::StartLogger();
 
   // Parse command-line arguments:
   auto opt = jsongen::AppOptions(argc, argv);
   if (opt.exit) { return opt.return_value; }
 
   // Run the requested sub-program:
+  jsongen::Status status;
   switch (opt.sub) {
-    case jsongen::SubCommand::FILE: return GenerateFile(opt.file);
-    case jsongen::SubCommand::STREAM: return StreamServer(opt.stream);
+    case jsongen::SubCommand::FILE: status = jsongen::RunFile(opt.file);
+    case jsongen::SubCommand::STREAM: status = jsongen::RunStream(opt.stream);
+  }
+
+  if (!status.ok()) {
+    spdlog::error("{} exiting with errors.", jsongen::AppOptions::name);
+    spdlog::error("  {}", status.msg());
   }
 
   return 0;

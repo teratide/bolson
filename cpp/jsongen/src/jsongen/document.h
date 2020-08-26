@@ -17,7 +17,7 @@
 #include <random>
 #include <utility>
 
-#include "./value.h"
+#include "jsongen/value.h"
 
 namespace jsongen {
 
@@ -60,4 +60,4 @@ class DocumentGenerator {
   std::shared_ptr<Value> root_;
 };
 
-}  // namespace jsongen
+}

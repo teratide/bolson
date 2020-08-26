@@ -21,7 +21,7 @@
 #include <arrow/api.h>
 
 #include "./file.h"
-#include "./stream.h"
+#include "./zmq_server.h"
 
 namespace jsongen {
 
@@ -30,6 +30,11 @@ enum class SubCommand { FILE, STREAM };
 
 /// @brief Application options parser.
 struct AppOptions {
+  /// The name of the application.
+  constexpr static auto name = "jsongen";
+  /// A description of the application.
+  constexpr static auto desc = "A json generator based on Arrow Schemas.";
+
   /// @brief Construct an instance of the application options parser.
   AppOptions(int argc, char *argv[]);
 

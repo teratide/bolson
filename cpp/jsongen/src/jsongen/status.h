@@ -12,20 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "jsongen/log.h"
-#include "jsongen/stream.h"
-#include "jsongen/zmq_server.h"
-#include "jsongen/raw_server.h"
+#pragma once
+
+#include <iostream>
+
+#include <putong/status.h>
 
 namespace jsongen {
 
-auto RunStream(const StreamOptions &opt) -> Status {
+#define RETURN_ON_ERROR(s) if (!s.ok()) return s;
 
-  if (std::holds_alternative<ZMQProtocol>(opt.protocol)) {
-    return RunZMQServer(std::get<ZMQProtocol>(opt.protocol), opt.production);
-  } else {
-    return RunRawServer(std::get<RawProtocol>(opt.protocol), opt.production);
-  }
-}
+enum class Error {
+  GenericError,
+  CLIError,
+  JSONError,
+  ZMQError,
+  RawError
+};
+
+using Status = putong::Status<Error>;
 
 }

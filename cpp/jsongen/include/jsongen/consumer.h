@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "./bench.h"
-#include "./tweets.h"
+#pragma once
 
-namespace flitter {
+#include <future>
+#include <cstdint>
+#include <arrow/api.h>
+#include <concurrentqueue.h>
 
-auto RunMicroBenchmarks(const MicroBenchOptions &opts) -> int {
-  if (opts.tweets_builder) {
-    TweetsBuilder::RunBenchmark(1024 * 1024 * 16);
-  }
+#include "jsongen/document.h"
 
-  return 0;
+namespace jsongen {
+  using ConsumptionQueue = moodycamel::ConcurrentQueue<std::string>;
 }
-
-}  // namespace flitter

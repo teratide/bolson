@@ -14,29 +14,27 @@
 
 #pragma once
 
-#include <arrow/api.h>
+#include <cstdint>
 #include <string>
-
-#include "jsongen/status.h"
-#include "jsongen/document.h"
+#include <utility>
+#include <variant>
 
 namespace jsongen {
 
-/// @brief Options for the file subcommand.
-struct FileOptions {
-  /// The Arrow schema to base the JSON messages on.
-  std::shared_ptr<arrow::Schema> schema;
-  /// Options for the random generators.
-  GenerateOptions gen;
-  /// The output file path.
-  std::string out_path;
-  /// Whether to dump the file to stdout as well.
-  bool verbose = false;
-  /// Whether to pretty-print the JSON file.
-  bool pretty = false;
-};
+/// Default port number, derived from the alphabet index (arrays start at one) of JSG
+constexpr uint16_t ZMQ_PORT = 10197;
+/// Default end-of-stream marker for ZMQ.
+constexpr const char *ZMQ_EOS = "stahp";
 
-/// @brief Run the file subcommand.
-auto RunFile(const FileOptions &opt) -> Status;
+/// Protocol options for the ZMQ streaming client/server
+struct ZMQProtocol {
+  /// \brief Constructor
+  explicit ZMQProtocol(uint16_t port = ZMQ_PORT, std::string eos_marker = ZMQ_EOS)
+      : port(port), eos_marker(std::move(eos_marker)) {}
+  /// Port to use for the TCP connection.
+  uint16_t port;
+  /// End of stream marker.
+  std::string eos_marker;
+};
 
 }

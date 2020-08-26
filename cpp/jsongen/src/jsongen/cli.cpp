@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <flitter/log.h>
-
-#include "./cli.h"
-#include "./file.h"
-#include "./stream.h"
-#include "./arrow.h"
+#include "jsongen/log.h"
+#include "jsongen/cli.h"
+#include "jsongen/file.h"
+#include "jsongen/zmq_server.h"
+#include "jsongen/arrow.h"
 
 namespace jsongen {
 
@@ -28,27 +27,34 @@ static constexpr auto seed_flags = "-s,--seed";
 static constexpr auto seed_help = "Random generator seed (default: taken from random device).";
 
 static constexpr auto pretty_flags = "--pretty";
-static constexpr auto pretty_help = "Generate \"pretty-printed\" JSON data.";
+static constexpr auto pretty_help = "Generate \"pretty-printed\" JSONs.";
 
 AppOptions::AppOptions(int argc, char **argv) {
-  CLI::App app{"jsongen: a json generator based on Arrow Schemas."};
+  CLI::App app{std::string(AppOptions::name) + ": " + AppOptions::desc};
+
   std::string schema_file;
+  uint16_t stream_port = 0;
 
   // File generation:
-  auto *sub_file = app.add_subcommand("file", "Generate a JSON file.");
+  auto *sub_file = app.add_subcommand("file", "Generate a file with JSONs.");
   sub_file->add_option(input_flags, schema_file, input_help)->required()->check(CLI::ExistingFile);
   sub_file->add_option(seed_flags, file.gen.seed, seed_help);
   sub_file->add_flag(pretty_flags, file.pretty, pretty_help);
-  sub_file->add_option("-o,--output", file.out_path, "Output file. JSON file will be written to stdout if not set.");
-  sub_file->add_flag("-v", file.verbose, "Print the JSON output to stdout, even if -o or --output is used.");
+  sub_file->add_option("-o,--output", file.out_path, "Output file. JSONs will be written to stdout if not set.");
+  sub_file->add_flag("-v", file.verbose, "Print the JSONs to stdout, even if -o or --output is used.");
 
   // Server mode:
-  auto *sub_stream = app.add_subcommand("stream", "Stream JSONs with tweets over the network.");
+  auto *sub_stream = app.add_subcommand("stream", "Stream raw JSONs over a TCP network socket.");
   sub_stream->add_option(input_flags, schema_file, input_help)->required()->check(CLI::ExistingFile);
-  sub_stream->add_option(seed_flags, stream.gen.seed, seed_help);
-  sub_stream->add_flag(pretty_flags, stream.pretty, pretty_help);
-  sub_stream->add_option("-p,--port", stream.protocol.port, "Port (default=61292).");
-  sub_stream->add_option("-m,--num-messages", stream.num_messages, "Number of messages to send (default = 1).");
+  sub_stream->add_option(seed_flags, stream.production.gen.seed, seed_help);
+  sub_stream->add_flag(pretty_flags, stream.production.pretty, pretty_help);
+  auto *port_opt = sub_stream->add_option("-p,--port",
+                                          stream_port,
+                                          "Port (default=" + std::to_string(ZMQ_PORT) + ").");
+  auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
+  sub_stream->add_option("-m,--num-jsons",
+                         stream.production.num_jsons,
+                         "Number of JSONs to send (default = 1).");
 
 
   // Attempt to parse the CLI arguments.
@@ -78,7 +84,22 @@ AppOptions::AppOptions(int argc, char **argv) {
     this->file.schema = this->schema;
   } else if (sub_stream->parsed()) {
     this->sub = SubCommand::STREAM;
-    this->stream.schema = this->schema;
+    this->stream.production.schema = this->schema;
+
+    // Check which streaming protocol to use.
+    if (*zmq_flag) {
+      ZMQProtocol zmq;
+      if (*port_opt) {
+        zmq.port = stream_port;
+      }
+      this->stream.protocol = zmq;
+    } else {
+      RawProtocol raw;
+      if (*port_opt) {
+        raw.port = stream_port;
+      }
+      this->stream.protocol = raw;
+    }
   }
 
 }

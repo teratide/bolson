@@ -12,59 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
-#include <iostream>
-#include <zmqpp/zmqpp.hpp>
-#include <flitter/log.h>
+#include <jsongen/raw_client.h>
+#include <jsongen/zmq_client.h>
 
-#include "./stream.h"
-#include "./hive.h"
+#include "flitter/stream.h"
 
 namespace flitter {
 
-struct ClientConnection {
-  std::shared_ptr<zmqpp::context> context;
-  std::shared_ptr<zmqpp::socket> socket;
-};
-
-auto StartClient(const StreamOptions &opts) -> ClientConnection {
-  // TODO(johanpel): error handling
-  ClientConnection result;
-  const std::string endpoint = "tcp://" + opts.host + ":" + std::to_string(opts.protocol.port);
-  // Initialize the 0MQ context.
-  result.context = std::make_shared<zmqpp::context>();
-  // Generate a pull socket.
-  zmqpp::socket_type type = zmqpp::socket_type::pull;
-  result.socket = std::make_shared<zmqpp::socket>(*result.context, type);
-  // Open the connection
-  spdlog::info("Connecting to {}", endpoint);
-  result.socket->connect(endpoint);
-  return result;
-}
-
-auto StreamClient(const StreamOptions &opts) -> int {
-  spdlog::info("Starting stream client.");
-  auto c = StartClient(opts);
-
-  Hive h;
-  h.Start();
-
-  spdlog::info("Receiving messages.");
-  // Try to pull messages as long as we don't receive the end-of-stream marker.
-  while (true) {
-    zmqpp::message message;
-    c.socket->receive(message);
-    if (message.get(0) == opts.protocol.eos_marker) {
-      spdlog::info("End of stream.");
-      break;
-    } else {
-      SPDLOG_DEBUG("Received: {}", message.get(0));
-      h.Push(message.get(0));
+auto ProduceFromStream(const StreamOptions &opt) -> int {
+  if (std::holds_alternative<jsongen::ZMQProtocol>(opt.protocol)) {
+    jsongen::ConsumptionQueue output;
+    jsongen::ZMQClient client;
+    jsongen::ZMQClient::Create(std::get<jsongen::ZMQProtocol>(opt.protocol), "localhost", &client);
+    client.ReceiveJSONs(&output);
+    client.Close();
+  } else {
+    jsongen::ConsumptionQueue output;
+    jsongen::RawClient client;
+    auto status = jsongen::RawClient::Create(std::get<jsongen::RawProtocol>(opt.protocol), "localhost", &client);
+    if (!status.ok()) {
+      spdlog::error("Could not create raw client {}.", status.msg());
+    }
+    status = client.ReceiveJSONs(&output);
+    if (!status.ok()) {
+      spdlog::error("Could not create raw client {}.", status.msg());
+    }
+    status = client.Close();
+    if (!status.ok()) {
+      spdlog::error("Could not create raw client {}.", status.msg());
     }
   }
-
-  spdlog::info("Stream client shutting down.");
-  h.Stop();
 
   return 0;
 }

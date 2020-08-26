@@ -14,16 +14,18 @@
 
 #pragma once
 
-#include <flitter/protocol.h>
+#include <utility>
+#include <variant>
+
+#include <jsongen/protocol.h>
 
 namespace flitter {
 
 struct StreamOptions {
-  std::string host = "localhost";
-
-  StreamProtocol protocol;
+  std::string hostname;
+  jsongen::StreamProtocol protocol;
 };
 
-auto StreamClient(const StreamOptions &opts) -> int;
+auto ProduceFromStream(const StreamOptions &opt) -> int;
 
 }  // namespace flitter

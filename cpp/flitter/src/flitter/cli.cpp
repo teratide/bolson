@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <flitter/log.h>
-
-#include "./cli.h"
+#include "flitter/log.h"
+#include "flitter/cli.h"
 
 namespace flitter {
 
 AppOptions::AppOptions(int argc, char **argv) {
   CLI::App app{"Flitter : Exploring Pulsar, Arrow, and FPGA."};
+
+  uint16_t stream_port = 0;
 
   // CLI options:
   auto *sub_file = app.add_subcommand("file", "Produce Pulsar messages from a JSON file.");
@@ -33,12 +34,11 @@ AppOptions::AppOptions(int argc, char **argv) {
                        "Pulsar max. message size (default: 5 MiB - 10 KiB)");
   sub_file->add_flag("-s,--succinct-stats", file.succinct, "Prints measurements to stdout on a single line.");
 
-  auto *sub_bench = app.add_subcommand("bench", "Run micro-benchmarks on internals.");
-  sub_bench->add_flag("--tweets-builder",
-                      bench.tweets_builder,
-                      "Run TweetsBuilder microbenchmark. Enabling any microbenchmark flag disables all other functionality.");
-
   auto *sub_stream = app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
+  auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
+  auto *port_opt = sub_stream->add_option("-p,--port",
+                                          stream_port,
+                                          "Port (default=" + std::to_string(jsongen::ZMQ_PORT) + ").");
 
   // Attempt to parse the CLI arguments.
   try {
@@ -57,8 +57,24 @@ AppOptions::AppOptions(int argc, char **argv) {
   }
 
   if (sub_file->parsed()) this->sub = SubCommand::FILE;
-  else if (sub_stream->parsed()) this->sub = SubCommand::STREAM;
-  else if (sub_bench->parsed()) this->sub = SubCommand::BENCH;
+  else if (sub_stream->parsed()) {
+    this->sub = SubCommand::STREAM;
+
+    // Check which streaming protocol to use.
+    if (*zmq_flag) {
+      jsongen::ZMQProtocol zmq;
+      if (*port_opt) {
+        zmq.port = stream_port;
+      }
+      this->stream.protocol = zmq;
+    } else {
+      jsongen::RawProtocol raw;
+      if (*port_opt) {
+        raw.port = stream_port;
+      }
+      this->stream.protocol = raw;
+    }
+  }
 
 }
 

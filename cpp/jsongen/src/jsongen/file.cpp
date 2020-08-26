@@ -16,15 +16,18 @@
 #include <fstream>
 #include <rapidjson/prettywriter.h>
 
-#include "./document.h"
-#include "./file.h"
-#include "./arrow.h"
+#include "jsongen/document.h"
+#include "jsongen/file.h"
+#include "jsongen/arrow.h"
+#include "jsongen/status.h"
 
 namespace jsongen {
 
-auto GenerateFile(const FileOptions &opt) -> int {
+// TODO(johanpel): convert file generation to make use of production facilities in producer.h
+
+auto RunFile(const FileOptions &opt) -> Status {
   // Generate the document:
-  auto gen = FromSchema(*opt.schema, opt.gen);
+  auto gen = FromArrowSchema(*opt.schema, opt.gen);
   auto json = gen.Get();
 
   // Write it to a StringBuffer
@@ -50,7 +53,7 @@ auto GenerateFile(const FileOptions &opt) -> int {
     of << output << std::endl;
   }
 
-  return 0;
+  return Status::OK();
 }
 
-}  // namespace jsongen
+}

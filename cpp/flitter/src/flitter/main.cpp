@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <flitter/log.h>
-
+#include "./log.h"
 #include "./cli.h"
 #include "./file.h"
 #include "./stream.h"
-#include "./bench.h"
 
 auto main(int argc, char *argv[]) -> int {
   // Set up logger.
@@ -31,7 +29,8 @@ auto main(int argc, char *argv[]) -> int {
   // Run sub-programs.
   switch (opts.sub) {
     case AppOptions::SubCommand::FILE: return flitter::ProduceFromFile(opts.file);
-    case AppOptions::SubCommand::STREAM: return flitter::StreamClient(opts.stream);
-    case AppOptions::SubCommand::BENCH: return flitter::RunMicroBenchmarks(opts.bench);
+    case AppOptions::SubCommand::STREAM: return flitter::ProduceFromStream(opts.stream);
   }
+
+  return 0;
 }

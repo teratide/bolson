@@ -46,4 +46,24 @@ auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
   return producer->send(msg);
 }
 
+void FlitterLogger::log(pulsar::Logger::Level level, int line, const std::string &message) {
+  if (level == Level::LEVEL_WARN) {
+    spdlog::warn("[pulsar] {}", message);
+  } else {
+    spdlog::error("[pulsar] {}", message);
+  }
+}
+
+auto FlitterLogger::isEnabled(pulsar::Logger::Level level) -> bool { return level >= Level::LEVEL_WARN; }
+
+FlitterLogger::FlitterLogger(std::string logger) : _logger(std::move(logger)) {}
+
+auto FlitterLoggerFactory::getLogger(const std::string &fileName) -> pulsar::Logger * {
+  return new FlitterLogger(fileName);
+}
+
+auto FlitterLoggerFactory::create() -> std::unique_ptr<FlitterLoggerFactory> {
+  return std::make_unique<FlitterLoggerFactory>();
+}
+
 }  // namespace flitter
