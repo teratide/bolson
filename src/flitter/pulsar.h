@@ -19,9 +19,12 @@
 #include <pulsar/Client.h>
 #include <pulsar/Producer.h>
 
-#include "./log.h"
+#include "flitter/log.h"
+#include "flitter/converter.h"
 
 namespace flitter {
+
+using ClientProducerPair = std::pair<std::shared_ptr<pulsar::Client>, std::shared_ptr<pulsar::Producer>>;
 
 /// @brief Pulsar options.
 struct PulsarOptions {
@@ -57,8 +60,7 @@ class FlitterLoggerFactory : public pulsar::LoggerFactory {
 auto SetupClientProducer(const std::string &url,
                          const std::string &topic,
                          pulsar::LoggerFactory *logger,
-                         std::pair<std::shared_ptr<pulsar::Client>,
-                                   std::shared_ptr<pulsar::Producer>> *out) -> pulsar::Result;
+                         ClientProducerPair *out) -> pulsar::Result;
 
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
@@ -69,5 +71,9 @@ auto SetupClientProducer(const std::string &url,
 auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
                         const std::shared_ptr<arrow::Buffer> &buffer) -> pulsar::Result;
 
+void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
+                   IpcQueue *in,
+                   std::atomic<bool> *stop,
+                   std::atomic<size_t> *count);
 
 }  // namespace flitter

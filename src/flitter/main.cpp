@@ -12,20 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
-#include <rapidjson/writer.h>
+#include "flitter/log.h"
+#include "flitter/cli.h"
+#include "flitter/file.h"
+#include "flitter/stream.h"
 
-#include "jsongen/document.h"
-#include "jsongen/value.h"
+auto main(int argc, char *argv[]) -> int {
+  // Set up logger.
+  flitter::StartLogger();
 
-namespace jsongen::test {
+  // Handle CLI.
+  using flitter::AppOptions;
+  auto opts = AppOptions(argc, argv);
+  if (opts.exit) { return opts.return_value; }
 
-TEST(Generators, EmptyDocument) {
-  DocumentGenerator doc(0);
-  rapidjson::StringBuffer b;
-  rapidjson::Writer p(b);
-  doc.Get().Accept(p);
-  ASSERT_STREQ(b.GetString(), "null");
-}
+  // Run sub-programs.
+  switch (opts.sub) {
+    case AppOptions::SubCommand::FILE: return flitter::ProduceFromFile(opts.file);
+    case AppOptions::SubCommand::STREAM: return flitter::ProduceFromStream(opts.stream);
+  }
 
+  return 0;
 }

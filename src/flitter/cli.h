@@ -12,12 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+#include <CLI/CLI.hpp>
+#include <illex/zmq_protocol.h>
+
+#include "flitter/pulsar.h"
+#include "flitter/file.h"
+#include "flitter/stream.h"
+
 #pragma once
 
-#include "putong/status.h"
-#include "putong/timer.h"
+namespace flitter {
 
-/// @brief A collection of arguably useful templates and functions.
-///
-/// The name is derived from the Pinyin rendering of the Chinese word for "common" (as in: ordinary).
-namespace putong {}
+/// @brief Application options.
+struct AppOptions {
+  AppOptions(int argc, char *argv[]);
+
+  static auto failure() -> int { return -1; };
+  static auto success() -> int { return 0; };
+
+  enum class SubCommand { FILE, STREAM, BENCH } sub;
+
+  FileOptions file;
+  StreamOptions stream;
+
+  bool succinct = false;
+  bool exit = false;
+  int return_value = 0;
+};
+
+}  // namespace flitter

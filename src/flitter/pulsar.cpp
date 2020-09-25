@@ -21,15 +21,15 @@
 #include <pulsar/Logger.h>
 #include <pulsar/defines.h>
 
-#include "./pulsar.h"
+#include "flitter/log.h"
+#include "flitter/pulsar.h"
 
 namespace flitter {
 
 auto SetupClientProducer(const std::string &url,
                          const std::string &topic,
                          pulsar::LoggerFactory *logger,
-                         std::pair<std::shared_ptr<pulsar::Client>,
-                                   std::shared_ptr<pulsar::Producer>> *out) -> pulsar::Result {
+                         ClientProducerPair *out) -> pulsar::Result {
   auto config = pulsar::ClientConfiguration();
   config.setLogger(logger);
   auto client = std::make_shared<pulsar::Client>(url, config);
@@ -44,6 +44,21 @@ auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
   pulsar::Message msg = pulsar::MessageBuilder().setAllocatedContent(reinterpret_cast<void *>(buffer->mutable_data()),
                                                                      buffer->size()).build();
   return producer->send(msg);
+}
+
+void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
+                   IpcQueue *in,
+                   std::atomic<bool> *stop,
+                   std::atomic<size_t> *count) {
+  // TODO(johanpel): Use a safer mechanism to stop the thread and pass the count
+  while (!stop->load()) {
+    std::shared_ptr<arrow::Buffer> ipc_msg;
+    if (in->try_dequeue(ipc_msg)) {
+      SPDLOG_DEBUG("[publish] Publishing Arrow IPC message.");
+      PublishArrowBuffer(producer, ipc_msg);
+      count->fetch_add(1);
+    }
+  }
 }
 
 void FlitterLogger::log(pulsar::Logger::Level level, int line, const std::string &message) {

@@ -12,20 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "jsongen/log.h"
-#include "jsongen/stream.h"
-#include "jsongen/zmq_server.h"
-#include "jsongen/raw_server.h"
+#pragma once
 
-namespace jsongen {
+#include <memory>
 
-auto RunStream(const StreamOptions &opt) -> Status {
+#include <arrow/api.h>
+#include <illex/queue.h>
 
-  if (std::holds_alternative<ZMQProtocol>(opt.protocol)) {
-    return RunZMQServer(std::get<ZMQProtocol>(opt.protocol), opt.production);
-  } else {
-    return RunRawServer(std::get<RawProtocol>(opt.protocol), opt.production);
-  }
-}
+namespace flitter {
 
-}
+using IpcQueue = moodycamel::ConcurrentQueue<std::shared_ptr<arrow::Buffer>>;
+
+void ConversionDroneThread(size_t id, illex::Queue *in, IpcQueue *out, std::atomic<bool> *shutdown);
+
+void ConversionHiveThread(illex::Queue *in, IpcQueue *out, std::atomic<bool> *shutdown, size_t num_drones);
+
+}  // namespace flitter

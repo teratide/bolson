@@ -14,27 +14,24 @@
 
 #pragma once
 
-#include <cstdint>
-#include <string>
 #include <utility>
 #include <variant>
 
-namespace jsongen {
+#include <illex/protocol.h>
 
-/// Default port number, derived from the alphabet index (arrays start at one) of JSG
-constexpr uint16_t ZMQ_PORT = 10197;
-/// Default end-of-stream marker for ZMQ.
-constexpr const char *ZMQ_EOS = "stahp";
+#include "flitter/pulsar.h"
 
-/// Protocol options for the ZMQ streaming client/server
-struct ZMQProtocol {
-  /// \brief Constructor
-  explicit ZMQProtocol(uint16_t port = ZMQ_PORT, std::string eos_marker = ZMQ_EOS)
-      : port(port), eos_marker(std::move(eos_marker)) {}
-  /// Port to use for the TCP connection.
-  uint16_t port;
-  /// End of stream marker.
-  std::string eos_marker;
+namespace flitter {
+
+struct StreamOptions {
+  // Enable profiling timers.
+  bool profile = false;
+  std::string hostname;
+  illex::StreamProtocol protocol;
+  PulsarOptions pulsar;
+  size_t num_conversion_drones;
 };
 
-}
+auto ProduceFromStream(const StreamOptions &opt) -> int;
+
+}  // namespace flitter
