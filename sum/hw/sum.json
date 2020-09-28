@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "afu-image": {
+    "power": 0,
+    "afu-top-interface": {
+      "name": "ofs_plat_afu"
+    },
+    "accelerator-clusters": [
+      {
+        "name": "sum",
+        "total-contexts": 1,
+        "accelerator-type-uuid": "bcdf53bc-4ffb-4933-bf7c-4a7e1602c6e2"
+      }
+    ]
+  }
+}
