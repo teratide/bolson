@@ -23,19 +23,21 @@ auto main(int argc, char *argv[]) -> int {
   flitter::StartLogger();
 
   // Handle CLI.
-  using flitter::AppOptions;
-  auto opts = AppOptions(argc, argv);
-  if (opts.exit) { return opts.return_value; }
-
-  // Run sub-programs.
-  flitter::Status result;
-  switch (opts.sub) {
-    case AppOptions::SubCommand::FILE: result = flitter::ProduceFromFile(opts.file);
-    case AppOptions::SubCommand::STREAM: result = flitter::ProduceFromStream(opts.stream);
+  flitter::AppOptions opts;
+  auto status = flitter::AppOptions::FromArguments(argc, argv, &opts);
+  if (status.ok()) {
+    // Run sub-programs.
+    flitter::Status result;
+    switch (opts.sub) {
+      case flitter::SubCommand::NONE: break;
+      case flitter::SubCommand::FILE: status = flitter::ProduceFromFile(opts.file);
+      case flitter::SubCommand::STREAM: status = flitter::ProduceFromStream(opts.stream);
+    }
   }
 
-  if (!result.ok()) {
-    spdlog::error("Exited with errors: {}", result.msg());
+  if (!status.ok()) {
+    spdlog::error("{} exiting with errors.", flitter::AppOptions::name);
+    spdlog::error("  {}", status.msg());
   }
 
   return 0;

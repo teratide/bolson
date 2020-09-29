@@ -14,6 +14,7 @@
 
 #include "flitter/log.h"
 #include "flitter/cli.h"
+#include "flitter/status.h"
 
 namespace flitter {
 
@@ -25,15 +26,17 @@ void AddCommonOpts(CLI::App *sub, PulsarOptions *pulsar) {
                   "Pulsar max. message size (default: 5 MiB - 10 KiB)");
 }
 
-AppOptions::AppOptions(int argc, char **argv) {
+auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status {
   CLI::App app{"Flitter : Exploring Pulsar, Arrow, and FPGA."};
 
   uint16_t stream_port = 0;
 
   // CLI options:
   auto *sub_file = app.add_subcommand("file", "Produce Pulsar messages from a JSON file.");
-  sub_file->add_option("i,-i,--input", file.input, "Input file with Tweets.")->check(CLI::ExistingFile)->required();
-  sub_file->add_flag("-s,--succinct-stats", file.succinct, "Prints measurements to stdout on a single line.");
+  sub_file->add_option("i,-i,--input",
+                       out->file.input,
+                       "Input file with Tweets.")->check(CLI::ExistingFile)->required();
+  sub_file->add_flag("-s,--succinct-stats", out->file.succinct, "Prints measurements to stdout on a single line.");
 
   auto *sub_stream = app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
   auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
@@ -47,19 +50,16 @@ AppOptions::AppOptions(int argc, char **argv) {
   } catch (CLI::CallForHelp &e) {
     // User wants to see help.
     std::cout << app.help() << std::endl;
-    return_value = success();
-    exit = true;
+    return Status::OK();
   } catch (CLI::Error &e) {
-    // There is some error.
-    spdlog::error("{} : {}", e.get_name(), e.what());
+    // There is some CLI error.
     std::cerr << app.help() << std::endl;
-    return_value = failure();
-    exit = true;
+    return Status(Error::CLIError, e.get_name() + ":" + e.what());
   }
 
-  if (sub_file->parsed()) this->sub = SubCommand::FILE;
+  if (sub_file->parsed()) out->sub = SubCommand::FILE;
   else if (sub_stream->parsed()) {
-    this->sub = SubCommand::STREAM;
+    out->sub = SubCommand::STREAM;
 
     // Check which streaming protocol to use.
     if (*zmq_flag) {
@@ -67,16 +67,16 @@ AppOptions::AppOptions(int argc, char **argv) {
       if (*port_opt) {
         zmq.port = stream_port;
       }
-      this->stream.protocol = zmq;
+      out->stream.protocol = zmq;
     } else {
       illex::RawProtocol raw;
       if (*port_opt) {
         raw.port = stream_port;
       }
-      this->stream.protocol = raw;
+      out->stream.protocol = raw;
     }
   }
-
+  return Status::OK();
 }
 
 }  // namespace flitter
