@@ -24,14 +24,23 @@
 namespace flitter {
 
 struct StreamOptions {
-  // Enable profiling timers.
+  /// Enable profiling timers.
   bool profile = false;
-  std::string hostname;
+  /// The hostname of the stream server.
+  std::string hostname = "localhost";
+  /// The protocol to use.
   illex::StreamProtocol protocol;
+  /// The Pulsar options.
   PulsarOptions pulsar;
-  size_t num_conversion_drones;
+  /// Number of conversion drone threads to spawn.
+  size_t num_conversion_drones = 1;
 };
 
-auto ProduceFromStream(const StreamOptions &opt) -> int;
+/**
+ * \brief Produce Pulsar messages from an incoming stream.
+ * \param opt The properties of the stream.
+ * \return Status::OK() if successful, error otherwise.
+ */
+auto ProduceFromStream(const StreamOptions &opt) -> Status;
 
 }  // namespace flitter

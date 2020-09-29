@@ -21,7 +21,8 @@
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 
-#include "./utils.h"
+#include "flitter/utils.h"
+#include "flitter/status.h"
 
 namespace flitter {
 
@@ -63,15 +64,14 @@ void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct) 
   }
 }
 
-auto LoadFile(const std::string &file_name, size_t num_bytes) -> std::vector<char> {
+auto LoadFile(const std::string &file_name, size_t num_bytes, std::vector<char> *dest) -> Status {
   std::ifstream ifs(file_name, std::ios::binary);
-  std::vector<char> buffer(num_bytes + 1);
-  if (!ifs.read(buffer.data(), num_bytes)) {
-    // TODO(johanpel): don't throw
-    throw std::runtime_error("Could not read file " + file_name + " into memory.");
+  dest->reserve(num_bytes + 1);
+  if (!ifs.read(dest->data(), num_bytes)) {
+    return Status(Error::IOError, "Could not load file: " + file_name);
   }
-  buffer[num_bytes] = '\0';
-  return buffer;
+  (*dest)[num_bytes] = '\0';
+  return Status::OK();
 }
 
 auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> arrow::Result<std::shared_ptr<arrow::Buffer>> {
@@ -90,16 +90,18 @@ auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> 
   return buffer.ValueOrDie()->Finish();
 }
 
-void ReportParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer) {
+auto ConvertParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer) -> std::string {
+  std::stringstream ss;
   auto code = doc.GetParseError();
   auto offset = doc.GetErrorOffset();
-  std::cerr << "  Parser error: " << rapidjson::GetParseError_En(code) << std::endl;
-  std::cerr << "  Offset: " << offset << std::endl;
-  std::cerr << "  Character: " << file_buffer[offset] << " / 0x"
-            << std::hex << static_cast<uint8_t>(file_buffer[offset]) << std::endl;
-  std::cerr << "  Around: "
-            << std::string_view(&file_buffer[offset < 40UL ? 0 : offset - 40], std::min(40UL, file_buffer.size()))
-            << std::endl;
+  ss << "  Parser error: " << rapidjson::GetParseError_En(code) << std::endl;
+  ss << "  Offset: " << offset << std::endl;
+  ss << "  Character: " << file_buffer[offset] << " / 0x"
+     << std::hex << static_cast<uint8_t>(file_buffer[offset]) << std::endl;
+  ss << "  Around: "
+     << std::string_view(&file_buffer[offset < 40UL ? 0 : offset - 40], std::min(40UL, file_buffer.size()))
+     << std::endl;
+  return ss.str();
 }
 
 }  // namespace flitter

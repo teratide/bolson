@@ -16,6 +16,7 @@
 #include "flitter/cli.h"
 #include "flitter/file.h"
 #include "flitter/stream.h"
+#include "flitter/status.h"
 
 auto main(int argc, char *argv[]) -> int {
   // Set up logger.
@@ -27,9 +28,14 @@ auto main(int argc, char *argv[]) -> int {
   if (opts.exit) { return opts.return_value; }
 
   // Run sub-programs.
+  flitter::Status result;
   switch (opts.sub) {
-    case AppOptions::SubCommand::FILE: return flitter::ProduceFromFile(opts.file);
-    case AppOptions::SubCommand::STREAM: return flitter::ProduceFromStream(opts.stream);
+    case AppOptions::SubCommand::FILE: result = flitter::ProduceFromFile(opts.file);
+    case AppOptions::SubCommand::STREAM: result = flitter::ProduceFromStream(opts.stream);
+  }
+
+  if (!result.ok()) {
+    spdlog::error("Exited with errors: {}", result.msg());
   }
 
   return 0;

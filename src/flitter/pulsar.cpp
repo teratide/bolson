@@ -23,34 +23,43 @@
 
 #include "flitter/log.h"
 #include "flitter/pulsar.h"
+#include "flitter/status.h"
+
+#define CHECK_PULSAR(result) \
+  if (result != pulsar::ResultOk) { \
+    return Status(Error::PulsarError, std::string("Pulsar error: ") + pulsar::strResult(result)); \
+  }
 
 namespace flitter {
 
 auto SetupClientProducer(const std::string &url,
                          const std::string &topic,
                          pulsar::LoggerFactory *logger,
-                         ClientProducerPair *out) -> pulsar::Result {
+                         ClientProducerPair *out) -> Status {
   auto config = pulsar::ClientConfiguration();
   config.setLogger(logger);
   auto client = std::make_shared<pulsar::Client>(url, config);
   auto producer = std::make_shared<pulsar::Producer>();
-  pulsar::Result result = client->createProducer(topic, *producer);
+  auto result = client->createProducer(topic, *producer);
+  CHECK_PULSAR(result);
+  // TODO(johanpel): if createProducer fails and we return this function, the destructors of the pulsar objects cause
+  //  a segmentation fault. This needs more investigation.
   *out = {client, producer};
-  return result;
+  return Status::OK();
 }
 
 auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
-                        const std::shared_ptr<arrow::Buffer> &buffer) -> pulsar::Result {
+                        const std::shared_ptr<arrow::Buffer> &buffer) -> Status {
   pulsar::Message msg = pulsar::MessageBuilder().setAllocatedContent(reinterpret_cast<void *>(buffer->mutable_data()),
                                                                      buffer->size()).build();
-  return producer->send(msg);
+  CHECK_PULSAR(producer->send(msg));
+  return Status::OK();
 }
 
 void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
                    IpcQueue *in,
                    std::atomic<bool> *stop,
                    std::atomic<size_t> *count) {
-  // TODO(johanpel): Use a safer mechanism to stop the thread and pass the count
   while (!stop->load()) {
     std::shared_ptr<arrow::Buffer> ipc_msg;
     if (in->try_dequeue(ipc_msg)) {

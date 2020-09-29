@@ -21,6 +21,8 @@
 #include <arrow/api.h>
 #include <rapidjson/document.h>
 
+#include "flitter/status.h"
+
 namespace flitter {
 
 /**
@@ -51,13 +53,13 @@ void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct =
  * \param num_bytes The number of bytes to read into the buffer.
  * \return The buffer, will be size num_bytes + 1 to accommodate the terminator character.
  */
-auto LoadFile(const std::string &file_name, size_t num_bytes) -> std::vector<char>;
+auto LoadFile(const std::string &file_name, size_t num_bytes, std::vector<char>* dest) -> Status;
 
 /**
- * \brief Report a rapidjson parsing error on stderr.
+ * \brief Convert a RapidJSON parsing error to a more readible format.
  * \param doc The document that has a presumed error.
  * \param file_buffer The buffer from which the document was attempted to be parsed.
  */
-void ReportParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer);
+auto ConvertParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer) -> std::string;
 
 }  // namespace flitter

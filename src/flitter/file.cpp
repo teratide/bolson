@@ -26,18 +26,12 @@ namespace pt = putong;
 
 namespace flitter {
 
-auto ProduceFromFile(const FileOptions &opt) -> int {
+auto ProduceFromFile(const FileOptions &opt) -> Status {
   // Setup a Pulsar client and redirect the logger.
   auto pulsar_logger = FlitterLoggerFactory::create();
   // Create Pulsar client and producer objects and attempt to connect to broker.
   std::pair<std::shared_ptr<pulsar::Client>, std::shared_ptr<pulsar::Producer>> client_producer;
-  pulsar::Result pulsar_result = SetupClientProducer(opt.pulsar.url, opt.pulsar.topic,
-                                                     pulsar_logger.get(), &client_producer);
-  // Check for errors.
-  if (pulsar_result != pulsar::ResultOk) {
-    spdlog::error("Could not set up Pulsar client/producer: {}", pulsar::strResult(pulsar_result));
-    return -1;
-  }
+  FLITTER_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, pulsar_logger.get(), &client_producer));
 
   pt::Timer timer;
 
@@ -47,7 +41,8 @@ auto ProduceFromFile(const FileOptions &opt) -> int {
 
   // Load file into memory
   timer.Start();
-  auto file_buffer = LoadFile(opt.input, json_file_size);
+  std::vector<char> file_buffer;
+  FLITTER_ROE(LoadFile(opt.input, json_file_size, &file_buffer));
   timer.Stop();
   ReportGBps("Load JSON file", json_file_size, timer.seconds(), opt.succinct);
 
@@ -57,9 +52,8 @@ auto ProduceFromFile(const FileOptions &opt) -> int {
   doc.ParseInsitu(file_buffer.data());
   // Check for errors.
   if (doc.HasParseError()) {
-    spdlog::error("Could not parse JSON file: {}", opt.input);
-    ReportParserError(doc, file_buffer);
-    return -1;
+    ConvertParserError(doc, file_buffer);
+    return Status(Error::RapidJSONError, "Could not parse JSON file: " + opt.input);
   }
   timer.Stop();
   ReportGBps("Parse JSON file (rapidjson)", json_file_size, timer.seconds(), opt.succinct);
@@ -112,14 +106,10 @@ auto ProduceFromFile(const FileOptions &opt) -> int {
   // Publish the buffer in Pulsar:
   timer.Start();
   for (const auto &ipc_buffer : ipc_buffers) {
-    pulsar_result = PublishArrowBuffer(client_producer.second, ipc_buffer);
+    FLITTER_ROE(PublishArrowBuffer(client_producer.second, ipc_buffer));
   }
   timer.Stop();
-  // Check for errors.
-  if (pulsar_result != pulsar::ResultOk) {
-    spdlog::error("Could not publish Arrow buffer with Pulsar producer: {}", pulsar::strResult(pulsar_result));
-    return -1;
-  }
+
   ReportGBps("Publish IPC message in Pulsar: ", ipc_total_size, timer.seconds(), opt.succinct);
 
   // Report some additional properties:
@@ -142,7 +132,7 @@ auto ProduceFromFile(const FileOptions &opt) -> int {
 //    std::cout << std::setw(42) << "Arrow IPC messages avg. size (B)" << ": " << ipc_avg_size << std::endl;
 //  }
 
-  return 0;
+  return Status::OK();
 }
 
 }  // namespace flitter

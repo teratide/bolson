@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <thread>
+#include <memory>
 #include <illex/raw_client.h>
 #include <illex/zmq_client.h>
 #include <putong/timer.h>
@@ -20,69 +21,102 @@
 #include "flitter/stream.h"
 #include "flitter/converter.h"
 #include "flitter/pulsar.h"
+#include "flitter/status.h"
 
 namespace flitter {
 
-#define illex(status) { \
-  if (!status.ok()) { \
-    spdlog::error("illex error: {}", status.msg()); \
-    return -1; \
-  } \
-}
+// Structure to hold threads and atomics
+struct StreamThreads {
+  std::unique_ptr<std::thread> publish_thread;
+  std::unique_ptr<std::thread> converter_thread;
+  std::atomic<bool> shutdown = false;
+  std::atomic<size_t> publish_count = 0;
 
-auto ProduceFromStream(const StreamOptions &opt) -> int {
+  void Shutdown() {
+    shutdown.store(true);
+    converter_thread->join();
+    publish_thread->join();
+  }
+};
+
+// Macro to shut down threads in the function below whenever Illex client returns some error.
+#define SHUTDOWN_ON_ERROR(status) \
+  if (!status.ok()) {             \
+    threads.Shutdown();           \
+    return Status(Error::IllexError, status.msg()); \
+  }
+
+auto ProduceFromStream(const StreamOptions &opt) -> Status {
+  putong::Timer t;
+
+  // Check which protocol to use.
   if (std::holds_alternative<illex::ZMQProtocol>(opt.protocol)) {
-    illex::Queue output;
-    illex::ZMQClient client;
-    illex::ZMQClient::Create(std::get<illex::ZMQProtocol>(opt.protocol), "localhost", &client);
-    client.ReceiveJSONs(&output);
-    client.Close();
+    return Status(Error::GenericError, "Not implemented.");
+//    illex::Queue output;
+//    illex::ZMQClient client;
+//    illex::ZMQClient::Create(std::get<illex::ZMQProtocol>(opt.protocol), "localhost", &client);
+//    CHECK_ILLEX(client.ReceiveJSONs(&output));
+//    CHECK_ILLEX(client.Close());
   } else {
-    putong::Timer t;
-    std::atomic<bool> shutdown = false;
-    illex::Queue raw_json_queue;
-    IpcQueue arrow_ipc_queue;
+    StreamThreads threads;
+
+    // Set up Pulsar client and producer.
     auto pulsar_logger = FlitterLoggerFactory::create();
     ClientProducerPair client_prod;
-    auto pulsar_result = SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, pulsar_logger.get(), &client_prod);
+    FLITTER_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, pulsar_logger.get(), &client_prod));
 
-    std::atomic<size_t> publish_count = 0;
-    auto publish_thread = std::thread(PublishThread, client_prod.second, &arrow_ipc_queue, &shutdown, &publish_count);
-    auto converter_thread = std::thread(ConversionHiveThread,
-                                        &raw_json_queue,
-                                        &arrow_ipc_queue,
-                                        &shutdown,
-                                        opt.num_conversion_drones);
+    // Set up queues.
+    illex::Queue raw_json_queue;
+    IpcQueue arrow_ipc_queue;
 
+    // Spawn two threads:
+    // The conversion thread spawns one or multiple drone threads that convert JSONs to Arrow IPC messages and queues
+    // them. The publish thread pull from the Arrow IPC queue, fed by the conversion thread, and publish them in Pulsar.
+    threads.converter_thread = std::make_unique<std::thread>(ConversionHiveThread,
+                                                             &raw_json_queue,
+                                                             &arrow_ipc_queue,
+                                                             &threads.shutdown,
+                                                             opt.num_conversion_drones);
+    threads.publish_thread = std::make_unique<std::thread>(PublishThread,
+                                                           client_prod.second,
+                                                           &arrow_ipc_queue,
+                                                           &threads.shutdown,
+                                                           &threads.publish_count);
+
+    // Set up the client that receives incoming JSONs.
+    // We must shut down the threads in case the client returns some errors.
     illex::RawClient client;
-
-    illex(illex::RawClient::Create(std::get<illex::RawProtocol>(opt.protocol), "localhost", &client));
+    SHUTDOWN_ON_ERROR(illex::RawClient::Create(std::get<illex::RawProtocol>(opt.protocol), opt.hostname, &client));
 
     if (opt.profile) { t.Start(); }
 
-    illex(client.ReceiveJSONs(&raw_json_queue));
-    illex(client.Close());
+    // Receive JSONs until the server closes the connection.
+    // Concurrently, the conversion and publish thread will do their job.
+    SHUTDOWN_ON_ERROR(client.ReceiveJSONs(&raw_json_queue));
+    SHUTDOWN_ON_ERROR(client.Close());
 
-    spdlog::info("Received {} JSONs over TCP.", client.received());
-
-    while (client.received() != publish_count) {
+    // Once the server disconnects, we can work towards shutting down this function.
+    // Wait until all JSONs have been published.
+    while (client.received() != threads.publish_count.load()) {
 #ifndef NDEBUG
       std::this_thread::sleep_for(std::chrono::seconds(1));
-      SPDLOG_DEBUG("Received: {}, Published: {}", client.received(), publish_count);
+      SPDLOG_DEBUG("Received: {}, Published: {}", client.received(), threads.publish_count.load());
 #endif
     }
 
     if (opt.profile) {
       t.Stop();
-      spdlog::info("Published {} messages in {} seconds.", publish_count, t.seconds());
+      spdlog::info("Published {} messages in {} seconds.", threads.publish_count.load(), t.seconds());
     }
 
-    shutdown = true;
-    converter_thread.join();
-    publish_thread.join();
+    // We can now shut down all threads.
+    threads.Shutdown();
+
+    // Report some statistics.
+    spdlog::info("Received {} JSONs over TCP.", client.received());
   }
 
-  return 0;
+  return Status::OK();
 }
 
 }  // namespace flitter

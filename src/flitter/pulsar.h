@@ -20,6 +20,7 @@
 #include <pulsar/Producer.h>
 
 #include "flitter/log.h"
+#include "flitter/status.h"
 #include "flitter/converter.h"
 
 namespace flitter {
@@ -53,23 +54,23 @@ class FlitterLoggerFactory : public pulsar::LoggerFactory {
  * Set a Pulsar client and producer up.
  * \param url    The Pulsar broker service URL.
  * \param topic  The Pulsar topic to produce message in.
- * \param logger        A logging device.
- * \param out           A pair with shared pointers to the client and producer objects.
- * \return              The Pulsar result of connecting the producer.
+ * \param logger A logging device.
+ * \param out    A pair with shared pointers to the client and producer objects.
+ * \return       Status::OK() if successful, some error otherwise.
  */
 auto SetupClientProducer(const std::string &url,
                          const std::string &topic,
                          pulsar::LoggerFactory *logger,
-                         ClientProducerPair *out) -> pulsar::Result;
+                         ClientProducerPair *out) -> Status;
 
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
- * \param producer      The Pulsar producer to publish the message through.
- * \param buffer        The Arrow buffer to publish.
- * \return              The Pulsar result of sending the message.
+ * \param producer The Pulsar producer to publish the message through.
+ * \param buffer   The Arrow buffer to publish.
+ * \return         Status::OK() if successful, some error otherwise.
  */
 auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
-                        const std::shared_ptr<arrow::Buffer> &buffer) -> pulsar::Result;
+                        const std::shared_ptr<arrow::Buffer> &buffer) -> Status;
 
 void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
                    IpcQueue *in,

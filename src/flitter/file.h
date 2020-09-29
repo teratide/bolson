@@ -24,6 +24,6 @@ struct FileOptions {
   bool succinct = false;
 };
 
-auto ProduceFromFile(const FileOptions &opt) -> int;
+auto ProduceFromFile(const FileOptions &opt) -> Status;
 
 }  // namespace flitter
