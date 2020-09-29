@@ -19,7 +19,6 @@ jobs:
       matrix:
         project:
         - flitter
-        - jsongen
     steps:
     - uses: actions/checkout@v2
     - name: Install Apache Arrow
