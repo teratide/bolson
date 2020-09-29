@@ -27,11 +27,9 @@ namespace pt = putong;
 namespace flitter {
 
 auto ProduceFromFile(const FileOptions &opt) -> Status {
-  // Setup a Pulsar client and redirect the logger.
-  auto pulsar_logger = FlitterLoggerFactory::create();
   // Create Pulsar client and producer objects and attempt to connect to broker.
   std::pair<std::shared_ptr<pulsar::Client>, std::shared_ptr<pulsar::Producer>> client_producer;
-  FLITTER_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, pulsar_logger.get(), &client_producer));
+  FLITTER_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &client_producer));
 
   pt::Timer timer;
 

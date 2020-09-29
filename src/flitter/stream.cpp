@@ -41,8 +41,8 @@ struct StreamThreads {
 
 // Macro to shut down threads in the function below whenever Illex client returns some error.
 #define SHUTDOWN_ON_ERROR(status) \
-  if (!status.ok()) {             \
-    threads.Shutdown();           \
+  if (!status.ok()) { \
+    threads.Shutdown(); \
     return Status(Error::IllexError, status.msg()); \
   }
 
@@ -61,9 +61,9 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     StreamThreads threads;
 
     // Set up Pulsar client and producer.
-    auto pulsar_logger = FlitterLoggerFactory::create();
     ClientProducerPair client_prod;
-    FLITTER_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, pulsar_logger.get(), &client_prod));
+    FLITTER_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &client_prod));
+    // (Here we can still normally return on error since no thread have spawned yet)
 
     // Set up queues.
     illex::Queue raw_json_queue;

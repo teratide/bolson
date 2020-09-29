@@ -35,32 +35,15 @@ struct PulsarOptions {
   size_t max_msg_size = (5 * 1024 * 1024 - (10 * 1024));
 };
 
-// A custom logger for Pulsar.
-class FlitterLogger : public pulsar::Logger {
-  std::string _logger;
- public:
-  explicit FlitterLogger(std::string logger);
-  auto isEnabled(Level level) -> bool override;
-  void log(Level level, int line, const std::string &message) override;
-};
-
-class FlitterLoggerFactory : public pulsar::LoggerFactory {
- public:
-  auto getLogger(const std::string &fileName) -> pulsar::Logger * override;
-  static auto create() -> std::unique_ptr<FlitterLoggerFactory>;
-};
-
 /**
  * Set a Pulsar client and producer up.
  * \param url    The Pulsar broker service URL.
  * \param topic  The Pulsar topic to produce message in.
- * \param logger A logging device.
  * \param out    A pair with shared pointers to the client and producer objects.
  * \return       Status::OK() if successful, some error otherwise.
  */
 auto SetupClientProducer(const std::string &url,
                          const std::string &topic,
-                         pulsar::LoggerFactory *logger,
                          ClientProducerPair *out) -> Status;
 
 /**
@@ -76,5 +59,11 @@ void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
                    IpcQueue *in,
                    std::atomic<bool> *stop,
                    std::atomic<size_t> *count);
+
+class FlitterLoggerFactory : public pulsar::LoggerFactory {
+ public:
+  auto getLogger(const std::string &file) -> pulsar::Logger * override;
+  static auto create() -> std::unique_ptr<FlitterLoggerFactory>;
+};
 
 }  // namespace flitter

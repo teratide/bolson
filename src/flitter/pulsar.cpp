@@ -25,19 +25,18 @@
 #include "flitter/pulsar.h"
 #include "flitter/status.h"
 
-#define CHECK_PULSAR(result) \
-  if (result != pulsar::ResultOk) { \
+#define CHECK_PULSAR(result) { \
+  auto res = result; \
+  if (res != pulsar::ResultOk) \
     return Status(Error::PulsarError, std::string("Pulsar error: ") + pulsar::strResult(result)); \
-  }
+}
 
 namespace flitter {
 
 auto SetupClientProducer(const std::string &url,
                          const std::string &topic,
-                         pulsar::LoggerFactory *logger,
                          ClientProducerPair *out) -> Status {
-  auto config = pulsar::ClientConfiguration();
-  config.setLogger(logger);
+  auto config = pulsar::ClientConfiguration().setLogger(new FlitterLoggerFactory());
   auto client = std::make_shared<pulsar::Client>(url, config);
   auto producer = std::make_shared<pulsar::Producer>();
   auto result = client->createProducer(topic, *producer);
@@ -70,21 +69,21 @@ void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
   }
 }
 
-void FlitterLogger::log(pulsar::Logger::Level level, int line, const std::string &message) {
-  if (level == Level::LEVEL_WARN) {
-    spdlog::warn("[pulsar] {}", message);
-  } else {
-    spdlog::error("[pulsar] {}", message);
+class FlitterLogger : public pulsar::Logger {
+  std::string _logger;
+ public:
+  explicit FlitterLogger(std::string logger) : _logger(std::move(logger)) {}
+  auto isEnabled(Level level) -> bool override { return level >= Level::LEVEL_WARN; }
+  void log(Level level, int line, const std::string &message) override {
+    if (level == Level::LEVEL_WARN) {
+      spdlog::warn("[pulsar] {}:{} {}", _logger, line, message);
+    } else {
+      spdlog::error("[pulsar] {}:{} {}", _logger, line, message);
+    }
   }
-}
+};
 
-auto FlitterLogger::isEnabled(pulsar::Logger::Level level) -> bool { return level >= Level::LEVEL_WARN; }
-
-FlitterLogger::FlitterLogger(std::string logger) : _logger(std::move(logger)) {}
-
-auto FlitterLoggerFactory::getLogger(const std::string &fileName) -> pulsar::Logger * {
-  return new FlitterLogger(fileName);
-}
+auto FlitterLoggerFactory::getLogger(const std::string &file) -> pulsar::Logger * { return new FlitterLogger(file); }
 
 auto FlitterLoggerFactory::create() -> std::unique_ptr<FlitterLoggerFactory> {
   return std::make_unique<FlitterLoggerFactory>();

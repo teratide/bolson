@@ -20,7 +20,10 @@
 
 namespace flitter {
 
-#define FLITTER_ROE(s) if (!s.ok()) return s
+#define FLITTER_ROE(s) { \
+  auto status = s;       \
+  if (!s.ok()) return s; \
+}
 
 enum class Error {
   GenericError,
