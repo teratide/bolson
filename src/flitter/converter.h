@@ -23,8 +23,32 @@ namespace flitter {
 
 using IpcQueue = moodycamel::ConcurrentQueue<std::shared_ptr<arrow::Buffer>>;
 
-void ConversionDroneThread(size_t id, illex::Queue *in, IpcQueue *out, std::atomic<bool> *shutdown);
+/// Statistics about the conversion functions.
+struct ConversionStats {
+  /// Number of converted JSONs.
+  size_t num_jsons = 0;
+  /// Number of IPC messages.
+  size_t num_ipc = 0;
+  /// Number of bytes in the IPC messages.
+  size_t ipc_bytes = 0;
+  /// Total time spent on conversion only.
+  double convert_time = 0.0;
+  /// Total time spent in this thread.
+  double thread_time = 0.0;
+};
 
-void ConversionHiveThread(illex::Queue *in, IpcQueue *out, std::atomic<bool> *shutdown, size_t num_drones);
+/**
+ * \brief Converts JSONs to Arrow IPC messages. Multi-threaded.
+ * \param in            The input queue of JSONs
+ * \param out           The output queue for Arrow IPC messages.
+ * \param shutdown      Signal to shut down this thread (typically used when there will be no more new inputs).
+ * \param num_drones    Number of conversion threads to spawn.
+ * \param stats         Statistics for each conversion thread.
+ */
+void ConversionHiveThread(illex::Queue *in,
+                          IpcQueue *out,
+                          std::atomic<bool> *shutdown,
+                          size_t num_drones,
+                          std::promise<std::vector<ConversionStats>> &&stats);
 
-}  // namespace flitter
+}

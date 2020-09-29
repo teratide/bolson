@@ -24,8 +24,8 @@
 namespace flitter {
 
 struct StreamOptions {
-  /// Enable profiling timers.
-  bool profile = false;
+  /// Enable statistics.
+  bool statistics = true;
   /// The hostname of the stream server.
   std::string hostname = "localhost";
   /// The protocol to use.

@@ -20,6 +20,7 @@
 #include <pulsar/Result.h>
 #include <pulsar/Logger.h>
 #include <pulsar/defines.h>
+#include <putong/timer.h>
 
 #include "flitter/log.h"
 #include "flitter/pulsar.h"
@@ -39,18 +40,20 @@ auto SetupClientProducer(const std::string &url,
   auto config = pulsar::ClientConfiguration().setLogger(new FlitterLoggerFactory());
   auto client = std::make_shared<pulsar::Client>(url, config);
   auto producer = std::make_shared<pulsar::Producer>();
-  auto result = client->createProducer(topic, *producer);
-  CHECK_PULSAR(result);
-  // TODO(johanpel): if createProducer fails and we return this function, the destructors of the pulsar objects cause
-  //  a segmentation fault. This needs more investigation.
+  CHECK_PULSAR(client->createProducer(topic, *producer));
   *out = {client, producer};
   return Status::OK();
 }
 
 auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
-                        const std::shared_ptr<arrow::Buffer> &buffer) -> Status {
+                        const std::shared_ptr<arrow::Buffer> &buffer,
+                        putong::Timer<> *latency_timer) -> Status {
   pulsar::Message msg = pulsar::MessageBuilder().setAllocatedContent(reinterpret_cast<void *>(buffer->mutable_data()),
                                                                      buffer->size()).build();
+  // TODO: no
+  if (latency_timer != nullptr) {
+    latency_timer->Stop();
+  }
   CHECK_PULSAR(producer->send(msg));
   return Status::OK();
 }
@@ -58,15 +61,46 @@ auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
 void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
                    IpcQueue *in,
                    std::atomic<bool> *stop,
-                   std::atomic<size_t> *count) {
+                   std::atomic<size_t> *count,
+                   putong::Timer<> *latency, // TODO: this could be wrapped in an atomic
+                   std::promise<PublishStats> &&stats) {
+  bool first = true;
+  // Set up timers.
+  auto thread_timer = putong::Timer(true);
+  auto publish_timer = putong::Timer();
+
+  PublishStats s;
+
+  // Try pulling stuff from the queue until the stop signal is given.
+  std::shared_ptr<arrow::Buffer> ipc_msg;
   while (!stop->load()) {
-    std::shared_ptr<arrow::Buffer> ipc_msg;
     if (in->try_dequeue(ipc_msg)) {
-      SPDLOG_DEBUG("[publish] Publishing Arrow IPC message.");
-      PublishArrowBuffer(producer, ipc_msg);
+      SPDLOG_DEBUG("Publishing Arrow IPC message.");
+      publish_timer.Start();
+      auto status = PublishArrowBuffer(producer, ipc_msg, latency);
+      publish_timer.Stop();
+      if (first) {
+        latency = nullptr; // todo
+        first = false;
+      }
+
+      if (!status.ok()) {
+        spdlog::error("Pulsar error: {}", status.msg());
+        // TODO(johanpel): do something with this error.
+      }
+
+      // Update some statistics.
+      s.publish_time += publish_timer.seconds();
+      s.num_published++;
       count->fetch_add(1);
     }
   }
+  // Stop thread timer.
+  thread_timer.Stop();
+  s.thread_time = thread_timer.seconds();
+
+  // Fulfill the promise.
+  stats.set_value(s);
 }
 
 class FlitterLogger : public pulsar::Logger {
@@ -76,9 +110,9 @@ class FlitterLogger : public pulsar::Logger {
   auto isEnabled(Level level) -> bool override { return level >= Level::LEVEL_WARN; }
   void log(Level level, int line, const std::string &message) override {
     if (level == Level::LEVEL_WARN) {
-      spdlog::warn("[pulsar] {}:{} {}", _logger, line, message);
+      spdlog::warn("Pulsar warning: {}:{} {}", _logger, line, message);
     } else {
-      spdlog::error("[pulsar] {}:{} {}", _logger, line, message);
+      spdlog::error("Pulsar error: {}:{} {}", _logger, line, message);
     }
   }
 };

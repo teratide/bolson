@@ -18,6 +18,7 @@
 #include <arrow/api.h>
 #include <pulsar/Client.h>
 #include <pulsar/Producer.h>
+#include <putong/timer.h>
 
 #include "flitter/log.h"
 #include "flitter/status.h"
@@ -27,12 +28,22 @@ namespace flitter {
 
 using ClientProducerPair = std::pair<std::shared_ptr<pulsar::Client>, std::shared_ptr<pulsar::Producer>>;
 
-/// @brief Pulsar options.
+/// \brief Pulsar options.
 struct PulsarOptions {
   std::string url = "pulsar://localhost:6650/";
   std::string topic = "flitter";
   // From an obscure place in the Pulsar sources
   size_t max_msg_size = (5 * 1024 * 1024 - (10 * 1024));
+};
+
+/// \brief Statistics about publishing
+struct PublishStats {
+  /// Number of messages published.
+  size_t num_published = 0;
+  /// Time spent on publishing message.
+  double publish_time = 0.;
+  /// Time spent in thread.
+  double thread_time = 0.;
 };
 
 /**
@@ -48,17 +59,21 @@ auto SetupClientProducer(const std::string &url,
 
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
- * \param producer The Pulsar producer to publish the message through.
- * \param buffer   The Arrow buffer to publish.
+ * \param producer      The Pulsar producer to publish the message through.
+ * \param buffer        The Arrow buffer to publish.
+ * \param latency_timer A timer that is stopped by this function just before calling the Pulsar send function.
  * \return         Status::OK() if successful, some error otherwise.
  */
 auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
-                        const std::shared_ptr<arrow::Buffer> &buffer) -> Status;
+                        const std::shared_ptr<arrow::Buffer> &buffer,
+                        putong::Timer<> *latency_timer) -> Status;
 
 void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
                    IpcQueue *in,
                    std::atomic<bool> *stop,
-                   std::atomic<size_t> *count);
+                   std::atomic<size_t> *count,
+                   putong::Timer<> *latency_timer,
+                   std::promise<PublishStats> &&stats);
 
 class FlitterLoggerFactory : public pulsar::LoggerFactory {
  public:
