@@ -60,11 +60,6 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
   } else {
     StreamThreads threads;
 
-    // Set up Pulsar client and producer.
-    ClientProducerPair client_prod;
-    FLITTER_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &client_prod));
-    // (Here we can still normally return on error since no thread have spawned yet)
-
     // Set up queues.
     illex::Queue raw_json_queue;
     IpcQueue arrow_ipc_queue;
@@ -86,7 +81,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                              std::move(conv_stats_promise));
 
     threads.publish_thread = std::make_unique<std::thread>(PublishThread,
-                                                           client_prod.second,
+                                                           opt.pulsar,
                                                            &arrow_ipc_queue,
                                                            &threads.shutdown,
                                                            &threads.publish_count,

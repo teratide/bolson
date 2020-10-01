@@ -58,12 +58,21 @@ auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
   return Status::OK();
 }
 
-void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
+void PublishThread(const PulsarOptions &opt,
                    IpcQueue *in,
                    std::atomic<bool> *stop,
                    std::atomic<size_t> *count,
                    putong::Timer<> *latency, // TODO: this could be wrapped in an atomic
                    std::promise<PublishStats> &&stats) {
+
+  // Set up Pulsar client and producer.
+  ClientProducerPair client_prod;
+  auto status = SetupClientProducer(opt.url, opt.topic, &client_prod);
+  if (!status.ok()) {
+    spdlog::error("Pulsar error: {}", status.msg());
+    // TODO(johanpel): do something with this error.
+  }
+
   bool first = true;
   // Set up timers.
   auto thread_timer = putong::Timer(true);
@@ -77,7 +86,7 @@ void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
     if (in->try_dequeue(ipc_msg)) {
       SPDLOG_DEBUG("Publishing Arrow IPC message.");
       publish_timer.Start();
-      auto status = PublishArrowBuffer(producer, ipc_msg, latency);
+      auto status = PublishArrowBuffer(client_prod.second, ipc_msg, latency);
       publish_timer.Stop();
       if (first) {
         latency = nullptr; // todo
@@ -98,6 +107,9 @@ void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
   // Stop thread timer.
   thread_timer.Stop();
   s.thread_time = thread_timer.seconds();
+
+  client_prod.second->close();
+  client_prod.first->close();
 
   // Fulfill the promise.
   stats.set_value(s);
