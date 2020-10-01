@@ -13,7 +13,7 @@ docker build -t ias:1.2.1 - < Dockerfile
 Start a container and mount the example directory:
 
 ```
-docker run -it --rm -v `pwd`:/src:ro ias:1.2.1
+docker run -it --rm --name ias -v `pwd`:/src:ro ias:1.2.1
 ```
 
 Create the simulation environment:
@@ -24,9 +24,6 @@ cd /sim
 make
 ```
 
-> There is currently an issue with opae-sim that requires a manual modification of the Makefile.
-> The patch can be found here: https://github.com/OPAE/opae-sim/pull/14
-
 Start the simulator:
 
 ```
@@ -36,8 +33,7 @@ make sim
 Start another shell in your container:
 
 ```
-docker ps
-docker exec -it <hash> bash
+docker exec -it ias bash
 ```
 
 Build the host application:
