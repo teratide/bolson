@@ -14,14 +14,14 @@ find_package(Arrow 1.0 CONFIG REQUIRED)
 find_package(fletcher CONFIG)
 
 add_compile_unit(
-    NAME hello_fletcher
+    NAME sum
     TYPE EXECUTABLE
     PRPS
       CXX_STANDARD 11
       CXX_STANDARD_REQUIRED ON
       CXX_DEBUG_FLAGS "-g"
     SRCS
-      src/hello_fletcher.cpp
+      src/sum.cpp
     DEPS
       arrow_shared
       fletcher
