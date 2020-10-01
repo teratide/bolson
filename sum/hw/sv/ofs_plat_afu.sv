@@ -57,11 +57,7 @@ module ofs_plat_afu (ofs_plat_if plat_ifc);
   wire [31:0] s_axi_araddr;
   assign s_axi_araddr = {14'b0, mmio64_to_afu.ar.addr};
 
-  AxiTop
-  #(
-    .AFU_ACCEL_UUID(`AFU_ACCEL_UUID)
-  ) 
-  axi_top
+  AxiTop axi_top
   (
     .kcd_clk(clk),
     .kcd_reset(reset),
