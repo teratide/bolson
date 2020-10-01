@@ -8,7 +8,7 @@
 ### Fletchgen
 
 ```
-fletchgen -n Sum -r example.rb -l vhdl -o src --mmio64 --mmio-offset 64 --axi
+fletchgen -n Sum -r example.rb -l vhdl --mmio64 --mmio-offset 64 --axi
 ```
 
 ### vhdmmio
