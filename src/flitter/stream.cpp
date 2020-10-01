@@ -96,6 +96,9 @@ static void LogStats(const putong::Timer<> &latency_timer,
   spdlog::info("Latency stats:");
   spdlog::info("  First latency       : {} us", 1E6 * latency_timer.seconds());
 
+  spdlog::info("Timer steady?         : {}", putong::Timer<>::steady());
+  spdlog::info("Timer resoluion       : {} us", putong::Timer<>::resolution_us());
+
 }
 
 // Macro to shut down threads in ProduceFromStream whenever Illex client returns some error.
