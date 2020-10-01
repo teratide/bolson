@@ -115,7 +115,6 @@ module ofs_plat_afu (ofs_plat_if plat_ifc);
         end
     end
 
-  // TODO(mb): add ports for these interfaces in Fletcher
   assign host_mem.ar.addr = m_axi_araddr[47:0];
   assign host_mem.aw.addr = m_axi_awaddr[47:0];
 

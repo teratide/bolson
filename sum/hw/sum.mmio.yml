@@ -20,14 +20,15 @@ fields:
     behavior: constant
     value: 17293826967149215744 # [63:60]: 1 && [40]: 1
 
-    # todo(mb): use constant instead of config
   - address: 0b1---
     name: AFU_ID_L
-    behavior: config
+    behavior: constant
+    value: 13797985263751972578 # check sum.json
 
   - address: 0b10---
     name: AFU_ID_H
-    behavior: config
+    behavior: constant
+    value: 13609688667197753651 # check sum.json
   
   - address: 0b11---
     name: DFH_RSVD0

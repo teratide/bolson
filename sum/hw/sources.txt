@@ -7,14 +7,14 @@ ${FLETCHER_HARDWARE_DIR}/vhlib/stream/Stream_pkg.vhd
 ${FLETCHER_HARDWARE_DIR}/interconnect/Interconnect_pkg.vhd
 ${FLETCHER_HARDWARE_DIR}/axi/AxiReadConverter.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayCmdCtrlMerger.vhd
-src/vhdmmio_pkg.gen.vhd
-src/mmio_pkg.gen.vhd
-src/mmio.gen.vhd
-src/Sum.vhd
+vhdl/vhdmmio_pkg.gen.vhd
+vhdl/mmio_pkg.gen.vhd
+vhdl/mmio.gen.vhd
+vhdl/Sum.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayConfigParse_pkg.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayConfig_pkg.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/Array_pkg.vhd
-src/Sum_Nucleus.gen.vhd
+vhdl/Sum_Nucleus.gen.vhd
 ${FLETCHER_HARDWARE_DIR}/vhlib/stream/StreamArb.vhd
 ${FLETCHER_HARDWARE_DIR}/interconnect/BusReadArbiterVec.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderStruct.vhd
@@ -47,10 +47,10 @@ ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderList.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderLevel.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderArb.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReader.vhd
-src/Sum_ExampleBatch.gen.vhd
-src/Sum_Mantle.gen.vhd
+vhdl/Sum_ExampleBatch.gen.vhd
+vhdl/Sum_Mantle.gen.vhd
 ${FLETCHER_HARDWARE_DIR}/axi/Axi_pkg.vhd
 
-src/AxiTop.vhd
+vhdl/AxiTop.gen.vhd
 
-src/ofs_plat_afu.sv
+sv/ofs_plat_afu.sv
