@@ -14,11 +14,6 @@ jobs:
   cpp:
     name: 'C++'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        project:
-        - flitter
     steps:
     - uses: actions/checkout@v2
     - name: Install Apache Arrow
@@ -39,7 +34,7 @@ jobs:
       env:
         CC: gcc-9
         CXX: g++-9
-      run: cmake cpp/${{ matrix.project }} -DBUILD_TESTS=ON
+      run: cmake . -DBUILD_TESTS=ON
     - name: Build
       run: make -j
     - name: Test
