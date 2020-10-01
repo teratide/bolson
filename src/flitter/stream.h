@@ -34,6 +34,8 @@ struct StreamOptions {
   PulsarOptions pulsar;
   /// Number of conversion drone threads to spawn.
   size_t num_conversion_drones = 1;
+  /// Whether to produce succinct statistics.
+  bool succinct = false;
 };
 
 /**

@@ -18,12 +18,13 @@
 
 namespace flitter {
 
-void AddCommonOpts(CLI::App *sub, PulsarOptions *pulsar) {
-  sub->add_option("-p,--pulsar-url", pulsar->url, "Pulsar broker service URL (default: pulsar://localhost:6650/");
+void AddCommonOpts(CLI::App *sub, AppOptions *app, PulsarOptions *pulsar) {
+  sub->add_option("-u,--pulsar-url", pulsar->url, "Pulsar broker service URL (default: pulsar://localhost:6650/");
   sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic (default: flitter)");
   sub->add_option("-m,--pulsar-max-msg-size",
                   pulsar->max_msg_size,
                   "Pulsar max. message size (default: 5 MiB - 10 KiB)");
+  sub->add_flag("-s,--succinct-stats", app->succinct, "Print measurements on single CSV-like line.");
 }
 
 auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status {
@@ -31,18 +32,20 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
 
   uint16_t stream_port = 0;
 
-  // CLI options:
+  // File subcommand:
   auto *sub_file = app.add_subcommand("file", "Produce Pulsar messages from a JSON file.");
   sub_file->add_option("i,-i,--input",
                        out->file.input,
                        "Input file with Tweets.")->check(CLI::ExistingFile)->required();
-  sub_file->add_flag("-s,--succinct-stats", out->file.succinct, "Prints measurements to stdout on a single line.");
+  AddCommonOpts(sub_file, out, &out->file.pulsar);
 
+  // Stream subcommand:
   auto *sub_stream = app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
-  auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
-  auto *port_opt = sub_stream->add_option("-p,--port",
-                                          stream_port,
-                                          "Port (default=" + std::to_string(illex::ZMQ_PORT) + ").");
+  auto *port_opt =
+      sub_stream->add_option("-p,--port", stream_port, "Port (default=" + std::to_string(illex::RAW_PORT) + ").");
+  AddCommonOpts(sub_stream, out, &out->stream.pulsar);
+
+  //auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
 
   // Attempt to parse the CLI arguments.
   try {
@@ -57,23 +60,27 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
     return Status(Error::CLIError, e.get_name() + ":" + e.what());
   }
 
-  if (sub_file->parsed()) out->sub = SubCommand::FILE;
-  else if (sub_stream->parsed()) {
+  if (sub_file->parsed()) {
+    out->sub = SubCommand::FILE;
+    out->file.succinct = out->succinct;
+  } else if (sub_stream->parsed()) {
     out->sub = SubCommand::STREAM;
 
     // Check which streaming protocol to use.
-    if (*zmq_flag) {
-      illex::ZMQProtocol zmq;
-      if (*port_opt) {
-        zmq.port = stream_port;
-      }
-      out->stream.protocol = zmq;
-    } else {
+//    if (*zmq_flag) {
+//      illex::ZMQProtocol zmq;
+//      if (*port_opt) {
+//        zmq.port = stream_port;
+//      }
+//      out->stream.protocol = zmq;
+//    } else
+    {
       illex::RawProtocol raw;
       if (*port_opt) {
         raw.port = stream_port;
       }
       out->stream.protocol = raw;
+      out->stream.succinct = out->succinct;
     }
   }
   return Status::OK();
