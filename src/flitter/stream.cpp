@@ -60,6 +60,7 @@ static void OutputStats(const putong::Timer<> &latency_timer,
                         const PublishStats &pub_stats,
                         std::ostream *output) {
   auto all_conv_stats = AggrStats(conv_stats);
+  (*output) << client.received() << ",";
   (*output) << all_conv_stats.num_jsons << ",";
   (*output) << all_conv_stats.ipc_bytes << ",";
   (*output) << static_cast<double>(all_conv_stats.ipc_bytes) / all_conv_stats.num_jsons << ",";
