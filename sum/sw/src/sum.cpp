@@ -6,6 +6,12 @@
 
 #define AFU_GUID "bcdf53bc-4ffb-4933-bf7c-4a7e1602c6e2";
 
+#ifdef NDEBUG
+#define PLATFORM "opae"
+#else
+#define PLATFORM "opae-ase"
+#endif
+
 int main(int argc, char **argv)
 {
     if (argc != 2)
@@ -27,7 +33,7 @@ int main(int argc, char **argv)
     fletcher::Status status;
     std::shared_ptr<fletcher::Platform> platform;
 
-    status = fletcher::Platform::Make("opae-ase", &platform, false);
+    status = fletcher::Platform::Make(PLATFORM, &platform, false);
     if (!status.ok())
     {
         std::cerr << "Could not create Fletcher platform." << std::endl;
