@@ -14,13 +14,16 @@
 
 #pragma once
 
+#include "./pulsar.h"
+
 namespace flitter {
 
-/// @brief Micro-benchmark options
-struct MicroBenchOptions {
-  bool tweets_builder = false;
+struct FileOptions {
+  PulsarOptions pulsar;
+  std::string input;
+  bool succinct = false;
 };
 
-auto RunMicroBenchmarks(const MicroBenchOptions &opts) -> int;
+auto ProduceFromFile(const FileOptions &opt) -> Status;
 
 }  // namespace flitter

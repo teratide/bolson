@@ -14,32 +14,35 @@
 
 #include <iostream>
 #include <CLI/CLI.hpp>
+#include <illex/zmq_protocol.h>
 
-#include "./pulsar.h"
-#include "./file.h"
-#include "./stream.h"
-#include "./bench.h"
+#include "flitter/pulsar.h"
+#include "flitter/file.h"
+#include "flitter/stream.h"
 
 #pragma once
 
 namespace flitter {
 
+enum class SubCommand { NONE, FILE, STREAM };
+
 /// @brief Application options.
 struct AppOptions {
-  AppOptions(int argc, char *argv[]);
+  /// The name of the application.
+  constexpr static auto name = "flitter";
+  /// A description of the application.
+  constexpr static auto desc = "Converting JSONs to Arrow IPC messages that get sent to Pulsar.";
 
-  static auto failure() -> int { return -1; };
-  static auto success() -> int { return 0; };
+  /// @brief Populate an instance of the application options based on CLI arguments.
+  static auto FromArguments(int argc, char *argv[], AppOptions *out) -> Status;
 
-  enum class SubCommand { FILE, STREAM, BENCH } sub;
+  SubCommand sub = SubCommand::NONE;
 
-  MicroBenchOptions bench;
   FileOptions file;
   StreamOptions stream;
 
   bool succinct = false;
   bool exit = false;
-  int return_value = 0;
 };
 
 }  // namespace flitter

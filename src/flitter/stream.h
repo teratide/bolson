@@ -14,16 +14,33 @@
 
 #pragma once
 
-#include <flitter/protocol.h>
+#include <utility>
+#include <variant>
+
+#include <illex/protocol.h>
+
+#include "flitter/pulsar.h"
 
 namespace flitter {
 
 struct StreamOptions {
-  std::string host = "localhost";
-
-  StreamProtocol protocol;
+  /// Enable statistics.
+  bool statistics = true;
+  /// The hostname of the stream server.
+  std::string hostname = "localhost";
+  /// The protocol to use.
+  illex::StreamProtocol protocol;
+  /// The Pulsar options.
+  PulsarOptions pulsar;
+  /// Number of conversion drone threads to spawn.
+  size_t num_conversion_drones = 1;
 };
 
-auto StreamClient(const StreamOptions &opts) -> int;
+/**
+ * \brief Produce Pulsar messages from an incoming stream.
+ * \param opt The properties of the stream.
+ * \return Status::OK() if successful, error otherwise.
+ */
+auto ProduceFromStream(const StreamOptions &opt) -> Status;
 
 }  // namespace flitter
