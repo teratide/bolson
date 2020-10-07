@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
-project(flitter VERSION 0.0.1 LANGUAGES CXX)
+project(bolson VERSION 0.0.1 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 find_package(Arrow 1.0 CONFIG REQUIRED)
@@ -69,18 +69,18 @@ FetchContent_Declare(illex
 FetchContent_MakeAvailable(illex)
 
 add_compile_unit(
-  NAME flitter::obj
+  NAME bolson::obj
   TYPE OBJECT
   PRPS
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
   SRCS
-    src/flitter/utils.cpp
-    src/flitter/file.cpp
-    src/flitter/pulsar.cpp
-    src/flitter/cli.cpp
-    src/flitter/converter.cpp
-    src/flitter/stream.cpp
+    src/bolson/utils.cpp
+    src/bolson/file.cpp
+    src/bolson/pulsar.cpp
+    src/bolson/cli.cpp
+    src/bolson/converter.cpp
+    src/bolson/stream.cpp
   DEPS
     arrow_shared
     CLI11::CLI11
@@ -94,15 +94,15 @@ add_compile_unit(
 )
 
 add_compile_unit(
-  NAME flitter
+  NAME bolson
   TYPE EXECUTABLE
   PRPS
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
   SRCS
-    src/flitter/main.cpp
+    src/bolson/main.cpp
   DEPS
-    flitter::obj
+    bolson::obj
 )
 
 include_directories(include)

@@ -21,10 +21,10 @@
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 
-#include "flitter/utils.h"
-#include "flitter/status.h"
+#include "bolson/utils.h"
+#include "bolson/status.h"
 
-namespace flitter {
+namespace bolson {
 
 auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData> &array_data) -> int64_t {
   int64_t result = 0;
@@ -104,4 +104,4 @@ auto ConvertParserError(const rapidjson::Document &doc, const std::vector<char> 
   return ss.str();
 }
 
-}  // namespace flitter
+}  // namespace bolson

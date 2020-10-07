@@ -8,7 +8,7 @@ args = parser.parse_args()
 
 N = args.N[0] + 1
 
-flitter = '../release/flitter'
+bolson = '../release/bolson'
 
 with open('single_object_latency.csv', 'w') as f:
     f.write("TCP Received,"
@@ -24,7 +24,7 @@ with open('single_object_latency.csv', 'w') as f:
     f.flush()
 
     for i in range(0, N):
-        # Run flitter
-        process = subprocess.run([flitter, 'stream', '-s'], stdout=f)
+        # Run bolson
+        process = subprocess.run([bolson, 'stream', '-s'], stdout=f)
 
     f.close()

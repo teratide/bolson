@@ -19,12 +19,12 @@
 #include <illex/zmq_client.h>
 #include <putong/timer.h>
 
-#include "flitter/stream.h"
-#include "flitter/converter.h"
-#include "flitter/pulsar.h"
-#include "flitter/status.h"
+#include "bolson/stream.h"
+#include "bolson/converter.h"
+#include "bolson/pulsar.h"
+#include "bolson/status.h"
 
-namespace flitter {
+namespace bolson {
 
 /// Structure to hold threads and atomics
 struct StreamThreads {
@@ -192,4 +192,4 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
   return Status::OK();
 }
 
-}  // namespace flitter
+}  // namespace bolson

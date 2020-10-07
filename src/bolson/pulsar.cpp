@@ -22,9 +22,9 @@
 #include <pulsar/defines.h>
 #include <putong/timer.h>
 
-#include "flitter/log.h"
-#include "flitter/pulsar.h"
-#include "flitter/status.h"
+#include "bolson/log.h"
+#include "bolson/pulsar.h"
+#include "bolson/status.h"
 
 #define CHECK_PULSAR(result) { \
   auto res = result; \
@@ -32,12 +32,12 @@
     return Status(Error::PulsarError, std::string("Pulsar error: ") + pulsar::strResult(result)); \
 }
 
-namespace flitter {
+namespace bolson {
 
 auto SetupClientProducer(const std::string &url,
                          const std::string &topic,
                          ClientProducerPair *out) -> Status {
-  auto config = pulsar::ClientConfiguration().setLogger(new FlitterLoggerFactory());
+  auto config = pulsar::ClientConfiguration().setLogger(new bolsonLoggerFactory());
   auto client = std::make_shared<pulsar::Client>(url, config);
   auto producer = std::make_shared<pulsar::Producer>();
   CHECK_PULSAR(client->createProducer(topic, *producer));
@@ -115,10 +115,10 @@ void PublishThread(const PulsarOptions &opt,
   stats.set_value(s);
 }
 
-class FlitterLogger : public pulsar::Logger {
+class bolsonLogger : public pulsar::Logger {
   std::string _logger;
  public:
-  explicit FlitterLogger(std::string logger) : _logger(std::move(logger)) {}
+  explicit bolsonLogger(std::string logger) : _logger(std::move(logger)) {}
   auto isEnabled(Level level) -> bool override { return level >= Level::LEVEL_WARN; }
   void log(Level level, int line, const std::string &message) override {
     if (level == Level::LEVEL_WARN) {
@@ -129,10 +129,10 @@ class FlitterLogger : public pulsar::Logger {
   }
 };
 
-auto FlitterLoggerFactory::getLogger(const std::string &file) -> pulsar::Logger * { return new FlitterLogger(file); }
+auto bolsonLoggerFactory::getLogger(const std::string &file) -> pulsar::Logger * { return new bolsonLogger(file); }
 
-auto FlitterLoggerFactory::create() -> std::unique_ptr<FlitterLoggerFactory> {
-  return std::make_unique<FlitterLoggerFactory>();
+auto bolsonLoggerFactory::create() -> std::unique_ptr<bolsonLoggerFactory> {
+  return std::make_unique<bolsonLoggerFactory>();
 }
 
-}  // namespace flitter
+}  // namespace bolson

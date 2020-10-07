@@ -16,20 +16,20 @@
 #include <CLI/CLI.hpp>
 #include <illex/zmq_protocol.h>
 
-#include "flitter/pulsar.h"
-#include "flitter/file.h"
-#include "flitter/stream.h"
+#include "bolson/pulsar.h"
+#include "bolson/file.h"
+#include "bolson/stream.h"
 
 #pragma once
 
-namespace flitter {
+namespace bolson {
 
 enum class SubCommand { NONE, FILE, STREAM };
 
 /// \brief Application options.
 struct AppOptions {
   /// The name of the application.
-  constexpr static auto name = "flitter";
+  constexpr static auto name = "bolson";
   /// A description of the application.
   constexpr static auto desc = "Converting JSONs to Arrow IPC messages that get sent to Pulsar.";
 
@@ -45,4 +45,4 @@ struct AppOptions {
   bool exit = false;
 };
 
-}  // namespace flitter
+}  // namespace bolson

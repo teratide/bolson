@@ -9,7 +9,7 @@ args = parser.parse_args()
 N = args.N[0] + 1
 
 jsongen = '../release/cpp/jsongen/jsongen'
-flitter = '../release/cpp/flitter/flitter'
+bolson = '../release/cpp/bolson/bolson'
 
 with open('single_batch_sweep_result.csv', 'w') as f:
     f.write("Load JSON (s),"
@@ -43,8 +43,8 @@ with open('single_batch_sweep_result.csv', 'w') as f:
                         '-o', json_file,
                         '-n', str(num_tweets)])
 
-        # Run flitter
-        process = subprocess.run([flitter, 'prod', '-s', json_file, '-m', str(5 * 1024 * 1024 - 20 * 1024)], stdout=f)
+        # Run bolson
+        process = subprocess.run([bolson, 'prod', '-s', json_file, '-m', str(5 * 1024 * 1024 - 20 * 1024)], stdout=f)
         # Message size is limited to 5 * 1024 * 1024 - 20 * 1024.
         #   Default in Pulsar is 5 * 1024 * 1024 - 10 * 1024, but give some margin for referenced tweets array in a
         #   json tweet object to grow large.

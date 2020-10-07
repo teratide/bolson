@@ -16,11 +16,11 @@
 #include <arrow/ipc/api.h>
 #include <arrow/io/api.h>
 
-#include "flitter/log.h"
-#include "flitter/cli.h"
-#include "flitter/status.h"
+#include "bolson/log.h"
+#include "bolson/cli.h"
+#include "bolson/status.h"
 
-namespace flitter {
+namespace bolson {
 
 static auto ReadSchemaFromFile(const std::string &file, std::shared_ptr<arrow::Schema> *out) -> Status {
   // TODO(johanpel): use filesystem lib for path
@@ -46,7 +46,7 @@ void AddCommonOpts(CLI::App *sub, AppOptions *app, std::string *schema_file, Pul
                   *schema_file,
                   "An Arrow schema to generate the JSON from.")->required()->check(CLI::ExistingFile);
   sub->add_option("-u,--pulsar-url", pulsar->url, "Pulsar broker service URL (default: pulsar://localhost:6650/");
-  sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic (default: flitter)");
+  sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic (default: bolson)");
   sub->add_option("-m,--pulsar-max-msg-size",
                   pulsar->max_msg_size,
                   "Pulsar max. message size (default: 5 MiB - 10 KiB)");
@@ -54,7 +54,7 @@ void AddCommonOpts(CLI::App *sub, AppOptions *app, std::string *schema_file, Pul
 }
 
 auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status {
-  CLI::App app{"Flitter : Exploring Pulsar, Arrow, and FPGA."};
+  CLI::App app{"bolson : Exploring Pulsar, Arrow, and FPGA."};
 
   std::string schema_file;
   uint16_t stream_port = 0;
@@ -122,4 +122,4 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   return status;
 }
 
-}  // namespace flitter
+}  // namespace bolson

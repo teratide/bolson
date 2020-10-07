@@ -16,7 +16,7 @@
 
 #include "./pulsar.h"
 
-namespace flitter {
+namespace bolson {
 
 struct FileOptions {
   PulsarOptions pulsar;
@@ -26,4 +26,4 @@ struct FileOptions {
 
 auto ProduceFromFile(const FileOptions &opt) -> Status;
 
-}  // namespace flitter
+}  // namespace bolson

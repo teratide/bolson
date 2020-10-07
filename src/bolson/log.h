@@ -14,26 +14,21 @@
 
 #pragma once
 
-#include <iostream>
+#ifndef NDEBUG
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
+#endif
 
-#include <putong/status.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
-namespace flitter {
+namespace bolson {
 
-#define FLITTER_ROE(s) { \
-  auto status = s;       \
-  if (!s.ok()) return s; \
+inline void StartLogger() {
+  auto logger = spdlog::stdout_logger_mt("bolson");
+  spdlog::set_default_logger(logger);
+#ifndef NDEBUG
+  spdlog::set_level(spdlog::level::debug);
+#endif
 }
 
-enum class Error {
-  GenericError,
-  CLIError,
-  PulsarError,
-  IllexError,
-  RapidJSONError,
-  IOError
-};
-
-using Status = putong::Status<Error>;
-
-}
+}  // namespace bolson

@@ -20,9 +20,9 @@
 #include <illex/protocol.h>
 #include <arrow/json/api.h>
 
-#include "flitter/pulsar.h"
+#include "bolson/pulsar.h"
 
-namespace flitter {
+namespace bolson {
 
 struct StreamOptions {
   /// Enable statistics.
@@ -50,4 +50,4 @@ struct StreamOptions {
  */
 auto ProduceFromStream(const StreamOptions &opt) -> Status;
 
-}  // namespace flitter
+}  // namespace bolson

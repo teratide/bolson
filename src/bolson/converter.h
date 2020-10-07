@@ -20,7 +20,7 @@
 #include <arrow/json/api.h>
 #include <illex/queue.h>
 
-namespace flitter {
+namespace bolson {
 
 /// An item in the IPC queue.
 struct IpcQueueItem {

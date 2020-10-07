@@ -12,31 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "flitter/log.h"
-#include "flitter/cli.h"
-#include "flitter/file.h"
-#include "flitter/stream.h"
-#include "flitter/status.h"
+#include "bolson/log.h"
+#include "bolson/cli.h"
+#include "bolson/file.h"
+#include "bolson/stream.h"
+#include "bolson/status.h"
 
 auto main(int argc, char *argv[]) -> int {
   // Set up logger.
-  flitter::StartLogger();
+  bolson::StartLogger();
 
   // Handle CLI.
-  flitter::AppOptions opts;
-  auto status = flitter::AppOptions::FromArguments(argc, argv, &opts);
+  bolson::AppOptions opts;
+  auto status = bolson::AppOptions::FromArguments(argc, argv, &opts);
   if (status.ok()) {
     // Run sub-programs.
-    flitter::Status result;
+    bolson::Status result;
     switch (opts.sub) {
-      case flitter::SubCommand::NONE: break;
-      case flitter::SubCommand::FILE: status = flitter::ProduceFromFile(opts.file);
-      case flitter::SubCommand::STREAM: status = flitter::ProduceFromStream(opts.stream);
+      case bolson::SubCommand::NONE: break;
+      case bolson::SubCommand::FILE: status = bolson::ProduceFromFile(opts.file);
+      case bolson::SubCommand::STREAM: status = bolson::ProduceFromStream(opts.stream);
     }
   }
 
   if (!status.ok()) {
-    spdlog::error("{} exiting with errors.", flitter::AppOptions::name);
+    spdlog::error("{} exiting with errors.", bolson::AppOptions::name);
     spdlog::error("  {}", status.msg());
   }
 

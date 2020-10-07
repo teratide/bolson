@@ -1,2 +1,2 @@
-Scripts assume the CPP applications have been built in the flitter/release
+Scripts assume the CPP applications have been built in the bolson/release
 

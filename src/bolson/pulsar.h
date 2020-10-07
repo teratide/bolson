@@ -20,18 +20,18 @@
 #include <pulsar/Producer.h>
 #include <putong/timer.h>
 
-#include "flitter/log.h"
-#include "flitter/status.h"
-#include "flitter/converter.h"
+#include "bolson/log.h"
+#include "bolson/status.h"
+#include "bolson/converter.h"
 
-namespace flitter {
+namespace bolson {
 
 using ClientProducerPair = std::pair<std::shared_ptr<pulsar::Client>, std::shared_ptr<pulsar::Producer>>;
 
 /// \brief Pulsar options.
 struct PulsarOptions {
   std::string url = "pulsar://localhost:6650/";
-  std::string topic = "flitter";
+  std::string topic = "bolson";
   // From an obscure place in the Pulsar sources
   size_t max_msg_size = (5 * 1024 * 1024 - (10 * 1024));
 };
@@ -75,10 +75,10 @@ void PublishThread(const PulsarOptions& opt,
                    putong::Timer<> *latency_timer,
                    std::promise<PublishStats> &&stats);
 
-class FlitterLoggerFactory : public pulsar::LoggerFactory {
+class bolsonLoggerFactory : public pulsar::LoggerFactory {
  public:
   auto getLogger(const std::string &file) -> pulsar::Logger * override;
-  static auto create() -> std::unique_ptr<FlitterLoggerFactory>;
+  static auto create() -> std::unique_ptr<bolsonLoggerFactory>;
 };
 
-}  // namespace flitter
+}  // namespace bolson

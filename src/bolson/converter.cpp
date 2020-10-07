@@ -21,10 +21,10 @@
 #include <illex/queue.h>
 #include <putong/putong.h>
 
-#include "flitter/converter.h"
-#include "flitter/log.h"
+#include "bolson/converter.h"
+#include "bolson/log.h"
 
-namespace flitter {
+namespace bolson {
 
 static auto SeqField() -> std::shared_ptr<arrow::Field> {
   static auto seq_field = arrow::field("seq", arrow::uint64(), false);

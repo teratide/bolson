@@ -21,9 +21,9 @@
 #include <arrow/api.h>
 #include <rapidjson/document.h>
 
-#include "flitter/status.h"
+#include "bolson/status.h"
 
-namespace flitter {
+namespace bolson {
 
 /**
  * \brief Returns the total size in memory of all (nested) buffers backing Arrow ArrayData.
@@ -63,4 +63,4 @@ auto LoadFile(const std::string &file_name, size_t num_bytes, std::vector<char>*
  */
 auto ConvertParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer) -> std::string;
 
-}  // namespace flitter
+}  // namespace bolson
