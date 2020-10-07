@@ -123,7 +123,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     StreamThreads threads;
 
     // Set up queues.
-    illex::Queue raw_json_queue;
+    illex::JSONQueue raw_json_queue;
     IpcQueue arrow_ipc_queue;
 
     // Set up futures for statistics delivered by threads.
@@ -140,6 +140,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                              &arrow_ipc_queue,
                                                              &threads.shutdown,
                                                              opt.num_conversion_drones,
+                                                             opt.parse,
                                                              std::move(conv_stats_promise));
 
     threads.publish_thread = std::make_unique<std::thread>(PublishThread,
@@ -153,7 +154,10 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Set up the client that receives incoming JSONs.
     // We must shut down the threads in case the client returns some errors.
     illex::RawClient client;
-    SHUTDOWN_ON_ERROR(illex::RawClient::Create(std::get<illex::RawProtocol>(opt.protocol), opt.hostname, &client));
+    SHUTDOWN_ON_ERROR(illex::RawClient::Create(std::get<illex::RawProtocol>(opt.protocol),
+                                               opt.hostname,
+                                               opt.seq,
+                                               &client));
 
     // Receive JSONs until the server closes the connection.
     // Concurrently, the conversion and publish thread will do their job.

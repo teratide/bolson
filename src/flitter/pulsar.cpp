@@ -81,12 +81,12 @@ void PublishThread(const PulsarOptions &opt,
   PublishStats s;
 
   // Try pulling stuff from the queue until the stop signal is given.
-  std::shared_ptr<arrow::Buffer> ipc_msg;
+  IpcQueueItem ipc_item;
   while (!stop->load()) {
-    if (in->try_dequeue(ipc_msg)) {
+    if (in->try_dequeue(ipc_item)) {
       SPDLOG_DEBUG("Publishing Arrow IPC message.");
       publish_timer.Start();
-      auto status = PublishArrowBuffer(client_prod.second, ipc_msg, latency);
+      auto status = PublishArrowBuffer(client_prod.second, ipc_item.ipc, latency);
       publish_timer.Stop();
       if (first) {
         latency = nullptr; // todo
@@ -101,7 +101,7 @@ void PublishThread(const PulsarOptions &opt,
       // Update some statistics.
       s.publish_time += publish_timer.seconds();
       s.num_published++;
-      count->fetch_add(1);
+      count->fetch_add(ipc_item.num_rows);
     }
   }
   // Stop thread timer.

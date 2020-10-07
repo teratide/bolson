@@ -26,72 +26,130 @@
 
 namespace flitter {
 
+static auto SeqField() -> std::shared_ptr<arrow::Field> {
+  static auto seq_field = arrow::field("seq", arrow::uint64(), false);
+  return seq_field;
+}
+
+static auto ConvertJSON(const illex::JSONQueueItem &item,
+                        const arrow::json::ParseOptions &parse_options) -> std::shared_ptr<arrow::RecordBatch> {
+  // Wrap Arrow buffer around the JSON string so we can parse it using Arrow.
+  auto buffer_wrapper =
+      std::make_shared<arrow::Buffer>(reinterpret_cast<const uint8_t *>(item.string.data()), item.string.length());
+  // The following code could be better because it seems like:
+  // - it always delivers a chunked table
+  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we can only read once.
+  // - we could try to work-around previous by buffering JSONs, but that would increase latency.
+  // - we wouldn't know how long to buffer because the i/o size ratio is not known,
+  //   - preferably we would append jsons until some threshold is reached, then construct the ipc message.
+
+  /*
+  // Wrap a random access file abstraction around the buffer.
+  auto ra_buffer = arrow::Buffer::GetReader(buffer_wrapper).ValueOrDie();
+  // Construct an arrow json TableReader.
+  auto reader = arrow::json::TableReader::Make(arrow::default_memory_pool(),
+                                               ra_buffer,
+                                               arrow::json::ReadOptions::Defaults(),
+                                               arrow::json::ParseOptions::Defaults()).ValueOrDie();
+  auto table = reader->Read().ValueOrDie();
+  auto batch = table->CombineChunks().ValueOrDie();
+  */
+
+  // The following code could be better because it seems like:
+  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we can only read once.
+  // - we could try to work-around previous by buffering JSONs, but that would increase latency.
+  // - we wouldn't know how long to buffer because the i/o size ratio is not known,
+  //   - preferably we would append jsons until some threshold is reached, then construct the ipc message.
+
+  // TODO(johanpel): come up with a solution for all of this. Also don't use ValueOrDie();
+  // Construct a RecordBatch from the JSON string.
+  auto batch_result = arrow::json::ParseOne(parse_options, buffer_wrapper);
+#ifndef DEBUG
+  if (!batch_result.ok()) {
+    SPDLOG_DEBUG("Failed to parse: {}", item.string);
+  }
+#endif
+  // Construct the column for the sequence number and append it.
+  std::shared_ptr<arrow::Array> seq;
+  arrow::UInt64Builder seq_builder;
+  seq_builder.Append(item.seq); // todo: check status
+  seq_builder.Finish(&seq); // todo: check status
+  auto batch_with_seq = batch_result.ValueOrDie()->AddColumn(0, SeqField(), seq).ValueOrDie();
+
+  return batch_with_seq;
+}
+
 void ConversionDroneThread(size_t id,
-                           illex::Queue *in,
+                           illex::JSONQueue *in,
                            IpcQueue *out,
+                           const arrow::json::ParseOptions &parse_options,
                            std::atomic<bool> *shutdown,
                            std::promise<ConversionStats> &&stats_promise) {
-  putong::Timer thread_timer(true);
-  ConversionStats stats;
-
   SPDLOG_DEBUG("[conversion] [drone {}] Spawned.", id);
 
-  auto parse_options = arrow::json::ParseOptions::Defaults();
+  // Prepare some timers
+  putong::Timer thread_timer(true);
   putong::Timer convert_timer;
-  std::string raw_json;
-  // TODO(johanpel): Use a safer mechanism to stop the thread
+
+  // Prepare statistics
+  ConversionStats stats;
+
+  // Prepare a vector to hold RecordBatches that we collapse into a single RecordBatch at the end.
+  std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
+
+  // Reserve a queue item
+  illex::JSONQueueItem json_item;
+
+  // Loop until thread is stopped.
   while (!shutdown->load()) {
-    if (in->try_dequeue(raw_json)) {
+
+    // Attempt to dequeue an item.
+    if (in->try_dequeue(json_item)) {
+      // There is a JSON.
+      SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
+
+      // Convert the JSON
       convert_timer.Start();
-      SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, raw_json);
-      // Wrap Arrow buffer around the JSON string.
-      auto buffer_wrapper =
-          std::make_shared<arrow::Buffer>(reinterpret_cast<uint8_t *>(raw_json.data()), raw_json.length());
-
-      // The following code could be better because it seems like:
-      // - it always delivers a chunked table
-      // - we cannot reuse the internal builders for new JSONs that are being dequeued, we can only read once.
-      // - we could try to work-around previous by buffering JSONs, but that would increase latency.
-      // - we wouldn't know how long to buffer because the i/o size ratio is not known,
-      //   - preferably we would append jsons until some threshold is reached, then construct the ipc message.
-
-      /*
-      // Wrap a random access file abstraction around the buffer.
-      auto ra_buffer = arrow::Buffer::GetReader(buffer_wrapper).ValueOrDie();
-      // Construct an arrow json TableReader.
-      auto reader = arrow::json::TableReader::Make(arrow::default_memory_pool(),
-                                                   ra_buffer,
-                                                   arrow::json::ReadOptions::Defaults(),
-                                                   arrow::json::ParseOptions::Defaults()).ValueOrDie();
-      auto table = reader->Read().ValueOrDie();
-      auto batch = table->CombineChunks().ValueOrDie();
-      */
-
-      // The following code could be better because it seems like:
-      // - we cannot reuse the internal builders for new JSONs that are being dequeued, we can only read once.
-      // - we could try to work-around previous by buffering JSONs, but that would increase latency.
-      // - we wouldn't know how long to buffer because the i/o size ratio is not known,
-      //   - preferably we would append jsons until some threshold is reached, then construct the ipc message.
-
-      // TODO(johanpel): come up with a solution for all of this. Also don't use ValueOrDie();
-      // Construct a RecordBatch from the JSON string.
-      auto batch = arrow::json::ParseOne(parse_options, buffer_wrapper).ValueOrDie();
-      // Convert to Arrow IPC message.
-      auto ipc = arrow::ipc::SerializeRecordBatch(*batch, arrow::ipc::IpcWriteOptions::Defaults()).ValueOrDie();
+      auto new_batch = ConvertJSON(json_item, parse_options);
       convert_timer.Stop();
+
+      // Append the new batch containing just one row to the message batch.
+      batches.push_back(new_batch);
+
       stats.convert_time += convert_timer.seconds();
       stats.num_jsons++;
-      stats.num_ipc++;
-      stats.ipc_bytes += ipc->size();
-      // Move the ipc buffer into the queue.
-      while (!out->try_enqueue(std::move(ipc))) {
+    } else {
+      // If there is nothing in the queue, construct the IPC message to have this batch sent off with lowest possible
+      // latency.
+
+      // Of course, there has to be at least one batch.
+      if (!batches.empty()) {
+        auto packed_table = arrow::Table::FromRecordBatches(batches).ValueOrDie()->CombineChunks().ValueOrDie();
+        auto table_reader = arrow::TableBatchReader(*packed_table);
+        auto packed_batch = table_reader.Next().ValueOrDie();
+
+        SPDLOG_DEBUG("Packed IPC batch: {}", packed_batch->ToString());
+
+        // Convert to Arrow IPC message.
+        auto ipc_item = IpcQueueItem{
+            static_cast<size_t>(packed_batch->num_rows()),
+            arrow::ipc::SerializeRecordBatch(*packed_batch, arrow::ipc::IpcWriteOptions::Defaults()).ValueOrDie()
+        };
+
+        // Keep trying to enqueue by copy until successful.
+        // (This only copies a shared ptr to the data, but not the data itself.)
+        while (!out->try_enqueue(ipc_item)) {
 #ifndef NDEBUG
-        // Slow this down a bit in debug.
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        SPDLOG_DEBUG("Drone {} attempt to enqueue IPC message failed.", id);
+          // Slow this down a bit in debug.
+          std::this_thread::sleep_for(std::chrono::milliseconds(500));
+          SPDLOG_DEBUG("Drone {} attempt to enqueue IPC message failed.", id);
 #endif
+        }
+        SPDLOG_DEBUG("Drone {} enqueued IPC message.", id);
+
+        // Clear the current batches
+        batches.clear();
       }
-      SPDLOG_DEBUG("Drone {} enqueued IPC message.", id);
     }
   }
   thread_timer.Stop();
@@ -100,10 +158,11 @@ void ConversionDroneThread(size_t id,
   SPDLOG_DEBUG("Drone {} Terminating.", id);
 }
 
-void ConversionHiveThread(illex::Queue *in,
+void ConversionHiveThread(illex::JSONQueue *in,
                           IpcQueue *out,
                           std::atomic<bool> *shutdown,
                           size_t num_drones,
+                          const arrow::json::ParseOptions &parse_options,
                           std::promise<std::vector<ConversionStats>> &&stats) {
   // Reserve some space for the thread handles and futures.
   std::vector<std::thread> threads;
@@ -118,7 +177,7 @@ void ConversionHiveThread(illex::Queue *in,
     // Prepare the future/promise.
     std::promise<ConversionStats> promise_stats;
     futures.push_back(promise_stats.get_future());
-    threads.emplace_back(ConversionDroneThread, thread, in, out, shutdown, std::move(promise_stats));
+    threads.emplace_back(ConversionDroneThread, thread, in, out, parse_options, shutdown, std::move(promise_stats));
   }
 
   // Wait for the caller to shut conversion down.

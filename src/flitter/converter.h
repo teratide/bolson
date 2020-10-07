@@ -17,11 +17,21 @@
 #include <memory>
 
 #include <arrow/api.h>
+#include <arrow/json/api.h>
 #include <illex/queue.h>
 
 namespace flitter {
 
-using IpcQueue = moodycamel::ConcurrentQueue<std::shared_ptr<arrow::Buffer>>;
+/// An item in the IPC queue.
+struct IpcQueueItem {
+  /// Number of rows (i.e. converted JSONs) contained in the RecordBatch of this message.
+  size_t num_rows;
+  /// The IPC message itself.
+  std::shared_ptr<arrow::Buffer> ipc;
+};
+
+/// A queue with Arrow IPC messages.
+using IpcQueue = moodycamel::ConcurrentQueue<IpcQueueItem>;
 
 /// Statistics about the conversion functions.
 struct ConversionStats {
@@ -43,12 +53,14 @@ struct ConversionStats {
  * \param out           The output queue for Arrow IPC messages.
  * \param shutdown      Signal to shut down this thread (typically used when there will be no more new inputs).
  * \param num_drones    Number of conversion threads to spawn.
+ * \param parse_options The JSON parsing options for Arrow.
  * \param stats         Statistics for each conversion thread.
  */
-void ConversionHiveThread(illex::Queue *in,
+void ConversionHiveThread(illex::JSONQueue *in,
                           IpcQueue *out,
                           std::atomic<bool> *shutdown,
                           size_t num_drones,
+                          const arrow::json::ParseOptions &parse_options,
                           std::promise<std::vector<ConversionStats>> &&stats);
 
 }
