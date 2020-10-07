@@ -41,16 +41,17 @@ auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData> &array_data) -> in
  */
 auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch> &batch) -> int64_t;
 
-/// @brief Write an Arrow RecordBatch into a file as an Arrow IPC message.
+/// \brief Write an Arrow RecordBatch into a file as an Arrow IPC message.
 auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> arrow::Result<std::shared_ptr<arrow::Buffer>>;
 
-/// @brief Report some gigabytes per second.
+/// \brief Report some gigabytes per second.
 void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct = false);
 
 /**
  * \brief Read num_bytes from a file and buffer it in memory. Appends a C-style string terminator to please rapidjson.
- * \param file_name The file to load.
- * \param num_bytes The number of bytes to read into the buffer.
+ * \param[in]  file_name    The file to load.
+ * \param[in]  num_bytes    The number of bytes to read into the buffer.
+ * \param[out] dest         The destination buffer.
  * \return The buffer, will be size num_bytes + 1 to accommodate the terminator character.
  */
 auto LoadFile(const std::string &file_name, size_t num_bytes, std::vector<char>* dest) -> Status;

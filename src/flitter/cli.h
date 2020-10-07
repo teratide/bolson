@@ -26,14 +26,14 @@ namespace flitter {
 
 enum class SubCommand { NONE, FILE, STREAM };
 
-/// @brief Application options.
+/// \brief Application options.
 struct AppOptions {
   /// The name of the application.
   constexpr static auto name = "flitter";
   /// A description of the application.
   constexpr static auto desc = "Converting JSONs to Arrow IPC messages that get sent to Pulsar.";
 
-  /// @brief Populate an instance of the application options based on CLI arguments.
+  /// \brief Populate an instance of the application options based on CLI arguments.
   static auto FromArguments(int argc, char *argv[], AppOptions *out) -> Status;
 
   SubCommand sub = SubCommand::NONE;

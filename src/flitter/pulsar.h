@@ -68,7 +68,7 @@ auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
                         const std::shared_ptr<arrow::Buffer> &buffer,
                         putong::Timer<> *latency_timer) -> Status;
 
-void PublishThread(const std::shared_ptr<pulsar::Producer> &producer,
+void PublishThread(const PulsarOptions& opt,
                    IpcQueue *in,
                    std::atomic<bool> *stop,
                    std::atomic<size_t> *count,

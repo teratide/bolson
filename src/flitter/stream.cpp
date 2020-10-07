@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
 #include <thread>
 #include <memory>
 #include <illex/raw_client.h>
@@ -25,13 +26,14 @@
 
 namespace flitter {
 
-// Structure to hold threads and atomics
+/// Structure to hold threads and atomics
 struct StreamThreads {
   std::unique_ptr<std::thread> publish_thread;
   std::unique_ptr<std::thread> converter_thread;
   std::atomic<bool> shutdown = false;
   std::atomic<size_t> publish_count = 0;
 
+  /// Shut down the threads.
   void Shutdown() {
     shutdown.store(true);
     converter_thread->join();
@@ -39,7 +41,67 @@ struct StreamThreads {
   }
 };
 
-// Macro to shut down threads in the function below whenever Illex client returns some error.
+/// \brief Aggregate statistics for every thread.
+static auto AggrStats(const std::vector<ConversionStats> &conv_stats) -> ConversionStats {
+  ConversionStats all_conv_stats;
+  for (const auto &t : conv_stats) {
+    all_conv_stats.num_jsons += t.num_jsons;
+    all_conv_stats.convert_time += t.convert_time;
+    all_conv_stats.thread_time += t.thread_time;
+    all_conv_stats.ipc_bytes += t.ipc_bytes;
+  }
+  return all_conv_stats;
+}
+
+/// \brief Stream succinct CSV-like stats to some output stream.
+static void OutputStats(const putong::Timer<> &latency_timer,
+                        const illex::RawClient &client,
+                        const std::vector<ConversionStats> &conv_stats,
+                        const PublishStats &pub_stats,
+                        std::ostream *output) {
+  auto all_conv_stats = AggrStats(conv_stats);
+  (*output) << client.received() << ",";
+  (*output) << all_conv_stats.num_jsons << ",";
+  (*output) << all_conv_stats.ipc_bytes << ",";
+  (*output) << static_cast<double>(all_conv_stats.ipc_bytes) / all_conv_stats.num_jsons << ",";
+  (*output) << all_conv_stats.convert_time / all_conv_stats.num_jsons << ",";
+  (*output) << all_conv_stats.thread_time / all_conv_stats.num_jsons << ",";
+  (*output) << pub_stats.num_published << ",";
+  (*output) << pub_stats.publish_time / pub_stats.num_published << ",";
+  (*output) << pub_stats.thread_time << ",";
+  (*output) << latency_timer.seconds() << std::endl;
+}
+
+/// \brief Log the statistics.
+static void LogStats(const putong::Timer<> &latency_timer,
+                     const illex::RawClient &client,
+                     const std::vector<ConversionStats> &conv_stats,
+                     const PublishStats &pub_stats) {
+  auto all_conv_stats = AggrStats(conv_stats);
+  spdlog::info("Received {} JSONs over TCP.", client.received());
+
+  spdlog::info("Conversion stats:");
+  spdlog::info("  JSONs converted     : {}", all_conv_stats.num_jsons);
+  spdlog::info("  Total IPC bytes     : {}", all_conv_stats.ipc_bytes);
+  spdlog::info("  Avg. bytes/msg      : {}",
+               static_cast<double>(all_conv_stats.ipc_bytes) / all_conv_stats.num_jsons);
+  spdlog::info("  Avg. conv. time     : {} us.", 1E6 * all_conv_stats.convert_time / all_conv_stats.num_jsons);
+  spdlog::info("  Avg. thread time    : {} s.", all_conv_stats.thread_time / all_conv_stats.num_jsons);
+
+  spdlog::info("Publish stats:");
+  spdlog::info("  IPC messages        : {}", pub_stats.num_published);
+  spdlog::info("  Avg. publish time   : {} us.", 1E6 * pub_stats.publish_time / pub_stats.num_published);
+  spdlog::info("  Publish thread time : {} s", pub_stats.thread_time);
+
+  spdlog::info("Latency stats:");
+  spdlog::info("  First latency       : {} us", 1E6 * latency_timer.seconds());
+
+  spdlog::info("Timer steady?         : {}", putong::Timer<>::steady());
+  spdlog::info("Timer resoluion       : {} us", putong::Timer<>::resolution_us());
+
+}
+
+// Macro to shut down threads in ProduceFromStream whenever Illex client returns some error.
 #define SHUTDOWN_ON_ERROR(status) \
   if (!status.ok()) { \
     threads.Shutdown(); \
@@ -60,13 +122,8 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
   } else {
     StreamThreads threads;
 
-    // Set up Pulsar client and producer.
-    ClientProducerPair client_prod;
-    FLITTER_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &client_prod));
-    // (Here we can still normally return on error since no thread have spawned yet)
-
     // Set up queues.
-    illex::Queue raw_json_queue;
+    illex::JSONQueue raw_json_queue;
     IpcQueue arrow_ipc_queue;
 
     // Set up futures for statistics delivered by threads.
@@ -83,10 +140,11 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                              &arrow_ipc_queue,
                                                              &threads.shutdown,
                                                              opt.num_conversion_drones,
+                                                             opt.parse,
                                                              std::move(conv_stats_promise));
 
     threads.publish_thread = std::make_unique<std::thread>(PublishThread,
-                                                           client_prod.second,
+                                                           opt.pulsar,
                                                            &arrow_ipc_queue,
                                                            &threads.shutdown,
                                                            &threads.publish_count,
@@ -96,7 +154,10 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Set up the client that receives incoming JSONs.
     // We must shut down the threads in case the client returns some errors.
     illex::RawClient client;
-    SHUTDOWN_ON_ERROR(illex::RawClient::Create(std::get<illex::RawProtocol>(opt.protocol), opt.hostname, &client));
+    SHUTDOWN_ON_ERROR(illex::RawClient::Create(std::get<illex::RawProtocol>(opt.protocol),
+                                               opt.hostname,
+                                               opt.seq,
+                                               &client));
 
     // Receive JSONs until the server closes the connection.
     // Concurrently, the conversion and publish thread will do their job.
@@ -120,31 +181,11 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
 
     // Report some statistics.
     if (opt.statistics) {
-      spdlog::info("Received {} JSONs over TCP.", client.received());
-
-      ConversionStats all_conv_stats;
-
-      for (const auto &t : conv_stats) {
-        all_conv_stats.num_jsons += t.num_jsons;
-        all_conv_stats.convert_time += t.convert_time;
-        all_conv_stats.thread_time += t.thread_time;
-        all_conv_stats.ipc_bytes += t.ipc_bytes;
+      if (opt.succinct) {
+        OutputStats(latency_timer, client, conv_stats, pub_stats, &std::cout);
+      } else {
+        LogStats(latency_timer, client, conv_stats, pub_stats);
       }
-
-      spdlog::info("Conversion stats:");
-      spdlog::info("  JSONs converted     : {}", all_conv_stats.num_jsons);
-      spdlog::info("  Total IPC bytes     : {}", all_conv_stats.ipc_bytes);
-      spdlog::info("  Avg. bytes/msg      : {}", static_cast<double>(all_conv_stats.ipc_bytes) / all_conv_stats.num_jsons);
-      spdlog::info("  Avg. conv. time     : {} us.", 1E6 * all_conv_stats.convert_time / all_conv_stats.num_jsons);
-      spdlog::info("  Avg. thread time    : {} s.", all_conv_stats.thread_time / all_conv_stats.num_jsons);
-
-      spdlog::info("Publish stats:");
-      spdlog::info("  IPC messages        : {}", pub_stats.num_published);
-      spdlog::info("  Avg. publish time   : {} us.", 1E6 * pub_stats.publish_time / pub_stats.num_published);
-      spdlog::info("  Publish thread time : {} s", pub_stats.thread_time);
-
-      spdlog::info("Latency stats:");
-      spdlog::info("  First latency       : {} us", 1E6 * latency_timer.seconds());
     }
   }
 

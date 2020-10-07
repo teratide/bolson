@@ -18,6 +18,7 @@
 #include <variant>
 
 #include <illex/protocol.h>
+#include <arrow/json/api.h>
 
 #include "flitter/pulsar.h"
 
@@ -28,12 +29,18 @@ struct StreamOptions {
   bool statistics = true;
   /// The hostname of the stream server.
   std::string hostname = "localhost";
+  /// Starting sequence number
+  uint64_t seq = 0;
   /// The protocol to use.
   illex::StreamProtocol protocol;
   /// The Pulsar options.
   PulsarOptions pulsar;
+  /// The Arrow JSON parsing options.
+  arrow::json::ParseOptions parse;
   /// Number of conversion drone threads to spawn.
   size_t num_conversion_drones = 1;
+  /// Whether to produce succinct statistics.
+  bool succinct = false;
 };
 
 /**
