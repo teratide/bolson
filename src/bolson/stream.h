@@ -41,6 +41,8 @@ struct StreamOptions {
   size_t num_conversion_drones = 1;
   /// Whether to produce succinct statistics.
   bool succinct = false;
+  /// RecordBatch size threshold before constructing an IPC message.
+  size_t batch_threshold = (4 * 1024 * 1024) + (512 * 1024);
 };
 
 /**

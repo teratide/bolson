@@ -3,14 +3,17 @@ import os
 import argparse
 
 parser = argparse.ArgumentParser(description='Measure single-object latency N times.')
-parser.add_argument('N', type=int, nargs=1)
+parser.add_argument('schema', type=str, nargs=1)
+parser.add_argument('csv', type=str, nargs=1)
+parser.add_argument('num_jsons', type=int, nargs=1)
 args = parser.parse_args()
-
-N = args.N[0] + 1
+num_jsons = args.num_jsons[0]
+schema = args.schema[0]
+csv = args.csv[0]
 
 bolson = '../release/bolson'
 
-with open('single_object_latency.csv', 'w') as f:
+with open(csv, 'w') as f:
     f.write("TCP Received,"
             "Converted,"
             "IPC bytes out,"
@@ -23,8 +26,9 @@ with open('single_object_latency.csv', 'w') as f:
             "First latency\n")
     f.flush()
 
-    for i in range(0, N):
+    for i in range(0, num_jsons + 1):
         # Run bolson
-        process = subprocess.run([bolson, 'stream', '-s'], stdout=f)
+        command = [bolson, 'stream', '-c', schema]
+        process = subprocess.run(command, stdout=f)
 
     f.close()

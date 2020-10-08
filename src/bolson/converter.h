@@ -40,7 +40,7 @@ struct ConversionStats {
   /// Number of IPC messages.
   size_t num_ipc = 0;
   /// Number of bytes in the IPC messages.
-  size_t ipc_bytes = 0;
+  size_t total_ipc_bytes = 0;
   /// Total time spent on conversion only.
   double convert_time = 0.0;
   /// Total time spent in this thread.
@@ -48,19 +48,21 @@ struct ConversionStats {
 };
 
 /**
- * \brief Converts JSONs to Arrow IPC messages. Multi-threaded.
- * \param in            The input queue of JSONs
- * \param out           The output queue for Arrow IPC messages.
- * \param shutdown      Signal to shut down this thread (typically used when there will be no more new inputs).
- * \param num_drones    Number of conversion threads to spawn.
- * \param parse_options The JSON parsing options for Arrow.
- * \param stats         Statistics for each conversion thread.
+ * \brief Converts one or multiple JSONs to Arrow RecordBatches, and batches to IPC messages. Multi-threaded.
+ * \param in                The input queue of JSONs
+ * \param out               The output queue for Arrow IPC messages.
+ * \param shutdown          Signal to shut down this thread (typically used when there will be no more new inputs).
+ * \param num_drones        Number of conversion threads to spawn.
+ * \param batch_threshold   Threshold batch size. If batch goes over this size, it will be converted and queued.
+ * \param parse_options     The JSON parsing options for Arrow.
+ * \param stats             Statistics for each conversion thread.
  */
 void ConversionHiveThread(illex::JSONQueue *in,
                           IpcQueue *out,
                           std::atomic<bool> *shutdown,
                           size_t num_drones,
                           const arrow::json::ParseOptions &parse_options,
+                          size_t batch_threshold,
                           std::promise<std::vector<ConversionStats>> &&stats);
 
 }

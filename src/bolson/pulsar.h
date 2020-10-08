@@ -26,7 +26,10 @@
 
 namespace bolson {
 
-using ClientProducerPair = std::pair<std::shared_ptr<pulsar::Client>, std::shared_ptr<pulsar::Producer>>;
+struct PulsarContext {
+  std::unique_ptr<pulsar::Client> client;
+  std::unique_ptr<pulsar::Producer> producer;
+};
 
 /// \brief Pulsar options.
 struct PulsarOptions {
@@ -44,18 +47,20 @@ struct PublishStats {
   double publish_time = 0.;
   /// Time spent in thread.
   double thread_time = 0.;
+  /// Status of the publishing thread.
+  Status status = Status::OK();
 };
 
 /**
  * Set a Pulsar client and producer up.
  * \param url    The Pulsar broker service URL.
  * \param topic  The Pulsar topic to produce message in.
- * \param out    A pair with shared pointers to the client and producer objects.
+ * \param out    A context including the client and producer.
  * \return       Status::OK() if successful, some error otherwise.
  */
 auto SetupClientProducer(const std::string &url,
                          const std::string &topic,
-                         ClientProducerPair *out) -> Status;
+                         PulsarContext *out) -> Status;
 
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
@@ -64,17 +69,29 @@ auto SetupClientProducer(const std::string &url,
  * \param latency_timer A timer that is stopped by this function just before calling the Pulsar send function.
  * \return         Status::OK() if successful, some error otherwise.
  */
-auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
+auto PublishArrowBuffer(pulsar::Producer* producer,
                         const std::shared_ptr<arrow::Buffer> &buffer,
                         putong::Timer<> *latency_timer) -> Status;
 
-void PublishThread(const PulsarOptions& opt,
+/**
+ * \brief A thread to pull IPC messages from the queue and publish them to some Pulsar queue.
+ * \param pulsar            Pulsar client and producer.
+ * \param in                Incoming queue with IPC messages.
+ * \param stop              If this is true, this thread will try to terminate.
+ * \param count             The number of published messages.
+ * \param latency_timer     An optional latency timer that is stopped just before the first Pulsar message is sent.
+ * \param stats             Statistics about this thread.
+ */
+void PublishThread(PulsarContext pulsar,
                    IpcQueue *in,
                    std::atomic<bool> *stop,
                    std::atomic<size_t> *count,
                    putong::Timer<> *latency_timer,
                    std::promise<PublishStats> &&stats);
 
+/**
+ * \brief A custom logger to redirect Pulsar client log messages to the Bolson logger.
+ */
 class bolsonLoggerFactory : public pulsar::LoggerFactory {
  public:
   auto getLogger(const std::string &file) -> pulsar::Logger * override;

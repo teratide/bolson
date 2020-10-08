@@ -45,10 +45,12 @@ struct StreamThreads {
 static auto AggrStats(const std::vector<ConversionStats> &conv_stats) -> ConversionStats {
   ConversionStats all_conv_stats;
   for (const auto &t : conv_stats) {
+    // TODO: overload +
     all_conv_stats.num_jsons += t.num_jsons;
+    all_conv_stats.num_ipc += t.num_ipc;
     all_conv_stats.convert_time += t.convert_time;
     all_conv_stats.thread_time += t.thread_time;
-    all_conv_stats.ipc_bytes += t.ipc_bytes;
+    all_conv_stats.total_ipc_bytes += t.total_ipc_bytes;
   }
   return all_conv_stats;
 }
@@ -62,8 +64,9 @@ static void OutputStats(const putong::Timer<> &latency_timer,
   auto all_conv_stats = AggrStats(conv_stats);
   (*output) << client.received() << ",";
   (*output) << all_conv_stats.num_jsons << ",";
-  (*output) << all_conv_stats.ipc_bytes << ",";
-  (*output) << static_cast<double>(all_conv_stats.ipc_bytes) / all_conv_stats.num_jsons << ",";
+  //(*output) << all_conv_stats.num_ipc << ","; // this one is redundant
+  (*output) << all_conv_stats.total_ipc_bytes << ",";
+  (*output) << static_cast<double>(all_conv_stats.total_ipc_bytes) / all_conv_stats.num_jsons << ",";
   (*output) << all_conv_stats.convert_time / all_conv_stats.num_jsons << ",";
   (*output) << all_conv_stats.thread_time / all_conv_stats.num_jsons << ",";
   (*output) << pub_stats.num_published << ",";
@@ -82,9 +85,10 @@ static void LogStats(const putong::Timer<> &latency_timer,
 
   spdlog::info("Conversion stats:");
   spdlog::info("  JSONs converted     : {}", all_conv_stats.num_jsons);
-  spdlog::info("  Total IPC bytes     : {}", all_conv_stats.ipc_bytes);
+  spdlog::info("  IPC msgs generated  : {}", all_conv_stats.num_ipc);
+  spdlog::info("  Total IPC bytes     : {}", all_conv_stats.total_ipc_bytes);
   spdlog::info("  Avg. bytes/msg      : {}",
-               static_cast<double>(all_conv_stats.ipc_bytes) / all_conv_stats.num_jsons);
+               static_cast<double>(all_conv_stats.total_ipc_bytes) / all_conv_stats.num_jsons);
   spdlog::info("  Avg. conv. time     : {} us.", 1E6 * all_conv_stats.convert_time / all_conv_stats.num_jsons);
   spdlog::info("  Avg. thread time    : {} s.", all_conv_stats.thread_time / all_conv_stats.num_jsons);
 
@@ -120,6 +124,10 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
 //    CHECK_ILLEX(client.ReceiveJSONs(&output));
 //    CHECK_ILLEX(client.Close());
   } else {
+    // Set up Pulsar client and producer.
+    PulsarContext pulsar;
+    BOLSON_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &pulsar));
+
     StreamThreads threads;
 
     // Set up queues.
@@ -141,10 +149,11 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                              &threads.shutdown,
                                                              opt.num_conversion_drones,
                                                              opt.parse,
+                                                             opt.batch_threshold,
                                                              std::move(conv_stats_promise));
 
     threads.publish_thread = std::make_unique<std::thread>(PublishThread,
-                                                           opt.pulsar,
+                                                           std::move(pulsar),
                                                            &arrow_ipc_queue,
                                                            &threads.shutdown,
                                                            &threads.publish_count,
@@ -176,8 +185,11 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
 
     // We can now shut down all threads and collect futures.
     threads.Shutdown();
+
     auto conv_stats = conv_stats_future.get();
     auto pub_stats = pub_stats_future.get();
+
+    BOLSON_ROE(pub_stats.status);
 
     // Report some statistics.
     if (opt.statistics) {

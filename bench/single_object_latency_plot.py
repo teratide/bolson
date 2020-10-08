@@ -2,8 +2,20 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
+import argparse
 
-df = pd.read_csv("batterystatus.csv")
+parser = argparse.ArgumentParser(description='Plot single-object latency.')
+parser.add_argument('csv', type=str, nargs=1)
+parser.add_argument('pdf', type=str, nargs=1)
+parser.add_argument('title', type=str, nargs=1)
+args = parser.parse_args()
+csv = args.csv[0]
+pdf = args.pdf[0]
+title = args.title[0]
+
+# Prepare data
+
+df = pd.read_csv(csv)
 
 y_lat = df['First latency']
 y_conv = df['Avg. convert time']
@@ -14,6 +26,8 @@ y_total = y_lat + y_pub
 
 num_rows = df.count()[0]
 x = np.arange(0, num_rows)
+
+# Plot
 
 plt.rcParams.update({"text.usetex": True})
 plt.rcParams.update({"font.size": '15'})
@@ -44,12 +58,13 @@ ax_left.set_xlabel('Experiment no.')
 ax_left.set_facecolor(background)
 ax_right.set_facecolor(background)
 
-# TODO filter outliers in a better way
-ax_left.set_ylim([0, 0.02])
-
 leg = ax_left.legend()
 for h in leg.legendHandles:
     h._sizes = [30]
 
+ax_left.set_title(title)
+
 fig.set_facecolor('white')
 fig.tight_layout()
+
+fig.savefig(pdf)

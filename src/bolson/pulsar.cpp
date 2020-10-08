@@ -36,16 +36,15 @@ namespace bolson {
 
 auto SetupClientProducer(const std::string &url,
                          const std::string &topic,
-                         ClientProducerPair *out) -> Status {
+                         PulsarContext *out) -> Status {
   auto config = pulsar::ClientConfiguration().setLogger(new bolsonLoggerFactory());
-  auto client = std::make_shared<pulsar::Client>(url, config);
-  auto producer = std::make_shared<pulsar::Producer>();
-  CHECK_PULSAR(client->createProducer(topic, *producer));
-  *out = {client, producer};
+  out->client = std::make_unique<pulsar::Client>(url, config);
+  out->producer = std::make_unique<pulsar::Producer>();
+  CHECK_PULSAR(out->client->createProducer(topic, *out->producer));
   return Status::OK();
 }
 
-auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
+auto PublishArrowBuffer(pulsar::Producer* producer,
                         const std::shared_ptr<arrow::Buffer> &buffer,
                         putong::Timer<> *latency_timer) -> Status {
   pulsar::Message msg = pulsar::MessageBuilder().setAllocatedContent(reinterpret_cast<void *>(buffer->mutable_data()),
@@ -58,21 +57,14 @@ auto PublishArrowBuffer(const std::shared_ptr<pulsar::Producer> &producer,
   return Status::OK();
 }
 
-void PublishThread(const PulsarOptions &opt,
+void PublishThread(PulsarContext pulsar,
                    IpcQueue *in,
                    std::atomic<bool> *stop,
                    std::atomic<size_t> *count,
                    putong::Timer<> *latency, // TODO: this could be wrapped in an atomic
                    std::promise<PublishStats> &&stats) {
 
-  // Set up Pulsar client and producer.
-  ClientProducerPair client_prod;
-  auto status = SetupClientProducer(opt.url, opt.topic, &client_prod);
-  if (!status.ok()) {
-    spdlog::error("Pulsar error: {}", status.msg());
-    // TODO(johanpel): do something with this error.
-  }
-
+  // Remember whether this is the first message.
   bool first = true;
   // Set up timers.
   auto thread_timer = putong::Timer(true);
@@ -86,7 +78,7 @@ void PublishThread(const PulsarOptions &opt,
     if (in->try_dequeue(ipc_item)) {
       SPDLOG_DEBUG("Publishing Arrow IPC message.");
       publish_timer.Start();
-      auto status = PublishArrowBuffer(client_prod.second, ipc_item.ipc, latency);
+      auto status = PublishArrowBuffer(pulsar.producer.get(), ipc_item.ipc, latency);
       publish_timer.Stop();
       if (first) {
         latency = nullptr; // todo
@@ -95,7 +87,12 @@ void PublishThread(const PulsarOptions &opt,
 
       if (!status.ok()) {
         spdlog::error("Pulsar error: {}", status.msg());
-        // TODO(johanpel): do something with this error.
+        pulsar.producer->close();
+        pulsar.client->close();
+        // Fulfill the promise.
+        s.status = status;
+        stats.set_value(s);
+        return;
       }
 
       // Update some statistics.
@@ -108,9 +105,8 @@ void PublishThread(const PulsarOptions &opt,
   thread_timer.Stop();
   s.thread_time = thread_timer.seconds();
 
-  client_prod.second->close();
-  client_prod.first->close();
-
+  pulsar.producer->close();
+  pulsar.client->close();
   // Fulfill the promise.
   stats.set_value(s);
 }

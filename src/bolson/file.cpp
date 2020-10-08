@@ -28,8 +28,8 @@ namespace bolson {
 
 auto ProduceFromFile(const FileOptions &opt) -> Status {
   // Create Pulsar client and producer objects and attempt to connect to broker.
-  std::pair<std::shared_ptr<pulsar::Client>, std::shared_ptr<pulsar::Producer>> client_producer;
-  bolson_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &client_producer));
+  PulsarContext pulsar;
+  BOLSON_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &pulsar));
 
   pt::Timer timer;
 
@@ -40,7 +40,7 @@ auto ProduceFromFile(const FileOptions &opt) -> Status {
   // Load file into memory
   timer.Start();
   std::vector<char> file_buffer;
-  bolson_ROE(LoadFile(opt.input, json_file_size, &file_buffer));
+  BOLSON_ROE(LoadFile(opt.input, json_file_size, &file_buffer));
   timer.Stop();
   ReportGBps("Load JSON file", json_file_size, timer.seconds(), opt.succinct);
 
@@ -104,7 +104,7 @@ auto ProduceFromFile(const FileOptions &opt) -> Status {
   // Publish the buffer in Pulsar:
   timer.Start();
   for (const auto &ipc_buffer : ipc_buffers) {
-    bolson_ROE(PublishArrowBuffer(client_producer.second, ipc_buffer, nullptr));
+    BOLSON_ROE(PublishArrowBuffer(pulsar.producer.get(), ipc_buffer, nullptr));
   }
   timer.Stop();
 

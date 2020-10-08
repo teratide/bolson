@@ -20,7 +20,7 @@
 
 namespace bolson {
 
-#define bolson_ROE(s) { \
+#define BOLSON_ROE(s) { \
   auto status = s;       \
   if (!s.ok()) return s; \
 }
@@ -31,6 +31,7 @@ enum class Error {
   PulsarError,
   IllexError,
   RapidJSONError,
+  ArrowError,
   IOError
 };
 

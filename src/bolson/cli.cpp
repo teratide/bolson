@@ -22,6 +22,7 @@
 
 namespace bolson {
 
+/// Function to read schema from a file.
 static auto ReadSchemaFromFile(const std::string &file, std::shared_ptr<arrow::Schema> *out) -> Status {
   // TODO(johanpel): use filesystem lib for path
   auto rfos = arrow::io::ReadableFile::Open(file);
@@ -41,27 +42,47 @@ static auto ReadSchemaFromFile(const std::string &file, std::shared_ptr<arrow::S
   return Status::OK();
 }
 
+/// Create a mock IPC message to figure out the IPC message header size.
+static auto CreateMockIPC(const std::shared_ptr<arrow::Schema> &schema, std::shared_ptr<arrow::Buffer> *out) -> Status {
+  // Construct an empty RecordBatch from the schema.
+  std::unique_ptr<arrow::RecordBatchBuilder> mock_builder;
+  std::shared_ptr<arrow::RecordBatch> mock_batch;
+  // TODO: Error check the Arrow results and statuses below
+  arrow::Status status = arrow::RecordBatchBuilder::Make(schema, arrow::default_memory_pool(), &mock_builder);
+  // todo: write status converters from arrow, and perhaps the other libs also
+  if (!status.ok()) { return Status(Error::ArrowError, status.message()); }
+  status = mock_builder->Flush(&mock_batch);
+  if (!status.ok()) { return Status(Error::ArrowError, status.message()); }
+  auto result = arrow::ipc::SerializeRecordBatch(*mock_batch, arrow::ipc::IpcWriteOptions::Defaults());
+  if (!result.ok()) { return Status(Error::ArrowError, result.status().message()); }
+  (*out) = result.ValueOrDie();
+  return Status::OK();
+}
+
 void AddCommonOpts(CLI::App *sub, AppOptions *app, std::string *schema_file, PulsarOptions *pulsar) {
-  sub->add_option("s,-s,--schema",
+  // An arrow schema is required:
+  sub->add_option("input,-i,--input",
                   *schema_file,
-                  "An Arrow schema to generate the JSON from.")->required()->check(CLI::ExistingFile);
+                  "The Arrow schema to generate the JSON from.")->required()->check(CLI::ExistingFile);
   sub->add_option("-u,--pulsar-url", pulsar->url, "Pulsar broker service URL (default: pulsar://localhost:6650/");
   sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic (default: bolson)");
-  sub->add_option("-m,--pulsar-max-msg-size",
+  sub->add_option("-r,--pulsar-max-msg-size",
                   pulsar->max_msg_size,
                   "Pulsar max. message size (default: 5 MiB - 10 KiB)");
   sub->add_flag("-c", app->succinct, "Print measurements on single CSV-like line.");
 }
 
 auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status {
-  CLI::App app{"bolson : Exploring Pulsar, Arrow, and FPGA."};
-
   std::string schema_file;
   uint16_t stream_port = 0;
 
+  CLI::App app{"bolson : A JSON stream to Arrow IPC to Pulsar conversion and publish tool."};
+
+  app.require_subcommand();
+
   // File subcommand:
   auto *sub_file = app.add_subcommand("file", "Produce Pulsar messages from a JSON file.");
-  sub_file->add_option("i,-i,--input",
+  sub_file->add_option("f,-f,--file",
                        out->file.input,
                        "Input file with Tweets.")->check(CLI::ExistingFile)->required();
   AddCommonOpts(sub_file, out, &schema_file, &out->file.pulsar);
@@ -88,8 +109,11 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
     return Status(Error::CLIError, e.get_name() + ":" + e.what());
   }
 
+  // Read the Arrow schema
   std::shared_ptr<arrow::Schema> schema;
-  auto status = ReadSchemaFromFile(schema_file, &schema);
+  std::shared_ptr<arrow::Buffer> mock_ipc;
+  BOLSON_ROE(ReadSchemaFromFile(schema_file, &schema));
+  BOLSON_ROE(CreateMockIPC(schema, &mock_ipc));
 
   auto parse_options = arrow::json::ParseOptions::Defaults();
   parse_options.explicit_schema = schema;
@@ -117,9 +141,13 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
       out->stream.protocol = raw;
       out->stream.succinct = out->succinct;
       out->stream.parse = parse_options;
+
+      out->stream.batch_threshold = out->stream.pulsar.max_msg_size - mock_ipc->size();
     }
+  } else {
+    out->sub = SubCommand::NONE;
   }
-  return status;
+  return Status::OK();
 }
 
 }  // namespace bolson
