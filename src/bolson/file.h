@@ -18,12 +18,21 @@
 
 namespace bolson {
 
+/// Options for the file subcommand.
 struct FileOptions {
+  /// Pulsar options.
   PulsarOptions pulsar;
+  /// Input file path.
   std::string input;
+  /// Whether to produce succinct stats.
   bool succinct = false;
 };
 
+/**
+ * \brief Produce Pulsar messages from a file with JSONs.
+ * \param opt Options for the file subcommand.
+ * \return Status::OK() if successful, some error otherwise.
+ */
 auto ProduceFromFile(const FileOptions &opt) -> Status;
 
 }  // namespace bolson

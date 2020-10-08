@@ -111,6 +111,7 @@ void PublishThread(PulsarContext pulsar,
   stats.set_value(s);
 }
 
+/// A custom logger to redirect Pulsar client log messages to the Bolson logger.
 class bolsonLogger : public pulsar::Logger {
   std::string _logger;
  public:

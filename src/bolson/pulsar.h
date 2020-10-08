@@ -26,12 +26,13 @@
 
 namespace bolson {
 
+/// A Pulsar context for functions to operate on.
 struct PulsarContext {
   std::unique_ptr<pulsar::Client> client;
   std::unique_ptr<pulsar::Producer> producer;
 };
 
-/// \brief Pulsar options.
+/// Pulsar options.
 struct PulsarOptions {
   std::string url = "pulsar://localhost:6650/";
   std::string topic = "bolson";
@@ -39,7 +40,7 @@ struct PulsarOptions {
   size_t max_msg_size = (5 * 1024 * 1024 - (10 * 1024));
 };
 
-/// \brief Statistics about publishing
+/// Statistics about publishing
 struct PublishStats {
   /// Number of messages published.
   size_t num_published = 0;
@@ -90,7 +91,7 @@ void PublishThread(PulsarContext pulsar,
                    std::promise<PublishStats> &&stats);
 
 /**
- * \brief A custom logger to redirect Pulsar client log messages to the Bolson logger.
+ * \brief Factory function for the custom Pulsar logger.
  */
 class bolsonLoggerFactory : public pulsar::LoggerFactory {
  public:

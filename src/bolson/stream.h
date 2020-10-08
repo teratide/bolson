@@ -24,6 +24,7 @@
 
 namespace bolson {
 
+/// Stream subcommand options.
 struct StreamOptions {
   /// Enable statistics.
   bool statistics = true;
