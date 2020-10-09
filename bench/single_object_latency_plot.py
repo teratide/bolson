@@ -3,6 +3,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+from scipy import stats
 
 parser = argparse.ArgumentParser(description='Plot single-object latency.')
 parser.add_argument('csv', type=str, nargs=1)
@@ -23,6 +24,9 @@ y_pub = df['Avg. publish time']
 
 # JSON to Arrow conversion is included in y_lat
 y_total = y_lat + y_pub
+
+# Filter out extreme outliers for Y axis range
+y_lim_max = max(y_total[stats.zscore(y_total) < 5])
 
 num_rows = df.count()[0]
 x = np.arange(0, num_rows)
@@ -45,6 +49,8 @@ ax_left.scatter(x=x, y=y_pub, s=2, c=colors[4], label='Pulsar send()')
 ax_left.scatter(x=x, y=y_total, s=2, c=colors[1], label='Total')
 
 sns.histplot(ax=ax_right, y=y_lat, color=colors[2])
+
+ax_left.set_ylim([0, y_lim_max])
 
 ax_left.hlines(df["First latency"].mean(), 0, num_rows, color=colors)
 
