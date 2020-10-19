@@ -67,12 +67,13 @@ auto SetupClientProducer(const std::string &url,
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
  * \param producer      The Pulsar producer to publish the message through.
  * \param buffer        The Arrow buffer to publish.
- * \param latency_timer A timer that is stopped by this function just before calling the Pulsar send function.
- * \return         Status::OK() if successful, some error otherwise.
+ * \param latency_timer A timer that, if supplied, is stopped by this function just before sending the message.
+ * \return              Status::OK() if successful, some error otherwise.
  */
-auto PublishArrowBuffer(pulsar::Producer* producer,
-                        const std::shared_ptr<arrow::Buffer> &buffer,
-                        putong::Timer<> *latency_timer) -> Status;
+auto Publish(pulsar::Producer *producer,
+             const uint8_t *buffer,
+             size_t size,
+             putong::Timer<> *latency_timer = nullptr) -> Status;
 
 /**
  * \brief A thread to pull IPC messages from the queue and publish them to some Pulsar queue.

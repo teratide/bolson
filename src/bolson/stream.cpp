@@ -26,6 +26,13 @@
 
 namespace bolson {
 
+/// Structure to hold timers.
+struct StreamTimers {
+  putong::Timer<> latency;
+  putong::Timer<> tcp;
+  putong::Timer<> init;
+};
+
 /// Structure to hold threads and atomics
 struct StreamThreads {
   std::unique_ptr<std::thread> publish_thread;
@@ -56,13 +63,15 @@ static auto AggrStats(const std::vector<ConversionStats> &conv_stats) -> Convers
 }
 
 /// \brief Stream succinct CSV-like stats to some output stream.
-static void OutputStats(const putong::Timer<> &latency_timer,
-                        const illex::RawClient &client,
-                        const std::vector<ConversionStats> &conv_stats,
-                        const PublishStats &pub_stats,
-                        std::ostream *output) {
+static void OutputCSVStats(const StreamTimers &timers,
+                           const illex::RawClient &client,
+                           const std::vector<ConversionStats> &conv_stats,
+                           const PublishStats &pub_stats,
+                           std::ostream *output) {
   auto all_conv_stats = AggrStats(conv_stats);
   (*output) << client.received() << ",";
+  (*output) << client.bytes_received() << ",";
+  (*output) << timers.tcp.seconds() << ",";
   (*output) << all_conv_stats.num_jsons << ",";
   //(*output) << all_conv_stats.num_ipc << ","; // this one is redundant
   (*output) << all_conv_stats.total_ipc_bytes << ",";
@@ -72,25 +81,32 @@ static void OutputStats(const putong::Timer<> &latency_timer,
   (*output) << pub_stats.num_published << ",";
   (*output) << pub_stats.publish_time / pub_stats.num_published << ",";
   (*output) << pub_stats.thread_time << ",";
-  (*output) << latency_timer.seconds() << std::endl;
+  (*output) << timers.latency.seconds() << std::endl;
 }
 
 /// \brief Log the statistics.
-static void LogStats(const putong::Timer<> &latency_timer,
+static void LogStats(const StreamTimers &timers,
                      const illex::RawClient &client,
                      const std::vector<ConversionStats> &conv_stats,
                      const PublishStats &pub_stats) {
-  auto all_conv_stats = AggrStats(conv_stats);
-  spdlog::info("Received {} JSONs over TCP.", client.received());
+  auto all = AggrStats(conv_stats);
+  spdlog::info("Initialization stats:");
+  spdlog::info("  Initialization time : {}", timers.init.seconds());
+  spdlog::info("TCP stats:");
+  spdlog::info("  Received {} JSONs over TCP.", client.received());
+  spdlog::info("  Bytes received      : {} MiB", static_cast<double>(client.bytes_received()) / (1024.0 * 1024.0));
+  spdlog::info("  Client receive time : {} s", timers.tcp.seconds());
+  spdlog::info("  Throughput          : {} MB/s", client.bytes_received() / timers.tcp.seconds() * 1E-6);
 
   spdlog::info("Conversion stats:");
-  spdlog::info("  JSONs converted     : {}", all_conv_stats.num_jsons);
-  spdlog::info("  IPC msgs generated  : {}", all_conv_stats.num_ipc);
-  spdlog::info("  Total IPC bytes     : {}", all_conv_stats.total_ipc_bytes);
-  spdlog::info("  Avg. bytes/msg      : {}",
-               static_cast<double>(all_conv_stats.total_ipc_bytes) / all_conv_stats.num_jsons);
-  spdlog::info("  Avg. conv. time     : {} us.", 1E6 * all_conv_stats.convert_time / all_conv_stats.num_jsons);
-  spdlog::info("  Avg. thread time    : {} s.", all_conv_stats.thread_time / all_conv_stats.num_jsons);
+  spdlog::info("  JSONs converted     : {}", all.num_jsons);
+  spdlog::info("  Avg. bytes/json     : {}",
+               static_cast<double>(all.total_ipc_bytes) / all.num_jsons);
+  spdlog::info("  IPC msgs generated  : {}", all.num_ipc);
+  spdlog::info("  Total IPC bytes     : {}", all.total_ipc_bytes);
+  spdlog::info("  Avg. IPC bytes/msg  : {}", all.total_ipc_bytes / all.num_ipc);
+  spdlog::info("  Avg. conv. time     : {} us.", 1E6 * all.convert_time / all.num_jsons);
+  spdlog::info("  Avg. thread time    : {} s.", all.thread_time / all.num_jsons);
 
   spdlog::info("Publish stats:");
   spdlog::info("  IPC messages        : {}", pub_stats.num_published);
@@ -98,7 +114,7 @@ static void LogStats(const putong::Timer<> &latency_timer,
   spdlog::info("  Publish thread time : {} s", pub_stats.thread_time);
 
   spdlog::info("Latency stats:");
-  spdlog::info("  First latency       : {} us", 1E6 * latency_timer.seconds());
+  spdlog::info("  First latency       : {} us", 1E6 * timers.latency.seconds());
 
   spdlog::info("Timer steady?         : {}", putong::Timer<>::steady());
   spdlog::info("Timer resoluion       : {} us", putong::Timer<>::resolution_us());
@@ -113,8 +129,7 @@ static void LogStats(const putong::Timer<> &latency_timer,
   }
 
 auto ProduceFromStream(const StreamOptions &opt) -> Status {
-  putong::Timer<> latency_timer;
-
+  StreamTimers timers;
   // Check which protocol to use.
   if (std::holds_alternative<illex::ZMQProtocol>(opt.protocol)) {
     return Status(Error::GenericError, "Not implemented.");
@@ -124,6 +139,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
 //    CHECK_ILLEX(client.ReceiveJSONs(&output));
 //    CHECK_ILLEX(client.Close());
   } else {
+    timers.init.Start();
     // Set up Pulsar client and producer.
     PulsarContext pulsar;
     BOLSON_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &pulsar));
@@ -142,7 +158,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
 
     // Spawn two threads:
     // The conversion thread spawns one or multiple drone threads that convert JSONs to Arrow IPC messages and queues
-    // them. The publish thread pull from the Arrow IPC queue, fed by the conversion thread, and publish them in Pulsar.
+    // them.
     threads.converter_thread = std::make_unique<std::thread>(ConversionHiveThread,
                                                              &raw_json_queue,
                                                              &arrow_ipc_queue,
@@ -152,12 +168,13 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                              opt.batch_threshold,
                                                              std::move(conv_stats_promise));
 
+    // The publish thread pull from the Arrow IPC queue, fed by the conversion thread, and publish them in Pulsar.
     threads.publish_thread = std::make_unique<std::thread>(PublishThread,
                                                            std::move(pulsar),
                                                            &arrow_ipc_queue,
                                                            &threads.shutdown,
                                                            &threads.publish_count,
-                                                           &latency_timer,
+                                                           &timers.latency,
                                                            std::move(pub_stats_promise));
 
     // Set up the client that receives incoming JSONs.
@@ -168,9 +185,13 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                opt.seq,
                                                &client));
 
-    // Receive JSONs until the server closes the connection.
+    timers.init.Stop();
+
+    // Receive JSONs (blocking) until the server closes the connection.
     // Concurrently, the conversion and publish thread will do their job.
-    SHUTDOWN_ON_ERROR(client.ReceiveJSONs(&raw_json_queue, &latency_timer));
+    timers.tcp.Start();
+    SHUTDOWN_ON_ERROR(client.ReceiveJSONs(&raw_json_queue, &timers.latency));
+    timers.tcp.Stop();
     SHUTDOWN_ON_ERROR(client.Close());
 
     SPDLOG_DEBUG("Waiting to empty JSON queue.");
@@ -194,9 +215,9 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Report some statistics.
     if (opt.statistics) {
       if (opt.succinct) {
-        OutputStats(latency_timer, client, conv_stats, pub_stats, &std::cout);
+        OutputCSVStats(timers, client, conv_stats, pub_stats, &std::cout);
       } else {
-        LogStats(latency_timer, client, conv_stats, pub_stats);
+        LogStats(timers, client, conv_stats, pub_stats);
       }
     }
   }

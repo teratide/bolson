@@ -44,11 +44,11 @@ auto SetupClientProducer(const std::string &url,
   return Status::OK();
 }
 
-auto PublishArrowBuffer(pulsar::Producer* producer,
-                        const std::shared_ptr<arrow::Buffer> &buffer,
-                        putong::Timer<> *latency_timer) -> Status {
-  pulsar::Message msg = pulsar::MessageBuilder().setAllocatedContent(reinterpret_cast<void *>(buffer->mutable_data()),
-                                                                     buffer->size()).build();
+auto Publish(pulsar::Producer *producer,
+             const uint8_t *buffer,
+             size_t size,
+             putong::Timer<> *latency_timer) -> Status {
+  pulsar::Message msg = pulsar::MessageBuilder().setAllocatedContent(const_cast<uint8_t *>(buffer), size).build();
   // TODO: no
   if (latency_timer != nullptr) {
     latency_timer->Stop();
@@ -75,10 +75,10 @@ void PublishThread(PulsarContext pulsar,
   // Try pulling stuff from the queue until the stop signal is given.
   IpcQueueItem ipc_item;
   while (!stop->load()) {
-    if (in->try_dequeue(ipc_item)) {
+    if (in->wait_dequeue_timed(ipc_item, std::chrono::microseconds(100))) {
       SPDLOG_DEBUG("Publishing Arrow IPC message.");
       publish_timer.Start();
-      auto status = PublishArrowBuffer(pulsar.producer.get(), ipc_item.ipc, latency);
+      auto status = Publish(pulsar.producer.get(), ipc_item.ipc->data(), ipc_item.ipc->size(), latency);
       publish_timer.Stop();
       if (first) {
         latency = nullptr; // todo
@@ -100,6 +100,7 @@ void PublishThread(PulsarContext pulsar,
       s.num_published++;
       count->fetch_add(ipc_item.num_rows);
     }
+    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   // Stop thread timer.
   thread_timer.Stop();

@@ -15,10 +15,14 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 
 #include <arrow/api.h>
 #include <arrow/json/api.h>
 #include <illex/queue.h>
+#include <blockingconcurrentqueue.h>
+
+#include "bolson/status.h"
 
 namespace bolson {
 
@@ -31,7 +35,7 @@ struct IpcQueueItem {
 };
 
 /// A queue with Arrow IPC messages.
-using IpcQueue = moodycamel::ConcurrentQueue<IpcQueueItem>;
+using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;
 
 /// Statistics about the conversion functions.
 struct ConversionStats {
@@ -43,8 +47,45 @@ struct ConversionStats {
   size_t total_ipc_bytes = 0;
   /// Total time spent on conversion only.
   double convert_time = 0.0;
+  /// Total time spent on IPC construction only.
+  double ipc_construct_time = 0.0;
   /// Total time spent in this thread.
   double thread_time = 0.0;
+};
+
+// Sequence number field.
+static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
+  static auto seq_field = arrow::field("seq", arrow::uint64(), false);
+  return seq_field;
+}
+
+/// Class to support incremental building up of a RecordBatch from JSONQueueItems.
+class BatchBuilder {
+ public:
+  explicit BatchBuilder(arrow::json::ParseOptions parse_options) : parse_options(std::move(parse_options)) {}
+
+  /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
+  [[nodiscard]] auto size() const -> size_t { return size_; }
+
+  /// \brief Return true if there are no batches in this builder.
+  [[nodiscard]] auto empty() const -> bool { return batches.empty(); }
+
+  /// \brief Take a JSONQueueItem and convert it to an Arrow RecordBatch, and append it to this builder.
+  auto Append(const illex::JSONQueueItem &item) -> Status;
+
+  /// \brief Resets this builder, clearing contained batches. Can be reused afterwards.
+  void Reset();
+
+  /// \brief Finish the builder, resulting in an IPC queue item. This resets the builder, and can be reused afterwards.
+  auto Finish() -> IpcQueueItem;
+
+ private:
+  /// Parsing options.
+  arrow::json::ParseOptions parse_options;
+  /// A vector to hold RecordBatches that we collapse into a single RecordBatch when we finish this builder.
+  std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
+  /// Size of the batches so far.
+  size_t size_ = 0;
 };
 
 /**

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+
 #include <arrow/api.h>
 #include <arrow/ipc/api.h>
 #include <arrow/io/api.h>
@@ -94,6 +96,12 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   sub_stream->add_option("--seq", out->stream.seq, "Starting sequence number, 64-bit unsigned integer (default = 0).");
   AddCommonOpts(sub_stream, out, &schema_file, &out->stream.pulsar);
 
+  // Bench subcommand:
+  auto *sub_bench = app.add_subcommand("bench", "Run some microbenchmarks.");
+  sub_bench->add_option("--message-size", out->bench.pulsar_message_size, "Pulsar message size.");
+  sub_bench->add_option("--num-messages", out->bench.pulsar_messages, "Pulsar number of messages.");
+  AddCommonOpts(sub_bench, out, &schema_file, &out->bench.pulsar);
+
   //auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
 
   // Attempt to parse the CLI arguments.
@@ -142,11 +150,21 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
       out->stream.succinct = out->succinct;
       out->stream.parse = parse_options;
 
-      out->stream.batch_threshold = out->stream.pulsar.max_msg_size - mock_ipc->size();
+      ssize_t desired_threshold = static_cast<ssize_t>(out->stream.pulsar.max_msg_size) - mock_ipc->size();
+
+      if (desired_threshold < 0) {
+        spdlog::warn(
+            "Arrow IPC header size as result of supplied Arrow schema is larger than supplied Pulsar maximum message "
+            "size. Setting batch threshold to 1 byte.");
+      }
+
+      out->stream.batch_threshold = static_cast<size_t>(std::max(1L, desired_threshold));
     }
-  } else {
-    out->sub = SubCommand::NONE;
+  } else if (sub_bench->parsed()) {
+    out->sub = SubCommand::BENCH;
+    out->bench.csv = out->succinct;
   }
+
   return Status::OK();
 }
 

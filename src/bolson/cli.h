@@ -19,12 +19,13 @@
 #include "bolson/pulsar.h"
 #include "bolson/file.h"
 #include "bolson/stream.h"
+#include "bolson/bench.h"
 
 #pragma once
 
 namespace bolson {
 
-enum class SubCommand { NONE, FILE, STREAM };
+enum class SubCommand { FILE, STREAM, BENCH };
 
 /// \brief Application options.
 struct AppOptions {
@@ -36,10 +37,11 @@ struct AppOptions {
   /// \brief Populate an instance of the application options based on CLI arguments.
   static auto FromArguments(int argc, char *argv[], AppOptions *out) -> Status;
 
-  SubCommand sub = SubCommand::NONE;
+  SubCommand sub;
 
   FileOptions file;
   StreamOptions stream;
+  BenchOptions bench;
 
   bool succinct = false;
   bool exit = false;

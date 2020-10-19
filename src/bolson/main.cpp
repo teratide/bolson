@@ -29,9 +29,9 @@ auto main(int argc, char *argv[]) -> int {
     // Run sub-programs.
     bolson::Status result;
     switch (opts.sub) {
-      case bolson::SubCommand::NONE: break;
       case bolson::SubCommand::FILE: status = bolson::ProduceFromFile(opts.file);
       case bolson::SubCommand::STREAM: status = bolson::ProduceFromStream(opts.stream);
+      case bolson::SubCommand::BENCH: status = bolson::RunBench(opts.bench);
     }
   }
 
