@@ -14,7 +14,9 @@ csv = args.csv[0]
 bolson = '../release/bolson'
 
 with open(csv, 'w') as f:
-    f.write("TCP Received,"
+    f.write("TCP Received JSONs,"
+            "TCP Received bytes,"
+            "TCP Received time,"
             "Converted,"
             "IPC bytes out,"
             "Avg. bytes/msg,"
