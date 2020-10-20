@@ -61,48 +61,105 @@ static auto CreateMockIPC(const std::shared_ptr<arrow::Schema> &schema, std::sha
   return Status::OK();
 }
 
-void AddCommonOpts(CLI::App *sub, AppOptions *app, std::string *schema_file, PulsarOptions *pulsar) {
-  // An arrow schema is required:
+static auto CalcThreshold(size_t max_size, const std::shared_ptr<arrow::Schema> schema, size_t *out) -> Status {
+  // Create empty IPC message to get an indication of the IPC header size.
+  std::shared_ptr<arrow::Buffer> mock_ipc;
+  BOLSON_ROE(CreateMockIPC(schema, &mock_ipc));
+
+  // Subtract IPC header size from maximum Pulsar size.
+  ssize_t desired_threshold = static_cast<ssize_t>(max_size) - mock_ipc->size();
+
+  // Warn the user in case the threshold is below zero.
+  if (desired_threshold < 0) {
+    spdlog::warn(
+        "Arrow IPC header size as result of supplied Arrow schema is larger than supplied Pulsar maximum message "
+        "size. Setting batch threshold to 1 byte.");
+  }
+
+  *out = static_cast<size_t>(std::max(1L, desired_threshold));
+
+  return Status::OK();
+}
+
+static void AddArrowOpts(CLI::App *sub, std::string *schema_file) {
   sub->add_option("input,-i,--input",
                   *schema_file,
-                  "The Arrow schema to generate the JSON from.")->required()->check(CLI::ExistingFile);
-  sub->add_option("-u,--pulsar-url", pulsar->url, "Pulsar broker service URL (default: pulsar://localhost:6650/");
-  sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic (default: bolson)");
+                  "The Arrow schema to generate the JSON from.")->check(CLI::ExistingFile)->required();
+}
+
+static void AddThreadsOpts(CLI::App *sub, size_t *num_threads) {
+  sub->add_option("--threads", *num_threads, "Number of threads to use.")->default_val(1);
+}
+
+static void AddPulsarOpts(CLI::App *sub, PulsarOptions *pulsar) {
+  sub->add_option("-u,--pulsar-url",
+                  pulsar->url,
+                  "Pulsar broker service URL.")->default_str("pulsar://localhost:6650/");
+  sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic.")->default_str("bolson");
   sub->add_option("-r,--pulsar-max-msg-size",
                   pulsar->max_msg_size,
-                  "Pulsar max. message size (default: 5 MiB - 10 KiB)");
-  sub->add_flag("-c", app->succinct, "Print measurements on single CSV-like line.");
+                  "Pulsar max. message size (bytes).")->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
 }
 
 auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status {
   std::string schema_file;
   uint16_t stream_port = 0;
+  bool csv = false;
 
   CLI::App app{"bolson : A JSON stream to Arrow IPC to Pulsar conversion and publish tool."};
 
   app.require_subcommand();
+  app.get_formatter()->column_width(50);
 
-  // File subcommand:
+  // 'file' subcommand:
   auto *sub_file = app.add_subcommand("file", "Produce Pulsar messages from a JSON file.");
   sub_file->add_option("f,-f,--file",
                        out->file.input,
                        "Input file with Tweets.")->check(CLI::ExistingFile)->required();
-  AddCommonOpts(sub_file, out, &schema_file, &out->file.pulsar);
+  AddArrowOpts(sub_file, &schema_file);
+  AddPulsarOpts(sub_file, &out->file.pulsar);
 
-  // Stream subcommand:
+
+  // 'stream' subcommand:
   auto *sub_stream = app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
   auto *port_opt =
-      sub_stream->add_option("-p,--port", stream_port, "Port (default=" + std::to_string(illex::RAW_PORT) + ").");
-  sub_stream->add_option("--seq", out->stream.seq, "Starting sequence number, 64-bit unsigned integer (default = 0).");
-  AddCommonOpts(sub_stream, out, &schema_file, &out->stream.pulsar);
-
-  // Bench subcommand:
-  auto *sub_bench = app.add_subcommand("bench", "Run some microbenchmarks.");
-  sub_bench->add_option("--message-size", out->bench.pulsar_message_size, "Pulsar message size.");
-  sub_bench->add_option("--num-messages", out->bench.pulsar_messages, "Pulsar number of messages.");
-  AddCommonOpts(sub_bench, out, &schema_file, &out->bench.pulsar);
-
+      sub_stream->add_option("-p,--port", stream_port, "Port.")->default_val(illex::RAW_PORT);
+  sub_stream->add_option("--seq",
+                         out->stream.seq,
+                         "Starting sequence number, 64-bit unsigned integer.")->default_val(0);
   //auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
+  AddArrowOpts(sub_stream, &schema_file);
+  AddPulsarOpts(sub_stream, &out->stream.pulsar);
+  AddThreadsOpts(sub_stream, &out->stream.num_threads);
+
+
+  // 'bench' subcommand:
+  auto *sub_bench = app.add_subcommand("bench", "Run some micro-benchmarks.");
+  sub_bench->add_flag("-c", csv, "Print output CSV-style.");
+
+  auto *sub_bench_client = sub_bench->add_subcommand("client", "Run TCP client interface microbenchmark.");
+  auto *sub_bench_convert = sub_bench->add_subcommand("convert", "Run JSON to Arrow IPC convert microbenchmark.");
+  auto *sub_bench_pulsar = sub_bench->add_subcommand("pulsar", "Run Pulsar microbenchmark.");
+
+  // 'bench client' options.
+
+  // 'bench convert' options.
+  sub_bench_convert->add_option("--num-jsons",
+                                out->bench.convert.num_jsons,
+                                "Number of JSONs to convert.")->default_val(1024);
+  sub_bench_convert->add_option("--max-ipc-size",
+                                out->bench.convert.max_ipc_size,
+                                "Maximum size of the IPC messages.")->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
+  AddArrowOpts(sub_bench_convert, &schema_file);
+  AddThreadsOpts(sub_bench_convert, &out->bench.convert.num_threads);
+
+  // 'bench pulsar' options.
+  sub_bench_pulsar->add_option("--message-size", out->bench.pulsar.message_size, "Pulsar message size.")->default_val(
+      PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
+  sub_bench_pulsar->add_option("--num-messages",
+                               out->bench.pulsar.num_messages,
+                               "Pulsar number of messages.")->default_val(1024);
+  AddPulsarOpts(sub_bench, &out->bench.pulsar.pulsar);
 
   // Attempt to parse the CLI arguments.
   try {
@@ -117,15 +174,18 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
     return Status(Error::CLIError, e.get_name() + ":" + e.what());
   }
 
-  // Read the Arrow schema
   std::shared_ptr<arrow::Schema> schema;
-  std::shared_ptr<arrow::Buffer> mock_ipc;
-  BOLSON_ROE(ReadSchemaFromFile(schema_file, &schema));
-  BOLSON_ROE(CreateMockIPC(schema, &mock_ipc));
+  arrow::json::ParseOptions parse_options;
 
-  auto parse_options = arrow::json::ParseOptions::Defaults();
-  parse_options.explicit_schema = schema;
-  parse_options.unexpected_field_behavior = arrow::json::UnexpectedFieldBehavior::Error;
+  if (!schema_file.empty()) {
+    // Read the Arrow schema.
+    BOLSON_ROE(ReadSchemaFromFile(schema_file, &schema));
+
+    // Generate parse options.
+    parse_options = arrow::json::ParseOptions::Defaults();
+    parse_options.explicit_schema = schema;
+    parse_options.unexpected_field_behavior = arrow::json::UnexpectedFieldBehavior::Error;
+  }
 
   if (sub_file->parsed()) {
     out->sub = SubCommand::FILE;
@@ -149,20 +209,24 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
       out->stream.protocol = raw;
       out->stream.succinct = out->succinct;
       out->stream.parse = parse_options;
-
-      ssize_t desired_threshold = static_cast<ssize_t>(out->stream.pulsar.max_msg_size) - mock_ipc->size();
-
-      if (desired_threshold < 0) {
-        spdlog::warn(
-            "Arrow IPC header size as result of supplied Arrow schema is larger than supplied Pulsar maximum message "
-            "size. Setting batch threshold to 1 byte.");
-      }
-
-      out->stream.batch_threshold = static_cast<size_t>(std::max(1L, desired_threshold));
+      // TODO: move this to subcommand execution
+      BOLSON_ROE(CalcThreshold(out->stream.pulsar.max_msg_size, schema, &out->stream.batch_threshold));
     }
   } else if (sub_bench->parsed()) {
     out->sub = SubCommand::BENCH;
-    out->bench.csv = out->succinct;
+    if (sub_bench_client->parsed()) {
+      out->bench.bench = Bench::CLIENT;
+      return Status(Error::GenericError, "Not yet implemented.");
+    } else if (sub_bench_convert->parsed()) {
+      out->bench.bench = Bench::CONVERT;
+      out->bench.convert.csv = csv;
+      out->bench.convert.schema = schema;
+      out->bench.convert.parse = parse_options;
+      BOLSON_ROE(CalcThreshold(out->bench.convert.max_ipc_size, schema, &out->bench.convert.batch_threshold));
+    } else if (sub_bench_pulsar->parsed()) {
+      out->bench.bench = Bench::PULSAR;
+      out->bench.pulsar.csv = csv;
+    }
   }
 
   return Status::OK();

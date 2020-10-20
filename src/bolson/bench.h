@@ -15,22 +15,79 @@
 #pragma once
 
 #include <putong/timer.h>
+#include <illex/protocol.h>
 
 #include "bolson/pulsar.h"
 #include "bolson/status.h"
 
 namespace bolson {
 
-struct BenchOptions {
-  PulsarOptions pulsar;
-
-  bool csv = false;
-  size_t pulsar_messages = 256;
-  size_t pulsar_message_size = 5 * 1024 * 1024 - 10 * 1024;
+/// Options for the Client interface benchmark
+struct ClientBenchOptions {
+  /// The hostname of the stream server.
+  std::string hostname = "localhost";
+  /// The protocol to use.
+  illex::StreamProtocol protocol;
 };
 
-auto RunBench(const BenchOptions &opts) -> Status;
+/// Options for the Convert benchmark
+struct ConvertBenchOptions {
+  std::shared_ptr<arrow::Schema> schema;
+  illex::GenerateOptions generate;
+  arrow::json::ParseOptions parse;
+  size_t num_jsons = 1024;
+  bool csv = false;
+  size_t max_ipc_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
+  size_t batch_threshold;
+  size_t num_threads = 1;
+};
 
-auto BenchPulsar(size_t repeats, size_t message_size, const PulsarOptions &opt, bool csv = false) -> Status;
+/// Options for Pulsar interface benchmark.
+struct PulsarBenchOptions {
+  /// Pulsar options
+  PulsarOptions pulsar;
+  /// Print output as CSV-like line
+  bool csv = false;
+  /// Number of Pulsar messages
+  size_t num_messages = 256;
+  /// Size of each message
+  size_t message_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
+};
+
+/// Possible benchmark subcommands
+enum class Bench {
+  /// Benchmark the client stream interface
+  CLIENT,
+  /// Benchmark conversion from JSON to Arrow RecordBatch to Arrow IPC
+  CONVERT,
+  /// Benchmark the Pulsar interface
+  PULSAR
+};
+
+/// Benchmark subcommand options
+struct BenchOptions {
+  /// Chosen subcommand
+  Bench bench = Bench::CONVERT;
+  /// Options for client bench
+  ClientBenchOptions client;
+  /// Options for convert bench
+  ConvertBenchOptions convert;
+  /// Options for Pulsar bench
+  PulsarBenchOptions pulsar;
+};
+
+/**
+ * \brief Run benchmark subcommand.
+ *
+ * This subcommand can be used to test specific components of the pipeline independently.
+ *
+ * \param opt The options for the benchmark.
+ * \return Status::OK() if successful, some error otherwise.
+ */
+auto RunBench(const BenchOptions &opt) -> Status;
+
+auto BenchClient(const ClientBenchOptions &opt) -> Status;
+auto BenchConvert(const ConvertBenchOptions &opt) -> Status;
+auto BenchPulsar(const PulsarBenchOptions &opt) -> Status;
 
 }

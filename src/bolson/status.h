@@ -20,12 +20,14 @@
 
 namespace bolson {
 
-#define BOLSON_ROE(s) {  \
-  auto status = s;       \
-  if (!s.ok()) return s; \
-}                        \
+/// Return on error status.
+#define BOLSON_ROE(s) {            \
+  auto status = s;                 \
+  if (!status.ok()) return status; \
+}                                  \
 void()
 
+/// Error types.
 enum class Error {
   GenericError,
   CLIError,

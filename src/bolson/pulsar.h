@@ -26,6 +26,9 @@
 
 namespace bolson {
 
+/// Pulsar default max message size (from an obscure place in the Pulsar sources)
+constexpr size_t PULSAR_DEFAULT_MAX_MESSAGE_SIZE = 5 * 1024 * 1024 - 10 * 1024;
+
 /// A Pulsar context for functions to operate on.
 struct PulsarContext {
   std::unique_ptr<pulsar::Client> client;
@@ -34,10 +37,12 @@ struct PulsarContext {
 
 /// Pulsar options.
 struct PulsarOptions {
+  /// Pulsar URL.
   std::string url = "pulsar://localhost:6650/";
+  /// Pulsar topic to publish on.
   std::string topic = "bolson";
-  // From an obscure place in the Pulsar sources
-  size_t max_msg_size = (5 * 1024 * 1024 - (10 * 1024));
+  /// Maximum message size.
+  size_t max_msg_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
 };
 
 /// Statistics about publishing

@@ -67,6 +67,7 @@ FetchContent_Declare(illex
   GIT_TAG         master
 )
 FetchContent_MakeAvailable(illex)
+# add_subdirectory(/home/johan/workspace/tt/illex illex)
 
 add_compile_unit(
   NAME bolson::obj
@@ -81,6 +82,7 @@ add_compile_unit(
     src/bolson/cli.cpp
     src/bolson/converter.cpp
     src/bolson/stream.cpp
+    src/bolson/bench.cpp
   DEPS
     arrow_shared
     CLI11::CLI11

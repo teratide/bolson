@@ -26,24 +26,27 @@ namespace bolson {
 
 /// Stream subcommand options.
 struct StreamOptions {
-  /// Enable statistics.
-  bool statistics = true;
   /// The hostname of the stream server.
   std::string hostname = "localhost";
-  /// Starting sequence number
-  uint64_t seq = 0;
   /// The protocol to use.
   illex::StreamProtocol protocol;
-  /// The Pulsar options.
-  PulsarOptions pulsar;
+  /// Starting sequence number
+  uint64_t seq = 0;
   /// The Arrow JSON parsing options.
   arrow::json::ParseOptions parse;
+  /// RecordBatch size threshold before constructing an IPC message.
+  /// The default Pulsar message size limit is 5 MiB - 10 KiB.
+  /// We subtract 32 KiB to make some room for padding of RecordBatches.
+  // TODO: This is just guesswork and should be improved.
+  size_t batch_threshold = (5 * 1024 * 1024) - (32 * 1024);
   /// Number of conversion drone threads to spawn.
-  size_t num_conversion_drones = 1;
+  size_t num_threads = 1;
+  /// The Pulsar options.
+  PulsarOptions pulsar;
+  /// Enable statistics.
+  bool statistics = true;
   /// Whether to produce succinct statistics.
   bool succinct = false;
-  /// RecordBatch size threshold before constructing an IPC message.
-  size_t batch_threshold = (4 * 1024 * 1024) + (512 * 1024);
 };
 
 /**

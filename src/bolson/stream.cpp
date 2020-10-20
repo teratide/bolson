@@ -163,7 +163,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                              &raw_json_queue,
                                                              &arrow_ipc_queue,
                                                              &threads.shutdown,
-                                                             opt.num_conversion_drones,
+                                                             opt.num_threads,
                                                              opt.parse,
                                                              opt.batch_threshold,
                                                              std::move(conv_stats_promise));
