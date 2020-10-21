@@ -30,8 +30,11 @@ auto main(int argc, char *argv[]) -> int {
     bolson::Status result;
     switch (opts.sub) {
       case bolson::SubCommand::FILE: status = bolson::ProduceFromFile(opts.file);
+        break;
       case bolson::SubCommand::STREAM: status = bolson::ProduceFromStream(opts.stream);
+        break;
       case bolson::SubCommand::BENCH: status = bolson::RunBench(opts.bench);
+        break;
     }
   }
 

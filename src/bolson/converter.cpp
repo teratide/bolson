@@ -25,6 +25,13 @@
 #include "bolson/log.h"
 #include "bolson/utils.h"
 
+/// Convert Arrow status and return on error.
+#define ARROW_ROE(s) {                                                  \
+  const auto& status = s;                                               \
+  if (!status.ok()) return Status(Error::ArrowError, status.ToString());\
+}                                                                       \
+void()
+
 namespace bolson {
 
 static void ConversionDroneThread(size_t id,
@@ -62,7 +69,10 @@ static void ConversionDroneThread(size_t id,
       SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
       // Convert the JSON.
       convert_timer.Start();
-      builder.Append(json_item);
+      stats.status = builder.Append(json_item);
+      if (!stats.status.ok()) {
+        break;
+      }
       convert_timer.Stop();
       // Check if threshold was reached.
       if (builder.size() >= batch_threshold) {
@@ -116,6 +126,7 @@ void ConversionHiveThread(illex::JSONQueue *in,
   // Reserve some space for the thread handles and futures.
   std::vector<std::thread> threads;
   std::vector<std::future<ConversionStats>> futures;
+  std::vector<ConversionStats> threads_stats(num_drones);
   threads.reserve(num_drones);
   futures.reserve(num_drones);
 
@@ -136,18 +147,17 @@ void ConversionHiveThread(illex::JSONQueue *in,
                          batch_threshold);
   }
 
-  // Wait for the caller to shut conversion down.
-  while (!shutdown->load()) {
-    for (auto &thread : threads) {
-      thread.join();
+  // Wait for the drones to get shut down by the caller of this function.
+  // Also gather the statistics and see if there was any error.
+  for (size_t t = 0; t < num_drones; t++) {
+    if (threads[t].joinable()) {
+      threads[t].join();
+      threads_stats[t] = futures[t].get();
+      if (!threads_stats[t].status.ok()) {
+        // If a thread returned some error status, shut everything down without waiting for the caller to do so.
+        shutdown->store(true);
+      }
     }
-  }
-
-  // Gather the statistics for each thread.
-  std::vector<ConversionStats> threads_stats;
-  threads_stats.reserve(num_drones);
-  for (auto &f : futures) {
-    threads_stats.push_back(f.get());
   }
 
   stats.set_value(threads_stats);
@@ -185,20 +195,21 @@ auto BatchBuilder::Append(const illex::JSONQueueItem &item) -> Status {
   // TODO(johanpel): come up with a solution for all of this. Also don't use ValueOrDie();
   // Construct a RecordBatch from the JSON string.
   auto batch_result = arrow::json::ParseOne(parse_options, buffer_wrapper);
-#ifndef DEBUG
-  if (!batch_result.ok()) {
-    SPDLOG_DEBUG("Failed to parse: {}", item.string);
-  }
-#endif
-  // Construct the column for the sequence number and append it.
+  ARROW_ROE(batch_result.status());
+
+  // Construct the column for the sequence number.
   std::shared_ptr<arrow::Array> seq;
   arrow::UInt64Builder seq_builder;
-  seq_builder.Append(item.seq); // todo: check status
-  seq_builder.Finish(&seq); // todo: check status
-  auto batch_with_seq = batch_result.ValueOrDie()->AddColumn(0, SeqField(), seq).ValueOrDie();
+  ARROW_ROE(seq_builder.Append(item.seq));
+  ARROW_ROE(seq_builder.Finish(&seq));
 
-  this->batches.push_back(batch_with_seq);
+  // Add the column to the batch.
+  auto batch_with_seq_result = batch_result.ValueOrDie()->AddColumn(0, SeqField(), seq);
+  ARROW_ROE(batch_with_seq_result.status());
+  auto batch_with_seq = batch_with_seq_result.ValueOrDie();
+
   this->size_ += GetBatchSize(batch_with_seq);
+  this->batches.push_back(std::move(batch_with_seq));
 
   return Status::OK();
 }

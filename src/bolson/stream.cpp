@@ -195,10 +195,15 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     SHUTDOWN_ON_ERROR(client.Close());
 
     SPDLOG_DEBUG("Waiting to empty JSON queue.");
-    // Once the server disconnects, we can work towards shutting down this function.
-    // Wait until all JSONs have been published.
-    while (client.received() != threads.publish_count.load()) {
+    // Once the server disconnects, we can work towards finishing down this function. Wait until all JSONs have been
+    // published, or if either the publish or converter thread have asserted the shutdown signal. The latter indicates
+    // some error.
+    while ((client.received() != threads.publish_count.load()) && !threads.shutdown.load()) {
+      // TODO: use some conditional variable for this
+      // Sleep this thread for a bit.
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
 #ifndef NDEBUG
+      // Sleep a bit longer in debug.
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
       SPDLOG_DEBUG("Received: {}, Published: {}", client.received(), threads.publish_count.load());
 #endif
@@ -210,7 +215,22 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     auto conv_stats = conv_stats_future.get();
     auto pub_stats = pub_stats_future.get();
 
+    // Check if the publish thread had an error.
     BOLSON_ROE(pub_stats.status);
+
+    // Check if any of the converter threads had an error.
+    for (size_t t = 0; t < conv_stats.size(); t++) {
+      bool produce_error = false;
+      std::stringstream msg;
+      msg << "Convert threads reported the following errors:" << std::endl;
+      if (!conv_stats[t].status.ok()) {
+        msg << "  Thread:" << t << ", error: " << conv_stats[t].status.msg() << std::endl;
+        produce_error = true;
+      }
+      if (produce_error) {
+        return Status(Error::GenericError, msg.str());
+      }
+    }
 
     // Report some statistics.
     if (opt.statistics) {

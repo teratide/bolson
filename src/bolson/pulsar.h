@@ -84,14 +84,14 @@ auto Publish(pulsar::Producer *producer,
  * \brief A thread to pull IPC messages from the queue and publish them to some Pulsar queue.
  * \param pulsar            Pulsar client and producer.
  * \param in                Incoming queue with IPC messages.
- * \param stop              If this is true, this thread will try to terminate.
+ * \param shutdown              If this is true, this thread will try to terminate.
  * \param count             The number of published messages.
  * \param latency_timer     An optional latency timer that is stopped just before the first Pulsar message is sent.
  * \param stats             Statistics about this thread.
  */
 void PublishThread(PulsarContext pulsar,
                    IpcQueue *in,
-                   std::atomic<bool> *stop,
+                   std::atomic<bool> *shutdown,
                    std::atomic<size_t> *count,
                    putong::Timer<> *latency_timer,
                    std::promise<PublishStats> &&stats);

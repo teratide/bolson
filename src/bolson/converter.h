@@ -37,7 +37,7 @@ struct IpcQueueItem {
 /// A queue with Arrow IPC messages.
 using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;
 
-/// Statistics about the conversion functions.
+/// Statistics from the conversion drone.
 struct ConversionStats {
   /// Number of converted JSONs.
   size_t num_jsons = 0;
@@ -51,6 +51,8 @@ struct ConversionStats {
   double ipc_construct_time = 0.0;
   /// Total time spent in this thread.
   double thread_time = 0.0;
+  /// Status about the conversion.
+  Status status = Status::OK();
 };
 
 // Sequence number field.

@@ -81,6 +81,10 @@ static auto CalcThreshold(size_t max_size, const std::shared_ptr<arrow::Schema> 
   return Status::OK();
 }
 
+static void AddStatsOpts(CLI::App *sub, bool *csv) {
+  sub->add_flag("-c", *csv, "Print output CSV-style.");
+}
+
 static void AddArrowOpts(CLI::App *sub, std::string *schema_file) {
   sub->add_option("input,-i,--input",
                   *schema_file,
@@ -128,6 +132,7 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
                          out->stream.seq,
                          "Starting sequence number, 64-bit unsigned integer.")->default_val(0);
   //auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
+  AddStatsOpts(sub_stream, &csv);
   AddArrowOpts(sub_stream, &schema_file);
   AddPulsarOpts(sub_stream, &out->stream.pulsar);
   AddThreadsOpts(sub_stream, &out->stream.num_threads);
@@ -135,15 +140,13 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
 
   // 'bench' subcommand:
   auto *sub_bench = app.add_subcommand("bench", "Run some micro-benchmarks.");
-  sub_bench->add_flag("-c", csv, "Print output CSV-style.");
+  AddStatsOpts(sub_bench, &csv);
 
+  // 'bench client' subcommand.
   auto *sub_bench_client = sub_bench->add_subcommand("client", "Run TCP client interface microbenchmark.");
+
+  // 'bench convert' subcommand.
   auto *sub_bench_convert = sub_bench->add_subcommand("convert", "Run JSON to Arrow IPC convert microbenchmark.");
-  auto *sub_bench_pulsar = sub_bench->add_subcommand("pulsar", "Run Pulsar microbenchmark.");
-
-  // 'bench client' options.
-
-  // 'bench convert' options.
   sub_bench_convert->add_option("--num-jsons",
                                 out->bench.convert.num_jsons,
                                 "Number of JSONs to convert.")->default_val(1024);
@@ -153,7 +156,8 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   AddArrowOpts(sub_bench_convert, &schema_file);
   AddThreadsOpts(sub_bench_convert, &out->bench.convert.num_threads);
 
-  // 'bench pulsar' options.
+  // 'bench pulsar' subcommand.
+  auto *sub_bench_pulsar = sub_bench->add_subcommand("pulsar", "Run Pulsar microbenchmark.");
   sub_bench_pulsar->add_option("--message-size", out->bench.pulsar.message_size, "Pulsar message size.")->default_val(
       PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
   sub_bench_pulsar->add_option("--num-messages",
@@ -207,7 +211,7 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
         raw.port = stream_port;
       }
       out->stream.protocol = raw;
-      out->stream.succinct = out->succinct;
+      out->stream.succinct = csv;
       out->stream.parse = parse_options;
       // TODO: move this to subcommand execution
       BOLSON_ROE(CalcThreshold(out->stream.pulsar.max_msg_size, schema, &out->stream.batch_threshold));

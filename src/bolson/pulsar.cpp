@@ -59,7 +59,7 @@ auto Publish(pulsar::Producer *producer,
 
 void PublishThread(PulsarContext pulsar,
                    IpcQueue *in,
-                   std::atomic<bool> *stop,
+                   std::atomic<bool> *shutdown,
                    std::atomic<size_t> *count,
                    putong::Timer<> *latency, // TODO: this could be wrapped in an atomic
                    std::promise<PublishStats> &&stats) {
@@ -74,7 +74,7 @@ void PublishThread(PulsarContext pulsar,
 
   // Try pulling stuff from the queue until the stop signal is given.
   IpcQueueItem ipc_item;
-  while (!stop->load()) {
+  while (!shutdown->load()) {
     if (in->wait_dequeue_timed(ipc_item, std::chrono::microseconds(100))) {
       SPDLOG_DEBUG("Publishing Arrow IPC message.");
       publish_timer.Start();
@@ -85,6 +85,8 @@ void PublishThread(PulsarContext pulsar,
         first = false;
       }
 
+      // Deal with Pulsar errors.
+      // In case the Producer causes some error, shut everything down.
       if (!status.ok()) {
         spdlog::error("Pulsar error: {}", status.msg());
         pulsar.producer->close();
@@ -92,6 +94,7 @@ void PublishThread(PulsarContext pulsar,
         // Fulfill the promise.
         s.status = status;
         stats.set_value(s);
+        shutdown->store(true);
         return;
       }
 
