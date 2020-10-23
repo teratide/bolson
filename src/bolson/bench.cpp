@@ -43,8 +43,9 @@ auto BenchConvertSingleThread(const ConvertBenchOptions &opt,
   for (size_t i = 0; i < opt.num_jsons; i++) {
     illex::JSONQueueItem json_item;
     json_queue->wait_dequeue(json_item);
-    builder.Append(json_item);
-    if (builder.size() >= opt.batch_threshold) {
+    BOLSON_ROE(builder.Append(json_item));
+    // Create IPC msg if the threshold is reached or this is the last JSON.
+    if ((builder.size() >= opt.batch_threshold) || (i == opt.num_jsons - 1)) {
       auto ipc_msg = builder.Finish();
       *ipc_size += ipc_msg.ipc->size();
       ipc_queue->enqueue(ipc_msg);

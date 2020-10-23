@@ -30,25 +30,28 @@ plt.rcParams.update({"font.size": '15'})
 background = '#ffffff'
 colors = ['#1a74b2', '#d9a53f']
 
-fig, ax = plt.subplots()
-
 print(x_total_size)
 print(y_time)
 print(y_tp)
 
-ax.plot(x_messages, y_time, marker='o', color=colors[0], label='Time (s)')
-ax.set_ylabel('Time (s)', color=colors[0])
-ax.set_xscale('log', base=2)
-ax.set_xticks(x_messages)
-ax.set_xlabel("Number of messages")
+with plt.rc_context({'axes.edgecolor': colors[0], 'ytick.color': colors[0]}):
+    fig, ax = plt.subplots()
+    ax.plot(x_messages, y_time, marker='o', color=colors[0], label='Time (s)')
+    ax.set_ylabel('Time (s)', color=colors[0])
+    ax.set_xscale('log', base=2)
+    ax.set_yscale('log', base=10)
+    ax.set_xticks(x_messages)
+    ax.set_xlabel("Number of messages")
+    ax.grid(True)
 
-ax.grid(True)
-
-ax2 = ax.twinx()
-ax2.plot(x_messages, y_tp * 1E-6, marker='s', color=colors[1], label='Throughput (MB/s)')
-ax2.set_xticks(x_messages)
-ax2.set_xscale('log', base=2)
-ax2.set_ylabel('Throughput (MB/s)', color=colors[1])
+with plt.rc_context({'ytick.color': colors[1]}):
+    ax2 = ax.twinx()
+    y_tp = y_tp * 1E-6
+    ax2.plot(x_messages, y_tp, marker='s', color=colors[1], label='Throughput (MB/s)')
+    ax2.set_xticks(x_messages)
+    ax2.set_xscale('log', base=2)
+    ax2.set_ylabel('Throughput (MB/s)', color=colors[1])
+    ax2.set_ylim(0, 1.1*max(y_tp))
 
 ax_x2 = ax.secondary_xaxis('top')
 ax_x2.set_xscale('log', base=2)
