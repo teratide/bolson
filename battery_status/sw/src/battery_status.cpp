@@ -112,13 +112,22 @@ int main(int argc, char **argv)
     return -1;
   }
 
+  for (int i = 0; i < context->num_buffers(); i++)
+  {
+    std::cout << "device " << std::hex << context->device_buffer(i).device_address << std::endl;
+    std::cout << "host " << std::hex << reinterpret_cast<uint64_t>(context->device_buffer(i).host_address) << std::endl;
+    auto view = fletcher::HexView();
+    view.AddData(context->device_buffer(i).host_address, 128);
+    std::cout << view.ToString() << std::endl;
+  }
+
   bool done = false;
   uint32_t status_register = 0;
   while (!done)
   {
     context->platform()->ReadMMIO(FLETCHER_REG_STATUS, &status_register);
     std::cerr << "status: " << status_register << std::endl;
-    done = (status & 1ul << FLETCHER_REG_STATUS_DONE) == 1ul << FLETCHER_REG_STATUS_DONE;
+    done = (status_register & 1ul << FLETCHER_REG_STATUS_DONE) == 1ul << FLETCHER_REG_STATUS_DONE;
   }
 
   uint32_t return_value_0;
