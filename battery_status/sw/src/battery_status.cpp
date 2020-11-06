@@ -111,17 +111,19 @@ int main(int argc, char **argv)
     std::cerr << "Could not start the kernel." << std::endl;
     return -1;
   }
-  kernel.PollUntilDone();
-  if (!status.ok())
+
+  bool done = false;
+  uint32_t status_register = 0;
+  while (!done)
   {
-    std::cerr << "Something went wrong waiting for the kernel to finish." << std::endl;
-    return -1;
+    context->platform()->ReadMMIO(FLETCHER_REG_STATUS, &status_register);
+    std::cerr << "status: " << status_register << std::endl;
+    done = (status & 1ul << FLETCHER_REG_STATUS_DONE) == 1ul << FLETCHER_REG_STATUS_DONE;
   }
 
   uint32_t return_value_0;
   uint32_t return_value_1;
   status = kernel.GetReturn(&return_value_0, &return_value_1);
-
   if (!status.ok())
   {
     std::cerr << "Could not obtain the return value." << std::endl;
