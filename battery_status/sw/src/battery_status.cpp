@@ -44,15 +44,18 @@ int main(int argc, char **argv)
 
   size_t buffer_size = 4096;
   uint8_t *offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  memset(offset_data, 0, buffer_size);
+
   auto offset_buffer = std::make_shared<arrow::Buffer>(offset_data, buffer_size);
 
   uint8_t *value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  memset(value_data, 0, buffer_size);
   auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
   auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 10, value_buffer);
 
-  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 10, offset_buffer, value_array);
+  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 1, offset_buffer, value_array);
   std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
-  auto output_batch = arrow::RecordBatch::Make(schema, 10, arrays);
+  auto output_batch = arrow::RecordBatch::Make(schema, 1, arrays);
 
   fletcher::Status status;
   std::shared_ptr<fletcher::Platform> platform;
@@ -142,6 +145,16 @@ int main(int argc, char **argv)
   std::cout << "status " << std::hex << *reinterpret_cast<int32_t *>(&return_value_0) << std::endl;
 
   sleep(1);
+
+  for (int i = 0; i < context->num_buffers(); i++)
+  {
+    std::cout << "device " << std::hex << context->device_buffer(i).device_address << std::endl;
+    std::cout << "host " << std::hex << reinterpret_cast<uint64_t>(context->device_buffer(i).host_address) << std::endl;
+    auto view = fletcher::HexView();
+    view.AddData(context->device_buffer(i).host_address, 128);
+    std::cout << view.ToString() << std::endl;
+  }
+
   std::cout << output_batch.get()->ToString() << std::endl;
 
   return 0;

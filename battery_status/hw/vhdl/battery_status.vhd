@@ -112,8 +112,24 @@ architecture Implementation of battery_status is
   signal int_in_last           : std_logic_vector(2 * EPC - 1 downto 0);
 
   signal cmd_complete          : std_logic;
+  signal result_counter        : unsigned(63 downto 0);
 
 begin
+
+  counter : process (kcd_reset, kcd_clk, json_out_ready, json_out_valid)
+    is
+  begin
+    if rising_edge(kcd_clk) then
+      if kcd_reset = '1' then
+        result_counter <= (others => '0');
+      end if;
+      if json_out_ready = '1' and json_out_valid = '1' then
+        result_counter <= result_counter + 1;
+      end if;
+    end if;
+
+    result <= std_logic_vector(result_counter);
+  end process;
 
   comb : process (
     start,
@@ -408,8 +424,5 @@ begin
 
     end if;
   end process;
-
-  -- result
-  result <= (others => '0');
 
 end architecture;
