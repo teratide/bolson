@@ -231,6 +231,10 @@ begin
         end if;
 
       when STATE_FENCE =>
+        done              <= '0';
+        busy              <= '1';
+        idle              <= '0';
+
         plat_complete_req <= '1';
         if plat_complete_ack = '1' then
           state_next <= STATE_DONE;
