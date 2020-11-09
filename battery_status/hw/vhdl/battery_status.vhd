@@ -378,8 +378,6 @@ begin
         -- We could also use end_of_array here; for valid JSON these should be
         -- equivalent.
         if i.end_of_object = '1' then
-          oe.valid  := '1';
-          oe.last   := '1';
           oc.valid  := '1';
           oc.dvalid := '1';
           oc.data   := std_logic_vector(count);
@@ -390,6 +388,8 @@ begin
         -- stream, and send a strobe to the state machine that indicates
         -- completion.
         if i.end_of_query = '1' then
+          oe.valid := '1';
+          oe.last  := '1';
           oc.valid := '1';
           oc.last  := '1';
           cmd_complete <= '1';

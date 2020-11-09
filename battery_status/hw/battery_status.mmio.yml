@@ -136,3 +136,7 @@ fields:
     bitrange: 32
     behavior: strobe
 
+  - address: 128
+    name: clk_counter
+    behavior: counter
+  

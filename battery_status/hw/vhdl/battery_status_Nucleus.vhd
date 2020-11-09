@@ -345,6 +345,7 @@ begin
     f_input_input_values_data     => mmio_inst_f_input_input_values_data,
     f_output_voltage_offsets_data => mmio_inst_f_output_voltage_offsets_data,
     f_output_voltage_values_data  => mmio_inst_f_output_voltage_values_data,
+    f_clk_counter_increment       => '1',
     mmio_awvalid                  => mmio_inst_mmio_awvalid,
     mmio_awready                  => mmio_inst_mmio_awready,
     mmio_awaddr                   => mmio_inst_mmio_awaddr,
