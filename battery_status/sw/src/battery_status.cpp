@@ -52,11 +52,11 @@ int main(int argc, char **argv)
   memset(value_data, 2, buffer_size);
   auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
 
-  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 16, value_buffer);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
 
-  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 3, offset_buffer, value_array);
+  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, offset_buffer, value_array);
   std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
-  auto output_batch = arrow::RecordBatch::Make(schema, 3, arrays);
+  auto output_batch = arrow::RecordBatch::Make(schema, 0, arrays);
 
   fletcher::Status status;
   std::shared_ptr<fletcher::Platform> platform;
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
   }
 
   std::string mmio;
-  platform->MmioToString(&mmio, 0, 25);
+  platform->MmioToString(&mmio, 0, 33);
   std::cout << mmio << std::endl;
 
   for (int i = 0; i < context->num_buffers(); i++)
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  std::cout << "status " << std::hex << *reinterpret_cast<int32_t *>(&return_value_0) << std::endl;
+  std::cout << "result: " << std::hex << *reinterpret_cast<int32_t *>(&return_value_0) << std::endl;
 
   for (int i = 0; i < context->num_buffers(); i++)
   {
@@ -158,7 +158,7 @@ int main(int argc, char **argv)
     std::cout << view.ToString() << std::endl;
   }
 
-  platform->MmioToString(&mmio, 0, 25);
+  platform->MmioToString(&mmio, 0, 33);
   std::cout << mmio << std::endl;
 
   std::cout << output_batch.get()->ToString() << std::endl;

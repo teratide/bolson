@@ -86,7 +86,8 @@ entity battery_status_Nucleus is
     output_voltage_cmd_ctrl     : out std_logic_vector(OUTPUT_VOLTAGE_BUS_ADDR_WIDTH * 2 - 1 downto 0);
     output_voltage_cmd_tag      : out std_logic_vector(TAG_WIDTH - 1 downto 0);
     plat_complete_req           : out std_logic;
-    plat_complete_ack           : in std_logic
+    plat_complete_ack           : in std_logic;
+    status                      : in std_logic_vector(31 downto 0)
   );
 end entity;
 
@@ -346,6 +347,7 @@ begin
     f_output_voltage_offsets_data => mmio_inst_f_output_voltage_offsets_data,
     f_output_voltage_values_data  => mmio_inst_f_output_voltage_values_data,
     f_clk_counter_increment       => '1',
+    f_stream_status_write_data    => status,
     mmio_awvalid                  => mmio_inst_mmio_awvalid,
     mmio_awready                  => mmio_inst_mmio_awready,
     mmio_awaddr                   => mmio_inst_mmio_awaddr,

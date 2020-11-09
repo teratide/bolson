@@ -176,7 +176,8 @@ architecture Behavorial of AxiTop is
       mmio_rdata         : out std_logic_vector(64 - 1 downto 0);
       mmio_rresp         : out std_logic_vector(1 downto 0);
       plat_complete_req  : out std_logic;
-      plat_complete_ack  : in std_logic
+      plat_complete_ack  : in std_logic;
+      status             : in std_logic_vector(31 downto 0)
     );
   end component;
 
@@ -206,10 +207,32 @@ architecture Behavorial of AxiTop is
   signal wr_mst_wdat_last                     : std_logic;
 
   signal plat_complete_req, plat_complete_ack : std_logic;
+
+  signal status                               : std_logic_vector (31 downto 0);
+
+  signal int_m_axi_arvalid                    : std_logic;
+  signal int_m_axi_rready                     : std_logic;
+  signal int_m_axi_awvalid                    : std_logic;
+  signal int_m_axi_wvalid                     : std_logic;
+  signal int_m_axi_bready                     : std_logic;
 begin
 
   -- Active low reset
-  bcd_reset_n <= not bcd_reset;
+  bcd_reset_n   <= not bcd_reset;
+
+  m_axi_arvalid <= int_m_axi_arvalid;
+  m_axi_rready  <= int_m_axi_rready;
+  m_axi_awvalid <= int_m_axi_awvalid;
+  m_axi_wvalid  <= int_m_axi_wvalid;
+  m_axi_bready  <= int_m_axi_bready;
+
+  status        <= (
+  0 => int_m_axi_arvalid, 1 => m_axi_arready,
+  2 => m_axi_rvalid, 3 => int_m_axi_rready,
+  4 => int_m_axi_awvalid, 5 => m_axi_awready,
+  6 => int_m_axi_wvalid, 7 => m_axi_wready,
+  8 => m_axi_bvalid, 9 => int_m_axi_bready,
+  others => '0');
 
   -----------------------------------------------------------------------------
   -- Fletcher generated wrapper
@@ -264,7 +287,8 @@ begin
     mmio_rdata         => s_axi_rdata,
     mmio_rresp         => s_axi_rresp,
     plat_complete_ack  => plat_complete_ack,
-    plat_complete_req  => plat_complete_req
+    plat_complete_req  => plat_complete_req,
+    status             => status
   );
 
   -----------------------------------------------------------------------------
@@ -299,13 +323,13 @@ begin
     slv_bus_rdat_ready => rd_mst_rdat_ready,
     m_axi_araddr       => m_axi_araddr,
     m_axi_arlen        => m_axi_arlen,
-    m_axi_arvalid      => m_axi_arvalid,
+    m_axi_arvalid      => int_m_axi_arvalid,
     m_axi_arready      => m_axi_arready,
     m_axi_arsize       => m_axi_arsize,
     m_axi_rdata        => m_axi_rdata,
     m_axi_rlast        => m_axi_rlast,
     m_axi_rvalid       => m_axi_rvalid,
-    m_axi_rready       => m_axi_rready
+    m_axi_rready       => int_m_axi_rready
   );
   -----------------------------------------------------------------------------
   -- AXI write converter
@@ -341,16 +365,16 @@ begin
       slv_bus_wdat_ready  => wr_mst_wdat_ready,
       m_axi_awaddr        => m_axi_awaddr,
       m_axi_awlen         => m_axi_awlen,
-      m_axi_awvalid       => m_axi_awvalid,
+      m_axi_awvalid       => int_m_axi_awvalid,
       m_axi_awready       => m_axi_awready,
       m_axi_awsize        => m_axi_awsize,
       m_axi_awuser        => m_axi_awuser,
       m_axi_wdata         => m_axi_wdata,
       m_axi_wstrb         => m_axi_wstrb,
       m_axi_wlast         => m_axi_wlast,
-      m_axi_wvalid        => m_axi_wvalid,
+      m_axi_wvalid        => int_m_axi_wvalid,
       m_axi_wready        => m_axi_wready,
-      m_axi_bready        => m_axi_bready,
+      m_axi_bready        => int_m_axi_bready,
       m_axi_bvalid        => m_axi_bvalid,
       plat_complete_ack   => plat_complete_ack,
       plat_complete_req   => plat_complete_req

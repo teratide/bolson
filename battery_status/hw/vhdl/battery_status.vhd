@@ -138,7 +138,6 @@ begin
     input_firstidx,
     input_lastidx,
     output_firstidx,
-    output_lastidx,
     int_input_input_ready,
     input_input_cmd_ready,
     output_voltage_cmd_ready,
@@ -158,7 +157,7 @@ begin
     -- write request defaults
     output_voltage_cmd_valid    <= '0';
     output_voltage_cmd_firstIdx <= output_firstidx;
-    output_voltage_cmd_lastIdx  <= output_lastidx;
+    output_voltage_cmd_lastIdx  <= (others => '0');
     output_voltage_cmd_tag      <= (others => '0');
     output_voltage_unl_ready    <= '0';
 

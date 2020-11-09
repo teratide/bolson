@@ -140,3 +140,7 @@ fields:
     name: clk_counter
     behavior: counter
   
+  - address: 136
+    name: stream_status
+    behavior: status
+    bitrange: 31..0
