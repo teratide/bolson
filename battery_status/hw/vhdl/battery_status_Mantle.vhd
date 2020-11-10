@@ -239,7 +239,7 @@ architecture Implementation of battery_status_Mantle is
     );
   end component;
 
-  signal battery_status_Nucleus_inst_kcd_clk                       : std_logic;
+  -- signal battery_status_Nucleus_inst_kcd_clk                       : std_logic;
   signal battery_status_Nucleus_inst_kcd_reset                     : std_logic;
 
   signal battery_status_Nucleus_inst_mmio_awvalid                  : std_logic;
@@ -302,10 +302,10 @@ architecture Implementation of battery_status_Mantle is
   signal battery_status_Nucleus_inst_output_voltage_cmd_ctrl       : std_logic_vector(BUS_ADDR_WIDTH * 2 - 1 downto 0);
   signal battery_status_Nucleus_inst_output_voltage_cmd_tag        : std_logic_vector(TAG_WIDTH - 1 downto 0);
 
-  signal battery_status_input_inst_bcd_clk                         : std_logic;
+  -- signal battery_status_input_inst_bcd_clk                         : std_logic;
   signal battery_status_input_inst_bcd_reset                       : std_logic;
 
-  signal battery_status_input_inst_kcd_clk                         : std_logic;
+  -- signal battery_status_input_inst_kcd_clk                         : std_logic;
   signal battery_status_input_inst_kcd_reset                       : std_logic;
 
   signal battery_status_input_inst_input_input_valid               : std_logic;
@@ -335,10 +335,10 @@ architecture Implementation of battery_status_Mantle is
   signal battery_status_input_inst_input_input_unl_ready           : std_logic;
   signal battery_status_input_inst_input_input_unl_tag             : std_logic_vector(TAG_WIDTH - 1 downto 0);
 
-  signal battery_status_output_inst_bcd_clk                        : std_logic;
+  -- signal battery_status_output_inst_bcd_clk                        : std_logic;
   signal battery_status_output_inst_bcd_reset                      : std_logic;
 
-  signal battery_status_output_inst_kcd_clk                        : std_logic;
+  -- signal battery_status_output_inst_kcd_clk                        : std_logic;
   signal battery_status_output_inst_kcd_reset                      : std_logic;
 
   signal battery_status_output_inst_output_voltage_valid           : std_logic;
@@ -375,7 +375,7 @@ architecture Implementation of battery_status_Mantle is
   signal battery_status_output_inst_output_voltage_unl_ready       : std_logic;
   signal battery_status_output_inst_output_voltage_unl_tag         : std_logic_vector(TAG_WIDTH - 1 downto 0);
 
-  signal RDAW64DW512LW8BS1BM16_inst_bcd_clk                        : std_logic;
+  -- signal RDAW64DW512LW8BS1BM16_inst_bcd_clk                        : std_logic;
   signal RDAW64DW512LW8BS1BM16_inst_bcd_reset                      : std_logic;
 
   signal RDAW64DW512LW8BS1BM16_inst_mst_rreq_valid                 : std_logic;
@@ -387,7 +387,7 @@ architecture Implementation of battery_status_Mantle is
   signal RDAW64DW512LW8BS1BM16_inst_mst_rdat_data                  : std_logic_vector(BUS_DATA_WIDTH - 1 downto 0);
   signal RDAW64DW512LW8BS1BM16_inst_mst_rdat_last                  : std_logic;
 
-  signal WRAW64DW512LW8BS1BM16_inst_bcd_clk                        : std_logic;
+  -- signal WRAW64DW512LW8BS1BM16_inst_bcd_clk                        : std_logic;
   signal WRAW64DW512LW8BS1BM16_inst_bcd_reset                      : std_logic;
 
   signal WRAW64DW512LW8BS1BM16_inst_mst_wreq_valid                 : std_logic;
@@ -428,7 +428,7 @@ begin
     OUTPUT_VOLTAGE_BUS_ADDR_WIDTH => BUS_ADDR_WIDTH
   )
   port map(
-    kcd_clk                     => battery_status_Nucleus_inst_kcd_clk,
+    kcd_clk                     => kcd_clk,
     kcd_reset                   => battery_status_Nucleus_inst_kcd_reset,
     mmio_awvalid                => battery_status_Nucleus_inst_mmio_awvalid,
     mmio_awready                => battery_status_Nucleus_inst_mmio_awready,
@@ -499,9 +499,9 @@ begin
     INPUT_INPUT_BUS_BURST_MAX_LEN  => BUS_BURST_MAX_LEN
   )
   port map(
-    bcd_clk                    => battery_status_input_inst_bcd_clk,
+    bcd_clk                    => bcd_clk,
     bcd_reset                  => battery_status_input_inst_bcd_reset,
-    kcd_clk                    => battery_status_input_inst_kcd_clk,
+    kcd_clk                    => kcd_clk,
     kcd_reset                  => battery_status_input_inst_kcd_reset,
     input_input_valid          => battery_status_input_inst_input_input_valid,
     input_input_ready          => battery_status_input_inst_input_input_ready,
@@ -539,9 +539,9 @@ begin
     OUTPUT_VOLTAGE_BUS_BURST_MAX_LEN  => BUS_BURST_MAX_LEN
   )
   port map(
-    bcd_clk                        => battery_status_output_inst_bcd_clk,
+    bcd_clk                        => bcd_clk,
     bcd_reset                      => battery_status_output_inst_bcd_reset,
-    kcd_clk                        => battery_status_output_inst_kcd_clk,
+    kcd_clk                        => kcd_clk,
     kcd_reset                      => battery_status_output_inst_kcd_reset,
     output_voltage_valid           => battery_status_output_inst_output_voltage_valid,
     output_voltage_ready           => battery_status_output_inst_output_voltage_ready,
@@ -590,7 +590,7 @@ begin
     SLV_DAT_SLICES  => true
   )
   port map(
-    bcd_clk        => RDAW64DW512LW8BS1BM16_inst_bcd_clk,
+    bcd_clk        => bcd_clk,
     bcd_reset      => RDAW64DW512LW8BS1BM16_inst_bcd_reset,
     mst_rreq_valid => RDAW64DW512LW8BS1BM16_inst_mst_rreq_valid,
     mst_rreq_ready => RDAW64DW512LW8BS1BM16_inst_mst_rreq_ready,
@@ -625,7 +625,7 @@ begin
     SLV_DAT_SLICES  => true
   )
   port map(
-    bcd_clk         => WRAW64DW512LW8BS1BM16_inst_bcd_clk,
+    bcd_clk         => bcd_clk,
     bcd_reset       => WRAW64DW512LW8BS1BM16_inst_bcd_reset,
     mst_wreq_valid  => WRAW64DW512LW8BS1BM16_inst_mst_wreq_valid,
     mst_wreq_ready  => WRAW64DW512LW8BS1BM16_inst_mst_wreq_ready,
@@ -666,7 +666,7 @@ begin
   wr_mst_wdat_strobe                                                        <= WRAW64DW512LW8BS1BM16_inst_mst_wdat_strobe;
   wr_mst_wdat_last                                                          <= WRAW64DW512LW8BS1BM16_inst_mst_wdat_last;
 
-  battery_status_Nucleus_inst_kcd_clk                                       <= kcd_clk;
+  -- battery_status_Nucleus_inst_kcd_clk                                       <= kcd_clk;
   battery_status_Nucleus_inst_kcd_reset                                     <= kcd_reset;
 
   battery_status_Nucleus_inst_mmio_awvalid                                  <= mmio_awvalid;
@@ -702,10 +702,10 @@ begin
   battery_status_output_inst_output_voltage_unl_ready                       <= battery_status_Nucleus_inst_output_voltage_unl_ready;
   battery_status_Nucleus_inst_output_voltage_unl_tag                        <= battery_status_output_inst_output_voltage_unl_tag;
 
-  battery_status_input_inst_bcd_clk                                         <= bcd_clk;
+  -- battery_status_input_inst_bcd_clk                                         <= bcd_clk;
   battery_status_input_inst_bcd_reset                                       <= bcd_reset;
 
-  battery_status_input_inst_kcd_clk                                         <= kcd_clk;
+  -- battery_status_input_inst_kcd_clk                                         <= kcd_clk;
   battery_status_input_inst_kcd_reset                                       <= kcd_reset;
 
   battery_status_input_inst_input_input_cmd_valid                           <= battery_status_Nucleus_inst_input_input_cmd_valid;
@@ -715,10 +715,10 @@ begin
   battery_status_input_inst_input_input_cmd_ctrl                            <= battery_status_Nucleus_inst_input_input_cmd_ctrl;
   battery_status_input_inst_input_input_cmd_tag                             <= battery_status_Nucleus_inst_input_input_cmd_tag;
 
-  battery_status_output_inst_bcd_clk                                        <= bcd_clk;
+  -- battery_status_output_inst_bcd_clk                                        <= bcd_clk;
   battery_status_output_inst_bcd_reset                                      <= bcd_reset;
 
-  battery_status_output_inst_kcd_clk                                        <= kcd_clk;
+  -- battery_status_output_inst_kcd_clk                                        <= kcd_clk;
   battery_status_output_inst_kcd_reset                                      <= kcd_reset;
 
   battery_status_output_inst_output_voltage_valid                           <= battery_status_Nucleus_inst_output_voltage_valid;
@@ -741,10 +741,10 @@ begin
   battery_status_output_inst_output_voltage_cmd_ctrl                        <= battery_status_Nucleus_inst_output_voltage_cmd_ctrl;
   battery_status_output_inst_output_voltage_cmd_tag                         <= battery_status_Nucleus_inst_output_voltage_cmd_tag;
 
-  RDAW64DW512LW8BS1BM16_inst_bcd_clk                                        <= bcd_clk;
+  -- RDAW64DW512LW8BS1BM16_inst_bcd_clk                                        <= bcd_clk;
   RDAW64DW512LW8BS1BM16_inst_bcd_reset                                      <= bcd_reset;
 
-  WRAW64DW512LW8BS1BM16_inst_bcd_clk                                        <= bcd_clk;
+  -- WRAW64DW512LW8BS1BM16_inst_bcd_clk                                        <= bcd_clk;
   WRAW64DW512LW8BS1BM16_inst_bcd_reset                                      <= bcd_reset;
 
   battery_status_input_inst_input_input_bus_rreq_ready                      <= RDAW64DW512LW8BS1BM16_inst_bsv_rreq_ready(0);

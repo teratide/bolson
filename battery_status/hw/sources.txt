@@ -31,7 +31,8 @@ ${FLETCHER_HARDWARE_DIR}/arrays/ArrayWriterListPrim.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayWriterLevel.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayWriterArb.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayWriter.vhd
-vhdl/battery_status_output.gen.vhd
+# vhdl/battery_status_output.gen.vhd
+vhdl/battery_status_output.vhd
 ${FLETCHER_HARDWARE_DIR}/vhlib/stream/StreamArb.vhd
 ${FLETCHER_HARDWARE_DIR}/interconnect/BusReadArbiterVec.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderStruct.vhd
@@ -62,7 +63,8 @@ ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderList.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderLevel.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderArb.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReader.vhd
-vhdl/battery_status_input.gen.vhd
+# vhdl/battery_status_input.gen.vhd
+vhdl/battery_status_input.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayCmdCtrlMerger.vhd
 vhdl/vhdmmio_pkg.gen.vhd
 vhdl/mmio_pkg.gen.vhd

@@ -522,7 +522,8 @@ begin
       ST_RUNNING,
       ST_FENCE_REQ,
       ST_FENCE_DREQ,
-      ST_FENCE_WAIT
+      ST_FENCE_WAIT,
+      ST_ACK_WAIT
     );
     variable state : state_type;
 
@@ -616,6 +617,7 @@ begin
               state := ST_FENCE_REQ;
             else
               plat_complete_ack <= '1';
+              state := ST_ACK_WAIT;
             end if;
           end if;
 
@@ -642,8 +644,11 @@ begin
           if ri.valid = '1' then
             ri.valid := '0';
             plat_complete_ack <= '1';
-            state := ST_RUNNING;
+            state := ST_ACK_WAIT;
           end if;
+
+        when ST_ACK_WAIT =>
+          state := ST_RUNNING;
 
       end case;
 

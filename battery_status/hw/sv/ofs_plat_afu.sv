@@ -46,8 +46,8 @@ module ofs_plat_afu (ofs_plat_if plat_ifc);
       )
       tie_off(plat_ifc);
 
-  logic clk;
-  assign clk = mmio64_to_afu.clk;
+  // logic clk;
+  // assign clk = mmio64_to_afu.clk;
   // Flip reset
   logic reset_n;
   assign reset_n = mmio64_to_afu.reset_n;
@@ -56,21 +56,21 @@ module ofs_plat_afu (ofs_plat_if plat_ifc);
   reg reset_sync_b = 1'b1;
   reg reset_sync = 1'b1;
   
-  always @(posedge clk or negedge reset_n) begin
+  always @(posedge mmio64_to_afu.clk or negedge reset_n) begin
     if (reset_n == 1'b0)
         reset_sync_a <= 1'b1;
     else
         reset_sync_a <= 1'b0;
   end
 
-  always @(posedge clk or negedge reset_n) begin
+  always @(posedge mmio64_to_afu.clk or negedge reset_n) begin
       if (reset_n == 1'b0)
           reset_sync_b <= 1'b1;
       else
           reset_sync_b <= reset_sync_a;
   end
 
-  always @(posedge clk or negedge reset_n) begin
+  always @(posedge mmio64_to_afu.clk or negedge reset_n) begin
       if (reset_n == 1'b0)
           reset_sync <= 1'b1;
       else
@@ -88,9 +88,9 @@ module ofs_plat_afu (ofs_plat_if plat_ifc);
 
   AxiTop axi_top
   (
-    .kcd_clk(clk),
+    .kcd_clk(mmio64_to_afu.clk),
     .kcd_reset(reset_sync),
-    .bcd_clk(clk),
+    .bcd_clk(mmio64_to_afu.clk),
     .bcd_reset(reset_sync),
     .m_axi_araddr(m_axi_araddr),
     .m_axi_arlen(host_mem.ar.len),
@@ -134,7 +134,7 @@ module ofs_plat_afu (ofs_plat_if plat_ifc);
   );
 
   // TODO(mb): add FIFO and sync for MMIO ID tags
-  always_ff @(posedge clk)
+  always_ff @(posedge mmio64_to_afu.clk)
     begin
         if (mmio64_to_afu.arvalid)
         begin

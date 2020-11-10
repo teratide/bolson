@@ -150,7 +150,7 @@ architecture Implementation of battery_status_Nucleus is
     );
   end component;
 
-  signal battery_status_inst_kcd_clk                       : std_logic;
+  -- signal battery_status_inst_kcd_clk                       : std_logic;
   signal battery_status_inst_kcd_reset                     : std_logic;
 
   signal battery_status_inst_input_input_valid             : std_logic;
@@ -204,7 +204,7 @@ architecture Implementation of battery_status_Nucleus is
   signal battery_status_inst_input_lastidx                 : std_logic_vector(31 downto 0);
   signal battery_status_inst_output_firstidx               : std_logic_vector(31 downto 0);
   signal battery_status_inst_output_lastidx                : std_logic_vector(31 downto 0);
-  signal mmio_inst_kcd_clk                                 : std_logic;
+  -- signal mmio_inst_kcd_clk                                 : std_logic;
   signal mmio_inst_kcd_reset                               : std_logic;
 
   signal mmio_inst_f_start_data                            : std_logic;
@@ -310,7 +310,7 @@ begin
     TAG_WIDTH   => 1
   )
   port map(
-    kcd_clk                     => battery_status_inst_kcd_clk,
+    kcd_clk                     => kcd_clk,
     kcd_reset                   => battery_status_inst_kcd_reset,
     input_input_valid           => battery_status_inst_input_input_valid,
     input_input_ready           => battery_status_inst_input_input_ready,
@@ -363,7 +363,7 @@ begin
 
   mmio_inst : mmio
   port map(
-    kcd_clk                       => mmio_inst_kcd_clk,
+    kcd_clk                       => kcd_clk,
     kcd_reset                     => mmio_inst_kcd_reset,
     f_start_data                  => mmio_inst_f_start_data,
     f_stop_data                   => mmio_inst_f_stop_data,
@@ -479,7 +479,7 @@ begin
   output_voltage_cmd_ctrl                          <= output_voltage_cmd_accm_inst_nucleus_cmd_ctrl;
   output_voltage_cmd_tag                           <= output_voltage_cmd_accm_inst_nucleus_cmd_tag;
 
-  battery_status_inst_kcd_clk                      <= kcd_clk;
+  -- battery_status_inst_kcd_clk                      <= kcd_clk;
   battery_status_inst_kcd_reset                    <= kcd_reset;
 
   battery_status_inst_input_input_valid            <= input_input_valid;
@@ -504,7 +504,7 @@ begin
   battery_status_inst_input_lastidx                <= mmio_inst_f_input_lastidx_data;
   battery_status_inst_output_firstidx              <= mmio_inst_f_output_firstidx_data;
   battery_status_inst_output_lastidx               <= mmio_inst_f_output_lastidx_data;
-  mmio_inst_kcd_clk                                <= kcd_clk;
+  -- mmio_inst_kcd_clk                                <= kcd_clk;
   mmio_inst_kcd_reset                              <= kcd_reset;
 
   mmio_inst_f_idle_write_data                      <= battery_status_inst_idle;

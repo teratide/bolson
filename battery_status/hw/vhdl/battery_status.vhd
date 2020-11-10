@@ -122,11 +122,11 @@ begin
     is
   begin
     if rising_edge(kcd_clk) then
-      if kcd_reset = '1' then
-        result_counter <= (others => '0');
-      end if;
       if json_out_ready = '1' and json_out_valid = '1' then
         result_counter <= result_counter + 1;
+      end if;
+      if kcd_reset = '1' then
+        result_counter <= (others => '0');
       end if;
     end if;
   end process;
@@ -381,7 +381,7 @@ begin
 
         -- If the data is valid, forward it and increment the element counter.
         if i.dvalid = '1' then
-          oe.valid  := '1';
+          -- oe.valid  := '1';
           oe.dvalid := '1';
           oe.data   := i.data;
           count     := count + 1;
@@ -392,7 +392,7 @@ begin
         -- We could also use end_of_array here; for valid JSON these should be
         -- equivalent.
         if i.end_of_object = '1' then
-          oc.valid  := '1';
+          -- oc.valid  := '1';
           oc.dvalid := '1';
           oc.data   := std_logic_vector(count);
           count     := (others => '0');
@@ -402,15 +402,18 @@ begin
         -- stream, and send a strobe to the state machine that indicates
         -- completion.
         if i.end_of_query = '1' then
-          oe.valid := '1';
-          oe.last  := '1';
-          oc.valid := '1';
-          oc.last  := '1';
+          -- oe.valid := '1';
+          oe.last := '1';
+          -- oc.valid := '1';
+          oc.last := '1';
           cmd_complete <= '1';
         end if;
 
+        oe.valid := i.dvalid or i.end_of_query;
+        oc.valid := i.end_of_object or i.end_of_query;
+
         -- clear holding register
-        i.valid := '0';
+        i.valid  := '0';
 
       end if;
 

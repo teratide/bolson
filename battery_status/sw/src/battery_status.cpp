@@ -109,7 +109,7 @@ int main(int argc, char **argv)
   }
 
   std::string mmio;
-  platform->MmioToString(&mmio, 0, 20);
+  platform->MmioToString(&mmio, 0, 22);
   std::cout << mmio << std::endl;
 
   for (int i = 0; i < context->num_buffers(); i++)
@@ -135,7 +135,7 @@ int main(int argc, char **argv)
   {
     context->platform()->ReadMMIO(FLETCHER_REG_STATUS, &status_register);
     std::cerr << "status: " << status_register << std::endl;
-    platform->MmioToString(&mmio, 0, 20);
+    platform->MmioToString(&mmio, 0, 22);
     std::cout << mmio << std::endl;
     sleep(1);
     done = (status_register & 1ul << FLETCHER_REG_STATUS_DONE) == 1ul << FLETCHER_REG_STATUS_DONE;
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
     std::cout << view.ToString() << std::endl;
   }
 
-  platform->MmioToString(&mmio, 0, 20);
+  platform->MmioToString(&mmio, 0, 22);
   std::cout << mmio << std::endl;
 
   std::cout << output_batch.get()->ToString() << std::endl;
