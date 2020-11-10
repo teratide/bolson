@@ -140,6 +140,23 @@ architecture Behavorial of AxiTop is
       bcd_reset          : in std_logic;
       kcd_clk            : in std_logic;
       kcd_reset          : in std_logic;
+      mmio_awvalid       : in std_logic;
+      mmio_awready       : out std_logic;
+      mmio_awaddr        : in std_logic_vector(31 downto 0);
+      mmio_wvalid        : in std_logic;
+      mmio_wready        : out std_logic;
+      mmio_wdata         : in std_logic_vector(63 downto 0);
+      mmio_wstrb         : in std_logic_vector(7 downto 0);
+      mmio_bvalid        : out std_logic;
+      mmio_bready        : in std_logic;
+      mmio_bresp         : out std_logic_vector(1 downto 0);
+      mmio_arvalid       : in std_logic;
+      mmio_arready       : out std_logic;
+      mmio_araddr        : in std_logic_vector(31 downto 0);
+      mmio_rvalid        : out std_logic;
+      mmio_rready        : in std_logic;
+      mmio_rdata         : out std_logic_vector(63 downto 0);
+      mmio_rresp         : out std_logic_vector(1 downto 0);
       rd_mst_rreq_valid  : out std_logic;
       rd_mst_rreq_ready  : in std_logic;
       rd_mst_rreq_addr   : out std_logic_vector(BUS_ADDR_WIDTH - 1 downto 0);
@@ -148,7 +165,6 @@ architecture Behavorial of AxiTop is
       rd_mst_rdat_ready  : out std_logic;
       rd_mst_rdat_data   : in std_logic_vector(BUS_DATA_WIDTH - 1 downto 0);
       rd_mst_rdat_last   : in std_logic;
-
       wr_mst_wreq_valid  : out std_logic;
       wr_mst_wreq_ready  : in std_logic;
       wr_mst_wreq_addr   : out std_logic_vector(BUS_ADDR_WIDTH - 1 downto 0);
@@ -158,23 +174,6 @@ architecture Behavorial of AxiTop is
       wr_mst_wdat_data   : out std_logic_vector(BUS_DATA_WIDTH - 1 downto 0);
       wr_mst_wdat_strobe : out std_logic_vector(BUS_DATA_WIDTH/8 - 1 downto 0);
       wr_mst_wdat_last   : out std_logic;
-      mmio_awvalid       : in std_logic;
-      mmio_awready       : out std_logic;
-      mmio_awaddr        : in std_logic_vector(32 - 1 downto 0);
-      mmio_wvalid        : in std_logic;
-      mmio_wready        : out std_logic;
-      mmio_wdata         : in std_logic_vector(64 - 1 downto 0);
-      mmio_wstrb         : in std_logic_vector(64/8 - 1 downto 0);
-      mmio_bvalid        : out std_logic;
-      mmio_bready        : in std_logic;
-      mmio_bresp         : out std_logic_vector(1 downto 0);
-      mmio_arvalid       : in std_logic;
-      mmio_arready       : out std_logic;
-      mmio_araddr        : in std_logic_vector(32 - 1 downto 0);
-      mmio_rvalid        : out std_logic;
-      mmio_rready        : in std_logic;
-      mmio_rdata         : out std_logic_vector(64 - 1 downto 0);
-      mmio_rresp         : out std_logic_vector(1 downto 0);
       plat_complete_req  : out std_logic;
       plat_complete_ack  : in std_logic;
       status             : inout std_logic_vector(31 downto 0)
@@ -236,13 +235,15 @@ begin
   -- 9 8 7 6 5 4 3 2 1 0
   status        <= (
     -- axi
-    0 => int_m_axi_arvalid, 1 => m_axi_arready,
-    2 => m_axi_rvalid, 3 => int_m_axi_rready,
-    4 => int_m_axi_awvalid, 5 => m_axi_awready,
-    6 => int_m_axi_wvalid, 7 => m_axi_wready,
-    8 => m_axi_bvalid, 9 => int_m_axi_bready,
-    10 => plat_complete_req, 11 => plat_complete_ack,
-    29 => int_m_axi_awuser(1), 30 => m_axi_rlast, 31 => int_m_axi_wlast,
+    0 => int_m_axi_arvalid, 1 => m_axi_arready,       --10
+    2 => m_axi_rvalid, 3 => int_m_axi_rready,         --10 
+    4 => int_m_axi_awvalid, 5 => m_axi_awready,       --10 
+    6 => int_m_axi_wvalid, 7 => m_axi_wready,         -- 10 
+    8 => m_axi_bvalid, 9 => int_m_axi_bready,         -- 10 
+    10 => plat_complete_req, 11 => plat_complete_ack, -- 01 
+    29     => int_m_axi_awuser(1),                    -- 1
+    30     => m_axi_rlast,                            -- 0
+    31     => int_m_axi_wlast,                        -- 1
     others => 'Z');
 
   -----------------------------------------------------------------------------
@@ -347,7 +348,7 @@ begin
   -----------------------------------------------------------------------------
   -- Buffering bursts is disabled (ENABLE_FIFO=false) because BufferWriters
   -- are already able to absorb full bursts.
-  axi_write_conv_inst : entity work.AxiWriteConverter
+  axi_write_conv_inst : entity work.AxiWriteConvertera
     generic map(
       ADDR_WIDTH          => BUS_ADDR_WIDTH,
       MASTER_DATA_WIDTH   => BUS_DATA_WIDTH,

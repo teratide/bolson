@@ -7,7 +7,7 @@ ${FLETCHER_HARDWARE_DIR}/vhlib/stream/Stream_pkg.vhd
 ${FLETCHER_HARDWARE_DIR}/interconnect/Interconnect_pkg.vhd
 ${FLETCHER_HARDWARE_DIR}/arrow/Arrow_pkg.vhd
 # ${FLETCHER_HARDWARE_DIR}/axi/AxiWriteConverter.vhd
-vhdl/AxiWriteConverter.vhd
+vhdl/AxiWriteConvertera.vhd
 ${FLETCHER_HARDWARE_DIR}/axi/AxiReadConverter.vhd
 ${FLETCHER_HARDWARE_DIR}/interconnect/BusWriteArbiterVec.vhd
 ${FLETCHER_HARDWARE_DIR}/interconnect/BusWriteBuffer.vhd

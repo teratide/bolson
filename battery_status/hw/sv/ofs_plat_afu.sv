@@ -29,7 +29,7 @@ module ofs_plat_afu (ofs_plat_if plat_ifc);
     #(
       .ADD_CLOCK_CROSSING(1)
     )
-  primary_axi 
+  primary_axi
     (
       .to_fiu(plat_ifc.host_chan.ports[0]),
       .host_mem_to_afu(host_mem),
@@ -47,10 +47,35 @@ module ofs_plat_afu (ofs_plat_if plat_ifc);
       tie_off(plat_ifc);
 
   logic clk;
-  assign clk = host_mem.clk;
+  assign clk = mmio64_to_afu.clk;
   // Flip reset
-  logic reset;
-  assign reset = !host_mem.reset_n;
+  logic reset_n;
+  assign reset_n = mmio64_to_afu.reset_n;
+
+  reg reset_sync_a = 1'b1;
+  reg reset_sync_b = 1'b1;
+  reg reset_sync = 1'b1;
+  
+  always @(posedge clk or negedge reset_n) begin
+    if (reset_n == 1'b0)
+        reset_sync_a <= 1'b1;
+    else
+        reset_sync_a <= 1'b0;
+  end
+
+  always @(posedge clk or negedge reset_n) begin
+      if (reset_n == 1'b0)
+          reset_sync_b <= 1'b1;
+      else
+          reset_sync_b <= reset_sync_a;
+  end
+
+  always @(posedge clk or negedge reset_n) begin
+      if (reset_n == 1'b0)
+          reset_sync <= 1'b1;
+      else
+          reset_sync <= reset_sync_b;
+  end
 
   wire [63:0] m_axi_araddr;
   wire [63:0] m_axi_awaddr;
@@ -64,9 +89,9 @@ module ofs_plat_afu (ofs_plat_if plat_ifc);
   AxiTop axi_top
   (
     .kcd_clk(clk),
-    .kcd_reset(reset),
+    .kcd_reset(reset_sync),
     .bcd_clk(clk),
-    .bcd_reset(reset),
+    .bcd_reset(reset_sync),
     .m_axi_araddr(m_axi_araddr),
     .m_axi_arlen(host_mem.ar.len),
     .m_axi_arvalid(host_mem.arvalid),
