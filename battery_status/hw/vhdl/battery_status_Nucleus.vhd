@@ -87,7 +87,7 @@ entity battery_status_Nucleus is
     output_voltage_cmd_tag      : out std_logic_vector(TAG_WIDTH - 1 downto 0);
     plat_complete_req           : out std_logic;
     plat_complete_ack           : in std_logic;
-    status                      : in std_logic_vector(31 downto 0)
+    status                      : inout std_logic_vector(31 downto 0)
   );
 end entity;
 
@@ -223,6 +223,17 @@ architecture Implementation of battery_status_Nucleus is
   signal mmio_inst_f_output_voltage_values_data            : std_logic_vector(63 downto 0);
   signal mmio_inst_f_Profile_enable_data                   : std_logic;
   signal mmio_inst_f_Profile_clear_data                    : std_logic;
+
+  signal mmio_inst_f_m_axi_ar_increment                    : std_logic;
+  signal mmio_inst_f_m_axi_r_increment                     : std_logic;
+  signal mmio_inst_f_m_axi_aw_increment                    : std_logic;
+  signal mmio_inst_f_m_axi_w_increment                     : std_logic;
+  signal mmio_inst_f_m_axi_b_increment                     : std_logic;
+
+  signal mmio_inst_f_m_axi_wlast_increment                 : std_logic;
+  signal mmio_inst_f_m_axi_rlast_increment                 : std_logic;
+  signal mmio_inst_f_m_axi_awuser_increment                : std_logic;
+
   signal mmio_inst_mmio_awvalid                            : std_logic;
   signal mmio_inst_mmio_awready                            : std_logic;
   signal mmio_inst_mmio_awaddr                             : std_logic_vector(31 downto 0);
@@ -271,6 +282,28 @@ architecture Implementation of battery_status_Nucleus is
   signal output_voltage_cmd_accm_inst_ctrl                 : std_logic_vector(2 * OUTPUT_VOLTAGE_BUS_ADDR_WIDTH - 1 downto 0);
 
 begin
+
+  status <= (
+    12 => battery_status_inst_input_input_ready, 13 => battery_status_inst_input_input_valid,
+    14 => battery_status_inst_input_input_unl_ready, 15 => battery_status_inst_input_input_unl_valid,
+    16 => battery_status_inst_input_input_cmd_ready, 17 => battery_status_inst_input_input_cmd_valid,
+    18 => battery_status_inst_output_voltage_ready, 19 => battery_status_inst_output_voltage_valid,
+    20 => battery_status_inst_output_voltage_item_ready, 21 => battery_status_inst_output_voltage_item_valid,
+    22 => battery_status_inst_output_voltage_unl_ready, 23 => battery_status_inst_output_voltage_unl_valid,
+    24 => battery_status_inst_output_voltage_cmd_ready, 25 => battery_status_inst_output_voltage_cmd_valid,
+    others => 'Z'
+    );
+
+  mmio_inst_f_m_axi_ar_increment     <= status(0) and status(1);
+  mmio_inst_f_m_axi_r_increment      <= status(2) and status(3);
+  mmio_inst_f_m_axi_aw_increment     <= status(4) and status(5);
+  mmio_inst_f_m_axi_w_increment      <= status(6) and status(7);
+  mmio_inst_f_m_axi_b_increment      <= status(8) and status(9);
+
+  mmio_inst_f_m_axi_wlast_increment  <= status(6) and status(7) and status(31);
+  mmio_inst_f_m_axi_rlast_increment  <= status(2) and status(3) and status(30);
+  mmio_inst_f_m_axi_awuser_increment <= status(4) and status(5) and status(29);
+
   battery_status_inst : battery_status
   generic map(
     INDEX_WIDTH => 32,
@@ -348,6 +381,14 @@ begin
     f_output_voltage_values_data  => mmio_inst_f_output_voltage_values_data,
     f_clk_counter_increment       => '1',
     f_stream_status_write_data    => status,
+    f_m_axi_ar_increment          => mmio_inst_f_m_axi_ar_increment,
+    f_m_axi_r_increment           => mmio_inst_f_m_axi_r_increment,
+    f_m_axi_aw_increment          => mmio_inst_f_m_axi_aw_increment,
+    f_m_axi_w_increment           => mmio_inst_f_m_axi_w_increment,
+    f_m_axi_b_increment           => mmio_inst_f_m_axi_b_increment,
+    f_m_axi_wlast_increment       => mmio_inst_f_m_axi_wlast_increment,
+    f_m_axi_rlast_increment       => mmio_inst_f_m_axi_rlast_increment,
+    f_m_axi_awuser_increment      => mmio_inst_f_m_axi_awuser_increment,
     mmio_awvalid                  => mmio_inst_mmio_awvalid,
     mmio_awready                  => mmio_inst_mmio_awready,
     mmio_awaddr                   => mmio_inst_mmio_awaddr,

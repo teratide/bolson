@@ -76,7 +76,7 @@ entity battery_status_Mantle is
     -- the write data.
     plat_complete_req  : out std_logic;
     plat_complete_ack  : in std_logic;
-    status             : in std_logic_vector(31 downto 0)
+    status             : inout std_logic_vector(31 downto 0)
   );
 end entity;
 
@@ -146,7 +146,7 @@ architecture Implementation of battery_status_Mantle is
       output_voltage_cmd_tag      : out std_logic_vector(TAG_WIDTH - 1 downto 0);
       plat_complete_req           : out std_logic;
       plat_complete_ack           : in std_logic;
-      status                      : in std_logic_vector(31 downto 0)
+      status                      : inout std_logic_vector(31 downto 0)
     );
   end component;
 

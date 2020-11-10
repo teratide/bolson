@@ -1,6 +1,6 @@
 metadata:
   name: mmio
-  
+
 entity:
   bus-flatten:  yes
   bus-prefix:   mmio_
@@ -14,7 +14,7 @@ features:
 interface:
   flatten:      yes
 
-fields: 
+fields:
   - address: 0b0---
     name: AFU_DHF
     behavior: constant
@@ -29,7 +29,7 @@ fields:
     name: AFU_ID_H
     behavior: constant
     value: 11287216594519869704 # check battery_status.json
-  
+
   - address: 0b11---
     name: DFH_RSVD0
     behavior: constant
@@ -139,8 +139,48 @@ fields:
   - address: 128
     name: clk_counter
     behavior: counter
-  
+
   - address: 136
     name: stream_status
     behavior: status
     bitrange: 31..0
+
+  - address: 144
+    name: m_axi_ar
+    behavior: counter
+    bitrange: 7..0
+
+  - address: 144
+    name: m_axi_r
+    behavior: counter
+    bitrange: 15..8
+
+  - address: 144
+    name: m_axi_aw
+    behavior: counter
+    bitrange: 23..16
+
+  - address: 144
+    name: m_axi_w
+    behavior: counter
+    bitrange: 31..24
+
+  - address: 144
+    name: m_axi_b
+    behavior: counter
+    bitrange: 39..32
+
+  - address: 144
+    name: m_axi_wlast
+    behavior: counter
+    bitrange: 47..40
+
+  - address: 144
+    name: m_axi_rlast
+    behavior: counter
+    bitrange: 55..48
+
+  - address: 144
+    name: m_axi_awuser
+    behavior: counter
+    bitrange: 63..56

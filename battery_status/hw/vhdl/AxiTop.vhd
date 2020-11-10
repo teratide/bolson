@@ -177,7 +177,7 @@ architecture Behavorial of AxiTop is
       mmio_rresp         : out std_logic_vector(1 downto 0);
       plat_complete_req  : out std_logic;
       plat_complete_ack  : in std_logic;
-      status             : in std_logic_vector(31 downto 0)
+      status             : inout std_logic_vector(31 downto 0)
     );
   end component;
 
@@ -215,6 +215,9 @@ architecture Behavorial of AxiTop is
   signal int_m_axi_awvalid                    : std_logic;
   signal int_m_axi_wvalid                     : std_logic;
   signal int_m_axi_bready                     : std_logic;
+
+  signal int_m_axi_awuser                     : std_logic_vector(7 downto 0);
+  signal int_m_axi_wlast                      : std_logic;
 begin
 
   -- Active low reset
@@ -225,14 +228,22 @@ begin
   m_axi_awvalid <= int_m_axi_awvalid;
   m_axi_wvalid  <= int_m_axi_wvalid;
   m_axi_bready  <= int_m_axi_bready;
+  m_axi_wlast   <= int_m_axi_wlast;
+  m_axi_awuser  <= int_m_axi_awuser;
 
+  -- b   w   aw  r   ar
+  -- r v r v r v r v r v
+  -- 9 8 7 6 5 4 3 2 1 0
   status        <= (
-  0 => int_m_axi_arvalid, 1 => m_axi_arready,
-  2 => m_axi_rvalid, 3 => int_m_axi_rready,
-  4 => int_m_axi_awvalid, 5 => m_axi_awready,
-  6 => int_m_axi_wvalid, 7 => m_axi_wready,
-  8 => m_axi_bvalid, 9 => int_m_axi_bready,
-  others => '0');
+    -- axi
+    0 => int_m_axi_arvalid, 1 => m_axi_arready,
+    2 => m_axi_rvalid, 3 => int_m_axi_rready,
+    4 => int_m_axi_awvalid, 5 => m_axi_awready,
+    6 => int_m_axi_wvalid, 7 => m_axi_wready,
+    8 => m_axi_bvalid, 9 => int_m_axi_bready,
+    10 => plat_complete_req, 11 => plat_complete_ack,
+    29 => int_m_axi_awuser(1), 30 => m_axi_rlast, 31 => int_m_axi_wlast,
+    others => 'Z');
 
   -----------------------------------------------------------------------------
   -- Fletcher generated wrapper
@@ -368,10 +379,10 @@ begin
       m_axi_awvalid       => int_m_axi_awvalid,
       m_axi_awready       => m_axi_awready,
       m_axi_awsize        => m_axi_awsize,
-      m_axi_awuser        => m_axi_awuser,
+      m_axi_awuser        => int_m_axi_awuser,
       m_axi_wdata         => m_axi_wdata,
       m_axi_wstrb         => m_axi_wstrb,
-      m_axi_wlast         => m_axi_wlast,
+      m_axi_wlast         => int_m_axi_wlast,
       m_axi_wvalid        => int_m_axi_wvalid,
       m_axi_wready        => m_axi_wready,
       m_axi_bready        => int_m_axi_bready,

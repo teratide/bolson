@@ -112,11 +112,13 @@ architecture Implementation of battery_status is
   signal int_in_last           : std_logic_vector(2 * EPC - 1 downto 0);
 
   signal cmd_complete          : std_logic;
-  signal result_counter        : unsigned(63 downto 0);
+
+  signal state_value           : std_logic_vector(31 downto 0);
+  signal result_counter        : unsigned(31 downto 0);
 
 begin
 
-  counter : process (kcd_reset, kcd_clk, json_out_ready, json_out_valid)
+  counter : process (kcd_reset, kcd_clk, json_out_ready, json_out_valid, result_counter)
     is
   begin
     if rising_edge(kcd_clk) then
@@ -127,9 +129,9 @@ begin
         result_counter <= result_counter + 1;
       end if;
     end if;
-
-    result <= std_logic_vector(result_counter);
   end process;
+
+  result <= std_logic_vector(result_counter) & state_value;
 
   comb : process (
     start,
@@ -138,6 +140,7 @@ begin
     input_firstidx,
     input_lastidx,
     output_firstidx,
+    output_lastidx,
     int_input_input_ready,
     input_input_cmd_ready,
     output_voltage_cmd_ready,
@@ -157,12 +160,13 @@ begin
     -- write request defaults
     output_voltage_cmd_valid    <= '0';
     output_voltage_cmd_firstIdx <= output_firstidx;
-    output_voltage_cmd_lastIdx  <= (others => '0');
+    output_voltage_cmd_lastIdx  <= output_lastidx;
     output_voltage_cmd_tag      <= (others => '0');
     output_voltage_unl_ready    <= '0';
 
     -- next state is the same if not changed
     state_next                  <= state;
+    state_value                 <= (others => '0');
 
     -- internal signal
     input_input_ready           <= int_input_input_ready;
@@ -173,9 +177,10 @@ begin
 
         -- wait for start signal
       when STATE_IDLE =>
-        done <= '0';
-        busy <= '0';
-        idle <= '1';
+        done        <= '0';
+        busy        <= '0';
+        idle        <= '1';
+        state_value <= X"00000001";
 
         if start = '1' then
           state_next <= STATE_REQ_READ;
@@ -186,6 +191,7 @@ begin
         done                  <= '0';
         busy                  <= '1';
         idle                  <= '0';
+        state_value           <= X"00000002";
 
         input_input_cmd_valid <= '1';
 
@@ -199,6 +205,7 @@ begin
         done                     <= '0';
         busy                     <= '1';
         idle                     <= '0';
+        state_value              <= X"00000003";
 
         output_voltage_cmd_valid <= '1';
 
@@ -209,9 +216,10 @@ begin
 
         -- unlock read
       when STATE_UNLOCK_READ =>
-        done <= '0';
-        busy <= '1';
-        idle <= '0';
+        done        <= '0';
+        busy        <= '1';
+        idle        <= '0';
+        state_value <= X"00000004";
 
         if input_input_unl_valid = '1' then
           input_input_unl_ready <= '1';
@@ -220,9 +228,10 @@ begin
 
         -- unlock write
       when STATE_UNLOCK_WRITE =>
-        done <= '0';
-        busy <= '1';
-        idle <= '0';
+        done        <= '0';
+        busy        <= '1';
+        idle        <= '0';
+        state_value <= X"00000005";
 
         if output_voltage_unl_valid = '1' then
           output_voltage_unl_ready <= '1';
@@ -233,6 +242,7 @@ begin
         done              <= '0';
         busy              <= '1';
         idle              <= '0';
+        state_value       <= X"00000006";
 
         plat_complete_req <= '1';
         if plat_complete_ack = '1' then
@@ -241,9 +251,10 @@ begin
 
         -- wait for kernel reset
       when STATE_DONE =>
-        done <= '1';
-        busy <= '0';
-        idle <= '1';
+        done        <= '1';
+        busy        <= '0';
+        idle        <= '1';
+        state_value <= X"00000007";
 
         if reset = '1' then
           state_next <= STATE_IDLE;
