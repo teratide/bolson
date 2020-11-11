@@ -76,6 +76,7 @@ vhdl/json/component/IntParser.vhd
 vhdl/json/test/schemas/battery_status/battery_status_pkg.vhd
 vhdl/json/test/schemas/battery_status/BattSchemaParser.vhd
 vhdl/battery_status.vhd
+vhdl/dingen_vhd.vhd
 # vhdl/battery_status_Nucleus.gen.vhd
 vhdl/battery_status_Nucleus.vhd
 # vhdl/battery_status_Mantle.gen.vhd

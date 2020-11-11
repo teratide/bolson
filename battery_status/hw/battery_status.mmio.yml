@@ -184,3 +184,11 @@ fields:
     name: m_axi_awuser
     behavior: counter
     bitrange: 63..56
+
+  - address: 152
+    name: dingen_vhd
+    behavior: status
+  
+  - address: 160
+    name: dingen_vhd_control
+    behavior: control

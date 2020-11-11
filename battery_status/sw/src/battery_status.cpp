@@ -18,6 +18,13 @@
 #define PLATFORM "opae-ase"
 #endif
 
+void write_dingen_reg(uint8_t reg, uint64_t value, Platform &platform)
+{
+  platform.WriteMMIO(25, value);
+  platform.WriteMMIO(26, 0x20000000 | (reg << 27) | (value >> 32));
+  platform.WriteMMIO(26, 0);
+}
+
 int main(int argc, char **argv)
 {
   if (argc != 3)
@@ -108,8 +115,10 @@ int main(int argc, char **argv)
     return -1;
   }
 
+  write_dingen_reg(, , *platform);
+
   std::string mmio;
-  platform->MmioToString(&mmio, 0, 22);
+  platform->MmioToString(&mmio, 0, 26);
   std::cout << mmio << std::endl;
 
   for (int i = 0; i < context->num_buffers(); i++)
@@ -135,22 +144,21 @@ int main(int argc, char **argv)
   {
     context->platform()->ReadMMIO(FLETCHER_REG_STATUS, &status_register);
     std::cerr << "status: " << status_register << std::endl;
-    platform->MmioToString(&mmio, 0, 22);
+    platform->MmioToString(&mmio, 0, 26);
     std::cout << mmio << std::endl;
     sleep(1);
     done = (status_register & 1ul << FLETCHER_REG_STATUS_DONE) == 1ul << FLETCHER_REG_STATUS_DONE;
   }
 
-  uint32_t return_value_0;
-  uint32_t return_value_1;
-  status = kernel.GetReturn(&return_value_0, &return_value_1);
-  if (!status.ok())
-  {
-    std::cerr << "Could not obtain the return value." << std::endl;
-    return -1;
-  }
-
-  std::cout << "result: " << std::hex << *reinterpret_cast<int32_t *>(&return_value_0) << std::endl;
+  // uint32_t return_value_0;
+  // uint32_t return_value_1;
+  // status = kernel.GetReturn(&return_value_0, &return_value_1);
+  // if (!status.ok())
+  // {
+  //   std::cerr << "Could not obtain the return value." << std::endl;
+  //   return -1;
+  // }
+  // std::cout << "result: " << std::hex << *reinterpret_cast<int32_t *>(&return_value_0) << std::endl;
 
   for (int i = 0; i < context->num_buffers(); i++)
   {
@@ -161,7 +169,7 @@ int main(int argc, char **argv)
     std::cout << view.ToString() << std::endl;
   }
 
-  platform->MmioToString(&mmio, 0, 22);
+  platform->MmioToString(&mmio, 0, 26);
   std::cout << mmio << std::endl;
 
   std::cout << output_batch.get()->ToString() << std::endl;

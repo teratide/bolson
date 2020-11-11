@@ -281,6 +281,8 @@ architecture Implementation of battery_status_Nucleus is
   signal input_input_cmd_accm_inst_ctrl                    : std_logic_vector(INPUT_INPUT_BUS_ADDR_WIDTH - 1 downto 0);
   signal output_voltage_cmd_accm_inst_ctrl                 : std_logic_vector(2 * OUTPUT_VOLTAGE_BUS_ADDR_WIDTH - 1 downto 0);
 
+  signal dingen_status, dingen_control                     : std_logic_vector(63 downto 0);
+
 begin
 
   status <= (
@@ -381,6 +383,8 @@ begin
     f_output_voltage_values_data  => mmio_inst_f_output_voltage_values_data,
     f_clk_counter_increment       => '1',
     f_stream_status_write_data    => status,
+    f_dingen_vhd_write_data       => dingen_status,
+    f_dingen_vhd_control_data     => dingen_control,
     f_m_axi_ar_increment          => mmio_inst_f_m_axi_ar_increment,
     f_m_axi_r_increment           => mmio_inst_f_m_axi_r_increment,
     f_m_axi_aw_increment          => mmio_inst_f_m_axi_aw_increment,
@@ -451,6 +455,19 @@ begin
     nucleus_cmd_tag      => output_voltage_cmd_accm_inst_nucleus_cmd_tag,
     ctrl                 => output_voltage_cmd_accm_inst_ctrl
   );
+
+  dingen_vhd_inst : entity work.dingen_vhd generic map(
+    DATA_WIDTH  => 52,
+    COUNT_WIDTH => 12,
+    DEPTH_LOG2  => 10
+    )
+    port map(
+      clk               => kcd_clk,
+      data(51 downto 32) => (others => '0'),
+      data(31 downto 0) => status,
+      control           => dingen_control,
+      status            => dingen_status
+    );
 
   input_input_cmd_valid                            <= input_input_cmd_accm_inst_nucleus_cmd_valid;
   input_input_cmd_accm_inst_nucleus_cmd_ready      <= input_input_cmd_ready;
