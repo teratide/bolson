@@ -197,7 +197,7 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  bool done = false;
+  /*bool done = false;
   uint32_t status_register = 0;
   while (!done)
   {
@@ -207,9 +207,9 @@ int main(int argc, char **argv)
     std::cout << mmio << std::endl;
     sleep(1);
     done = (status_register & 1ul << FLETCHER_REG_STATUS_DONE) == 1ul << FLETCHER_REG_STATUS_DONE;
-  }
+  }*/
 
-  // wait_dingen_done(*platform);
+  wait_dingen_done(*platform);
   size_t cycle = -2;
   for (size_t addr = 0; addr < ADDR_RANGE; addr++)
   {
