@@ -15,7 +15,7 @@
 
 #ifdef NDEBUG
 #define PLATFORM "opae"
-#define ADDR_RANGE 4096
+#define ADDR_RANGE 1024
 #else
 #define PLATFORM "opae-ase"
 #define ADDR_RANGE 4

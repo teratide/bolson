@@ -2,8 +2,8 @@
   "version": 1,
   "afu-image": {
     "power": 0,
-    "clock-frequency-high": "auto",
-    "clock-frequency-low": "auto",
+    "clock-frequency-high": "100.0",
+    "clock-frequency-low": "50.0",
     "afu-top-interface": {
       "name": "ofs_plat_afu"
     },
