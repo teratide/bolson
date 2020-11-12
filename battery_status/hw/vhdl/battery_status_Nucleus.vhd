@@ -293,6 +293,9 @@ begin
     20 => battery_status_inst_output_voltage_item_ready, 21 => battery_status_inst_output_voltage_item_valid, -- 01 
     22 => battery_status_inst_output_voltage_unl_ready, 23 => battery_status_inst_output_voltage_unl_valid,   --00 
     24 => battery_status_inst_output_voltage_cmd_ready, 25 => battery_status_inst_output_voltage_cmd_valid,   --01 
+    26     => battery_status_inst_input_input_last,
+    27     => battery_status_inst_output_voltage_last,
+    28     => battery_status_inst_output_voltage_item_last,
     others => 'Z'
     );
 
