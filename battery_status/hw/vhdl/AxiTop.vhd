@@ -243,17 +243,11 @@ begin
     0 => int_m_axi_awvalid, 1 => m_axi_awready, --10 
     2 => int_m_axi_wvalid, 3 => m_axi_wready,   -- 10 
     4 => m_axi_bvalid, 5 => int_m_axi_bready,   -- 10
-
-    6      => int_m_axi_wdata[0],
-    7      => int_m_axi_wdata[1],
-    8      => int_m_axi_wdata[2],
-    9      => int_m_axi_wdata[32],
-    10     => int_m_axi_wdata[33],
-    11     => int_m_axi_wdata[34],
-    12     => int_m_axi_wdata[64],
-    13     => int_m_axi_wdata[65],
-    14     => int_m_axi_wdata[66],
-    15     => int_m_axi_wdata[96],
+    6 => int_m_axi_wdata(0), 7 => int_m_axi_wdata(1),
+    8 => int_m_axi_wdata(2), 9 => int_m_axi_wdata(32),
+    10 => int_m_axi_wdata(33), 11 => int_m_axi_wdata(34),
+    12 => int_m_axi_wdata(64), 13 => int_m_axi_wdata(65),
+    14 => int_m_axi_wdata(66), 15 => int_m_axi_wdata(96),
 
     16 => plat_complete_req, 17 => plat_complete_ack, -- 01 
     29     => int_m_axi_awuser(1),                    -- 1
