@@ -286,9 +286,9 @@ architecture Implementation of battery_status_Nucleus is
 begin
 
   status <= (
-    12 => battery_status_inst_input_input_ready, 13 => battery_status_inst_input_input_valid,                 -- 01
-    14 => battery_status_inst_input_input_unl_ready, 15 => battery_status_inst_input_input_unl_valid,         -- 00
-    16 => battery_status_inst_input_input_cmd_ready, 17 => battery_status_inst_input_input_cmd_valid,         --  01 
+    -- 12 => battery_status_inst_input_input_ready, 13 => battery_status_inst_input_input_valid,                 -- 01
+    -- 14 => battery_status_inst_input_input_unl_ready, 15 => battery_status_inst_input_input_unl_valid,         -- 00
+    -- 16 => battery_status_inst_input_input_cmd_ready, 17 => battery_status_inst_input_input_cmd_valid,         --  01 
     18 => battery_status_inst_output_voltage_ready, 19 => battery_status_inst_output_voltage_valid,           -- 01
     20 => battery_status_inst_output_voltage_item_ready, 21 => battery_status_inst_output_voltage_item_valid, -- 01 
     22 => battery_status_inst_output_voltage_unl_ready, 23 => battery_status_inst_output_voltage_unl_valid,   --00 

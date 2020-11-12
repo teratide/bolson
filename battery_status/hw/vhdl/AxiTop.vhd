@@ -217,6 +217,8 @@ architecture Behavorial of AxiTop is
 
   signal int_m_axi_awuser                     : std_logic_vector(7 downto 0);
   signal int_m_axi_wlast                      : std_logic;
+
+  signal int_m_axi_wdata                      : std_logic_vector(BUS_DATA_WIDTH - 1 downto 0);
 begin
 
   -- Active low reset
@@ -229,18 +231,31 @@ begin
   m_axi_bready  <= int_m_axi_bready;
   m_axi_wlast   <= int_m_axi_wlast;
   m_axi_awuser  <= int_m_axi_awuser;
+  m_axi_wdata   <= int_m_axi_wdata;
 
   -- b   w   aw  r   ar
   -- r v r v r v r v r v
   -- 9 8 7 6 5 4 3 2 1 0
   status        <= (
     -- axi
-    0 => int_m_axi_arvalid, 1 => m_axi_arready,       --10
-    2 => m_axi_rvalid, 3 => int_m_axi_rready,         --10 
-    4 => int_m_axi_awvalid, 5 => m_axi_awready,       --10 
-    6 => int_m_axi_wvalid, 7 => m_axi_wready,         -- 10 
-    8 => m_axi_bvalid, 9 => int_m_axi_bready,         -- 10 
-    10 => plat_complete_req, 11 => plat_complete_ack, -- 01 
+    -- 0 => int_m_axi_arvalid, 1 => m_axi_arready,       --10
+    -- 2 => m_axi_rvalid, 3 => int_m_axi_rready,         --10 
+    0 => int_m_axi_awvalid, 1 => m_axi_awready, --10 
+    2 => int_m_axi_wvalid, 3 => m_axi_wready,   -- 10 
+    4 => m_axi_bvalid, 5 => int_m_axi_bready,   -- 10
+
+    6      => int_m_axi_wdata[0],
+    7      => int_m_axi_wdata[1],
+    8      => int_m_axi_wdata[2],
+    9      => int_m_axi_wdata[32],
+    10     => int_m_axi_wdata[33],
+    11     => int_m_axi_wdata[34],
+    12     => int_m_axi_wdata[64],
+    13     => int_m_axi_wdata[65],
+    14     => int_m_axi_wdata[66],
+    15     => int_m_axi_wdata[96],
+
+    16 => plat_complete_req, 17 => plat_complete_ack, -- 01 
     29     => int_m_axi_awuser(1),                    -- 1
     30     => m_axi_rlast,                            -- 0
     31     => int_m_axi_wlast,                        -- 1
@@ -381,7 +396,7 @@ begin
       m_axi_awready       => m_axi_awready,
       m_axi_awsize        => m_axi_awsize,
       m_axi_awuser        => int_m_axi_awuser,
-      m_axi_wdata         => m_axi_wdata,
+      m_axi_wdata         => int_m_axi_wdata,
       m_axi_wstrb         => m_axi_wstrb,
       m_axi_wlast         => int_m_axi_wlast,
       m_axi_wvalid        => int_m_axi_wvalid,
