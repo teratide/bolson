@@ -1,0 +1,132 @@
+metadata:
+  name: mmio
+
+entity:
+  bus-flatten:  yes
+  bus-prefix:   mmio_
+  clock-name:   kcd_clk
+  reset-name:   kcd_reset
+
+features:
+  bus-width:    64
+  optimize:     yes
+
+interface:
+  flatten:      yes
+
+fields:
+  - address: 0b0---
+    name: AFU_DHF
+    behavior: constant
+    value: 17293826967149215744 # [63:60]: 1 && [40]: 1
+
+  - address: 0b1---
+    name: AFU_ID_L
+    behavior: constant
+    value: 9298143585121133213 # check primmap.json
+
+  - address: 0b10---
+    name: AFU_ID_H
+    behavior: constant
+    value: 4422222669130253009 # check primmap.json
+
+  - address: 0b11---
+    name: DFH_RSVD0
+    behavior: constant
+    value: 0
+
+  - address: 0b100---
+    name: DFH_RSVD1
+    behavior: constant
+    value: 0
+
+  - address: 64
+    name: start
+    doc: Start the kernel.
+    bitrange: 0
+    behavior: strobe
+
+  - address: 64
+    name: stop
+    doc: Stop the kernel.
+    bitrange: 1
+    behavior: strobe
+
+  - address: 64
+    name: reset
+    doc: Reset the kernel.
+    bitrange: 2
+    behavior: strobe
+
+  - address: 68
+    name: idle
+    doc: Kernel idle status.
+    bitrange: 32
+    behavior: status
+
+  - address: 68
+    name: busy
+    doc: Kernel busy status.
+    bitrange: 33
+    behavior: status
+
+  - address: 68
+    name: done
+    doc: Kernel done status.
+    bitrange: 34
+    behavior: status
+
+  - address: 72
+    name: result
+    doc: Result.
+    bitrange: 63..0
+    behavior: status
+
+  - address: 80
+    name: in_firstidx
+    doc: in first index.
+    bitrange: 31..0
+    behavior: control
+
+  - address: 84
+    name: in_lastidx
+    doc: in last index (exclusive).
+    bitrange: 63..32
+    behavior: control
+
+  - address: 88
+    name: out_firstidx
+    doc: out first index.
+    bitrange: 31..0
+    behavior: control
+
+  - address: 92
+    name: out_lastidx
+    doc: out last index (exclusive).
+    bitrange: 63..32
+    behavior: control
+
+  - address: 96
+    name: in_number_values
+    doc: Buffer address for in number_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 104
+    name: out_number_values
+    doc: Buffer address for out number_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 112
+    name: Profile_enable
+    doc: Activates profiler counting when this bit is high.
+    bitrange: 0
+    behavior: control
+
+  - address: 116
+    name: Profile_clear
+    doc: Resets profiler counters when this bit is asserted.
+    bitrange: 32
+    behavior: strobe
+
