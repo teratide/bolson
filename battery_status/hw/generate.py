@@ -11,7 +11,7 @@ with pa.RecordBatchFileWriter('input.rb', input_schema) as writer:
     writer.write(
         pa.RecordBatch.from_arrays(
             [pa.array(
-                [byte for byte in '{"voltage": [1, 2, 3, 4]}{"voltage": [1, 2, 3, 4]}{"voltage": [1, 2, 3, 4]}{"voltage": [1, 2, 3, 4]}'.encode()], pa.uint8())],
+                [byte for byte in '{"voltage": [1,42]}'.encode()], pa.uint8())],
             schema=input_schema)
     )
 

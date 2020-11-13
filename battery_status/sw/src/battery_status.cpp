@@ -176,9 +176,9 @@ int main(int argc, char **argv)
   printf("checksum: 0x%016llX\n", read_dingen_checksum(*platform));
   capture_dingen(*platform);
 
-  std::string mmio;
-  platform->MmioToString(&mmio, 0, (0xa0 - 0x40) / 4);
-  std::cout << mmio << std::endl;
+  // std::string mmio;
+  // platform->MmioToString(&mmio, 0, (0xa0 - 0x40) / 4);
+  // std::cout << mmio << std::endl;
 
   for (int i = 0; i < context->num_buffers(); i++)
   {
@@ -237,8 +237,8 @@ int main(int argc, char **argv)
     std::cout << view.ToString() << std::endl;
   }
 
-  platform->MmioToString(&mmio, 0, (0xa0 - 0x40) / 4);
-  std::cout << mmio << std::endl;
+  // platform->MmioToString(&mmio, 0, (0xa0 - 0x40) / 4);
+  // std::cout << mmio << std::endl;
 
   std::cout << output_batch.get()->ToString() << std::endl;
 
