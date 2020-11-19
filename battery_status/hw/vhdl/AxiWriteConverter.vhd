@@ -34,7 +34,7 @@ use work.UtilMisc_pkg.all;
 -- of bits used to whatever is specified on the slave port.
 -- This unit doesn't support strobe bits for anything but bytes only
 
-entity AxiWriteConvertera is
+entity AxiWriteConverter is
   generic (
     ADDR_WIDTH          : natural;
 
@@ -105,9 +105,9 @@ entity AxiWriteConvertera is
     m_axi_bready        : out std_logic
 
   );
-end entity AxiWriteConvertera;
+end entity AxiWriteConverter;
 
-architecture rtl of AxiWriteConvertera is
+architecture rtl of AxiWriteConverter is
 
   -- The ratio between the master and slave
   constant RATIO             : natural                      := MASTER_DATA_WIDTH / SLAVE_DATA_WIDTH;

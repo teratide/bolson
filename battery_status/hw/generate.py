@@ -7,7 +7,7 @@ input_schema = pa.schema([
     b'fletcher_name': b'input'
 })
 
-with pa.RecordBatchFileWriter('input.rb', input_schema) as writer:
+with pa.RecordBatchFileWriter('in.rb', input_schema) as writer:
     writer.write(
         pa.RecordBatch.from_arrays(
             [pa.array(
@@ -24,14 +24,4 @@ output_schema = pa.schema([
     b'fletcher_name': b'output'
 })
 
-pa.output_stream("output.as").write(output_schema.serialize())
-
-with pa.RecordBatchFileWriter('output.rb', output_schema) as writer:
-    writer.write(
-        pa.RecordBatch.from_arrays([
-            pa.array(
-                [
-                    [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-                ], pa.list_(pa.uint64()))
-        ], schema=output_schema)
-    )
+pa.output_stream("out.as").write(output_schema.serialize())
