@@ -69,12 +69,12 @@ ${FLETCHER_HARDWARE_DIR}/arrays/ArrayCmdCtrlMerger.vhd
 vhdl/vhdmmio_pkg.gen.vhd
 vhdl/mmio_pkg.gen.vhd
 vhdl/mmio.gen.vhd
-vhdl/json/component/Json_pkg.vhd
-vhdl/json/component/JsonRecordParser.vhd
-vhdl/json/component/JsonArrayParser.vhd
-vhdl/json/component/IntParser.vhd
-vhdl/json/test/schemas/battery_status/battery_status_pkg.vhd
-vhdl/json/test/schemas/battery_status/BattSchemaParser.vhd
+vhdl/tydi-json/component/Json_pkg.vhd
+vhdl/tydi-json/component/JsonRecordParser.vhd
+vhdl/tydi-json/component/JsonArrayParser.vhd
+vhdl/tydi-json/component/IntParser.vhd
+vhdl/tydi-json/test/schemas/battery_status/battery_status_pkg.vhd
+vhdl/tydi-json/test/schemas/battery_status/BattSchemaParser.vhd
 vhdl/battery_status.vhd
 vhdl/dingen_vhd.vhd
 # vhdl/battery_status_Nucleus.gen.vhd
