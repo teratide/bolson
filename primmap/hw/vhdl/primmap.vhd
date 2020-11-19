@@ -102,7 +102,7 @@ begin
   begin
     in_number_cmd_valid       <= '0';
     in_number_cmd_firstIdx    <= (others => '0');
-    in_number_cmd_firstIdx    <= (others => '0');
+    in_number_cmd_lastIdx     <= (others => '0');
     in_number_cmd_tag         <= (others => '0');
 
     in_number_unl_ready       <= '0';
@@ -111,7 +111,7 @@ begin
 
     out_number_cmd_valid      <= '0';
     out_number_cmd_firstIdx   <= (others => '0');
-    out_number_cmd_firstIdx   <= (others => '0');
+    out_number_cmd_lastIdx    <= (others => '0');
     out_number_cmd_tag        <= (others => '0');
 
     out_number_unl_ready      <= '0';

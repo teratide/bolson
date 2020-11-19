@@ -103,10 +103,8 @@ int main(int argc, char **argv)
 
   for (int i = 0; i < context->num_buffers(); i++)
   {
-    std::cout << "device " << std::hex << context->device_buffer(i).device_address << std::endl;
-    std::cout << "host " << std::hex << reinterpret_cast<uint64_t>(context->device_buffer(i).host_address) << std::endl;
     auto view = fletcher::HexView();
-    view.AddData(context->device_buffer(i).host_address, 128);
+    view.AddData(context->device_buffer(i).host_address, 64);
     std::cout << view.ToString() << std::endl;
   }
 
@@ -127,14 +125,10 @@ int main(int argc, char **argv)
 
   for (int i = 0; i < context->num_buffers(); i++)
   {
-    std::cout << "device " << std::hex << context->device_buffer(i).device_address << std::endl;
-    std::cout << "host " << std::hex << reinterpret_cast<uint64_t>(context->device_buffer(i).host_address) << std::endl;
     auto view = fletcher::HexView();
-    view.AddData(context->device_buffer(i).host_address, 128);
+    view.AddData(context->device_buffer(i).host_address, 64);
     std::cout << view.ToString() << std::endl;
   }
-
-  std::cout << output_batch.get()->ToString() << std::endl;
 
   return 0;
 }
