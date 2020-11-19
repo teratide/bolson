@@ -134,7 +134,7 @@ architecture Behavorial of AxiTop is
   -----------------------------------------------------------------------------
   -- Generated top-level wrapper component.
   -----------------------------------------------------------------------------
-  component primmap_Mantle is
+  component battery_status_Mantle is
     generic (
       INDEX_WIDTH        : integer := 32;
       TAG_WIDTH          : integer := 1;
@@ -222,7 +222,7 @@ begin
   -----------------------------------------------------------------------------
   -- Fletcher generated wrapper
   -----------------------------------------------------------------------------
-  primmap_Mantle_inst : primmap_Mantle
+  battery_status_Mantle_inst : battery_status_Mantle
   generic map(
     BUS_ADDR_WIDTH     => BUS_ADDR_WIDTH,
     BUS_DATA_WIDTH     => BUS_DATA_WIDTH,

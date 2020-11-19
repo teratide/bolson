@@ -75,8 +75,8 @@ entity battery_status is
     input_lastidx               : in std_logic_vector(31 downto 0);
     output_firstidx             : in std_logic_vector(31 downto 0);
     output_lastidx              : in std_logic_vector(31 downto 0);
-    plat_complete_req           : out std_logic;
-    plat_complete_ack           : in std_logic
+    ext_platform_complete_req   : out std_logic;
+    ext_platform_complete_ack   : in std_logic
   );
 end entity;
 
@@ -146,7 +146,7 @@ begin
     output_voltage_cmd_ready,
     input_input_unl_valid,
     output_voltage_unl_valid,
-    plat_complete_ack
+    ext_platform_complete_ack
     ) is
   begin
 
@@ -171,7 +171,7 @@ begin
     -- internal signal
     input_input_ready           <= int_input_input_ready;
 
-    plat_complete_req           <= '0';
+    ext_platform_complete_req   <= '0';
 
     case state is
 
@@ -239,13 +239,13 @@ begin
         end if;
 
       when STATE_FENCE =>
-        done              <= '0';
-        busy              <= '1';
-        idle              <= '0';
-        state_value       <= X"00000006";
+        done                      <= '0';
+        busy                      <= '1';
+        idle                      <= '0';
+        state_value               <= X"00000006";
 
-        plat_complete_req <= '1';
-        if plat_complete_ack = '1' then
+        ext_platform_complete_req <= '1';
+        if ext_platform_complete_ack = '1' then
           state_next <= STATE_DONE;
         end if;
 
