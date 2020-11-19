@@ -180,7 +180,7 @@ begin
         done        <= '0';
         busy        <= '0';
         idle        <= '1';
-        state_value <= X"00000001";
+        state_value <= X"00001d1e";
 
         if start = '1' then
           state_next <= STATE_REQ_READ;
@@ -191,7 +191,7 @@ begin
         done                  <= '0';
         busy                  <= '1';
         idle                  <= '0';
-        state_value           <= X"00000002";
+        state_value           <= X"10004ead";
 
         input_input_cmd_valid <= '1';
 
@@ -205,7 +205,7 @@ begin
         done                     <= '0';
         busy                     <= '1';
         idle                     <= '0';
-        state_value              <= X"00000003";
+        state_value              <= X"10000003";
 
         output_voltage_cmd_valid <= '1';
 
@@ -219,7 +219,7 @@ begin
         done        <= '0';
         busy        <= '1';
         idle        <= '0';
-        state_value <= X"00000004";
+        state_value <= X"00004ead";
 
         if input_input_unl_valid = '1' then
           input_input_unl_ready <= '1';
@@ -231,7 +231,7 @@ begin
         done        <= '0';
         busy        <= '1';
         idle        <= '0';
-        state_value <= X"00000005";
+        state_value <= X"10000005";
 
         if output_voltage_unl_valid = '1' then
           output_voltage_unl_ready <= '1';
@@ -242,7 +242,7 @@ begin
         done                      <= '0';
         busy                      <= '1';
         idle                      <= '0';
-        state_value               <= X"00000006";
+        state_value               <= X"000fe2ce";
 
         ext_platform_complete_req <= '1';
         if ext_platform_complete_ack = '1' then
@@ -254,7 +254,7 @@ begin
         done        <= '1';
         busy        <= '0';
         idle        <= '1';
-        state_value <= X"00000007";
+        state_value <= X"0000d02e";
 
         if reset = '1' then
           state_next <= STATE_IDLE;
