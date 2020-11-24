@@ -21,6 +21,38 @@
 #define ADDR_RANGE 4
 #endif
 
+arrow::Status WrapBattery(
+    int32_t num_rows,
+    uint8_t *offsets,
+    uint8_t *values,
+    std::shared_ptr<arrow::Schema> schema,
+    std::shared_ptr<arrow::RecordBatch> *out)
+{
+  auto ret = arrow::Status::OK();
+
+  // +1 because the last value in offsets buffer is the next free index in the values
+  // buffer.
+  int32_t num_offsets = num_rows + 1;
+
+  // Obtain the last value in the offsets buffer to know how many values there are.
+  int32_t num_values = reinterpret_cast<int32_t *>(offsets)[num_offsets];
+
+  size_t num_offset_bytes = num_offsets * sizeof(int32_t);
+  size_t num_values_bytes = num_values * sizeof(uint64_t);
+
+  // Wrap data into arrow buffers
+  auto offsets_buf = arrow::Buffer::Wrap(offsets, num_offset_bytes);
+  auto values_buf = arrow::Buffer::Wrap(values, num_values_bytes);
+
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_values, values_buf);
+  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), num_rows, offsets_buf, value_array);
+
+  std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
+  *out = arrow::RecordBatch::Make(schema, num_rows, arrays);
+
+  return arrow::Status::OK();
+}
+
 int main(int argc, char **argv)
 {
   if (argc != 3)
@@ -45,21 +77,32 @@ int main(int argc, char **argv)
                                               .ValueOrDie();
   file->Close();
 
+  // Allocate output buffers
   size_t buffer_size = 4096;
-
   uint8_t *offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(offset_data, 1, buffer_size);
-  auto offset_buffer = std::make_shared<arrow::Buffer>(offset_data, buffer_size);
-
+  if (offset_data == nullptr)
+  {
+    std::cerr << "Failed to allocate offset buffer" << std::endl;
+    return -1;
+  }
+  memset(offset_data, 0, buffer_size);
   uint8_t *value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(value_data, 2, buffer_size);
-  auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
+  if (value_data == nullptr)
+  {
+    std::cerr << "Failed to allocate value buffer" << std::endl;
+    return -1;
+  }
 
-  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
-
-  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, offset_buffer, value_array);
-  std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
-  auto output_batch = arrow::RecordBatch::Make(schema, 0, arrays);
+  // Wrap in recordbatch
+  std::shared_ptr<arrow::RecordBatch> output_batch;
+  arrow::Status arrow_status;
+  arrow_status = WrapBattery(0, offset_data, value_data, schema, &output_batch);
+  if (!arrow_status.ok())
+  {
+    std::cerr << "Could not create output recordbatch." << std::endl;
+    std::cerr << arrow_status.message << std::endl;
+    return -1;
+  }
 
   fletcher::Status status;
   std::shared_ptr<fletcher::Platform> platform;
@@ -111,13 +154,6 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  for (int i = 0; i < context->num_buffers(); i++)
-  {
-    auto view = fletcher::HexView();
-    view.AddData(context->device_buffer(i).host_address, 64);
-    std::cout << view.ToString() << std::endl;
-  }
-
   fletcher::Kernel kernel(context);
   status = kernel.Start();
   if (!status.ok())
@@ -133,12 +169,25 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  for (int i = 0; i < context->num_buffers(); i++)
+  uint32_t return_value_0;
+  uint32_t return_value_1;
+  status = kernel.GetReturn(&return_value_0, &return_value_1);
+  if (!status.ok())
   {
-    auto view = fletcher::HexView();
-    view.AddData(context->device_buffer(i).host_address, 64);
-    std::cout << view.ToString() << std::endl;
+    std::cerr << "Failed to get return value." << std::endl;
+    return -1;
   }
+  uint64_t num_rows = return_value_0 << 32 | return_value_1;
+
+  arrow_status = WrapBattery(num_rows, offset_data, value_data, schema, &output_batch);
+  if (!arrow_status.ok())
+  {
+    std::cerr << "Could not create output recordbatch." << std::endl;
+    std::cerr << arrow_status.message << std::endl;
+    return -1;
+  }
+
+  std::cout << output_batch->ToString() << std::endl;
 
   return 0;
 }

@@ -19,7 +19,6 @@ add_compile_unit(
     PRPS
       CXX_STANDARD 11
       CXX_STANDARD_REQUIRED ON
-      CXX_DEBUG_FLAGS "-g"
     SRCS
       src/battery_status.cpp
     DEPS
