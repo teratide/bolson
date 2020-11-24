@@ -86,23 +86,20 @@ int main(int argc, char **argv)
     return -1;
   }
   memset(offset_data, 0, buffer_size);
+  auto offset_buffer = std::make_shared<arrow::Buffer>(offset_data, buffer_size);
+
   uint8_t *value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
   if (value_data == nullptr)
   {
     std::cerr << "Failed to allocate value buffer" << std::endl;
     return -1;
   }
+  auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
 
-  // Wrap in recordbatch
-  std::shared_ptr<arrow::RecordBatch> output_batch;
-  arrow::Status arrow_status;
-  arrow_status = WrapBattery(0, offset_data, value_data, schema, &output_batch);
-  if (!arrow_status.ok())
-  {
-    std::cerr << "Could not create output recordbatch." << std::endl;
-    std::cerr << arrow_status.message << std::endl;
-    return -1;
-  }
+  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, offset_buffer, value_array);
+  std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
+  auto output_batch = arrow::RecordBatch::Make(schema, 0, arrays);
 
   fletcher::Status status;
   std::shared_ptr<fletcher::Platform> platform;
@@ -177,13 +174,16 @@ int main(int argc, char **argv)
     std::cerr << "Failed to get return value." << std::endl;
     return -1;
   }
-  uint64_t num_rows = return_value_0 << 32 | return_value_1;
+  uint64_t num_rows = ((uint64_t)return_value_1 << 32) | return_value_0;
 
+  std::cout << "Number of records parsed: " << num_rows << std::endl;
+
+  arrow::Status arrow_status;
   arrow_status = WrapBattery(num_rows, offset_data, value_data, schema, &output_batch);
   if (!arrow_status.ok())
   {
     std::cerr << "Could not create output recordbatch." << std::endl;
-    std::cerr << arrow_status.message << std::endl;
+    std::cerr << arrow_status.ToString() << std::endl;
     return -1;
   }
 
