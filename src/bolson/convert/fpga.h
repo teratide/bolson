@@ -34,9 +34,9 @@ class FPGABatchBuilder {
  public:
   static auto Make(std::shared_ptr<FPGABatchBuilder> *out,
                    std::string afu_id = AFU_ID,
-                   size_t input_capacity = 1024 * 1024,
-                   size_t output_capacity_off = 1024 * 1024,
-                   size_t output_capacity_val = 16 * 1024 * 1024) -> Status;
+                   size_t input_capacity = 2 * 1024 * 1024,
+                   size_t output_capacity_off = 2 * 1024 * 1024,
+                   size_t output_capacity_val = 2 * 1024 * 1024) -> Status;
 
   /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
   [[nodiscard]] auto size() const -> size_t { return size_; }

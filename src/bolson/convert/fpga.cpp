@@ -154,7 +154,8 @@ static auto output_schema() -> std::shared_ptr<arrow::Schema> {
 }
 
 static auto GetPageAlignedBuffer(uint8_t **buffer, size_t size) -> Status {
-  size_t page_size = sysconf(_SC_PAGESIZE);
+  size_t page_size = 2 * 1024 * 1024;
+  // size_t page_size = sysconf(_SC_PAGESIZE);
   if (size % page_size != 0) {
     return Status(Error::FPGAError,
                   "Size " + std::to_string(size)
@@ -237,6 +238,9 @@ auto FPGABatchBuilder::Make(std::shared_ptr<FPGABatchBuilder> *out,
 
   // Construct kernel handler.
   result->kernel = std::make_shared<fletcher::Kernel>(result->context);
+  FLETCHER_ROE(result->kernel->WriteMetaData());
+
+  *out = result;
 
   return Status::OK();
 }
@@ -289,6 +293,7 @@ auto FPGABatchBuilder::Append(const illex::JSONQueueItem &item) -> Status {
 
   FLETCHER_ROE(this->platform->WriteMMIO(INPUT_LASTIDX,
                                          static_cast<int32_t>(item.string.length())));
+  FLETCHER_ROE(this->kernel->Reset());
   FLETCHER_ROE(this->kernel->Start());
   FLETCHER_ROE(this->kernel->PollUntilDone());
 
