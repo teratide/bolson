@@ -6,8 +6,17 @@ RUN apt-get update && \
     apt-get install -y \
     curl cmake g++ make git \
     ca-certificates lsb-release wget gnupg \
-    uuid-dev libjson-c-dev \
+    uuid-dev libjson-c-dev libhwloc-dev libtbb-dev python-dev \
     libzmqpp-dev
+
+ARG OPAE_REF=release/2.0.0
+RUN mkdir -p /opae-sdk/build && \
+    curl -L https://github.com/OPAE/opae-sdk/archive/${OPAE_REF}.tar.gz | tar xz -C /opae-sdk --strip-components=1 && \
+    cd /opae-sdk/build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr .. && \
+    make -j && \
+    make install && \
+    rm -rf /opae-sdk/build
 
 ARG FLETCHER_OPAE_REF=6a06c02a766bb7e6119feb02cce0f718a8fd5416
 RUN mkdir -p /fletcher-opae && \
