@@ -149,7 +149,7 @@ static auto GetPageAlignedBuffer(uint8_t **buffer, size_t size) -> Status {
   int pmar = posix_memalign(reinterpret_cast<void **>(buffer),
                             sysconf(_SC_PAGESIZE),
                             size);
-  if (pmar == 0) {
+  if (pmar != 0) {
     return Status(Error::FPGAError, "Unable to allocate aligned buffer.");
   }
   std::memset(*buffer, '0', size);
