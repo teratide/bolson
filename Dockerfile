@@ -3,19 +3,36 @@ FROM ubuntu:focal
 ENV DEBIAN_FRONTEND noninteractive
 
 RUN apt-get update && \
-    apt-get install -y g++ make cmake curl ca-certificates lsb-release wget gnupg git && \
-    wget https://apache.bintray.com/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-archive-keyring-latest-$(lsb_release --codename --short).deb && \
+    apt-get install -y \
+    curl cmake g++ make git \
+    ca-certificates lsb-release wget gnupg \
+    uuid-dev libjson-c-dev \
+    libzmqpp-dev
+
+ARG FLETCHER_OPAE_REF=6a06c02a766bb7e6119feb02cce0f718a8fd5416
+RUN mkdir -p /fletcher-opae && \
+    curl -L https://github.com/teratide/fletcher-opae/archive/${FLETCHER_OPAE_REF}.tar.gz | tar xz -C /fletcher-opae --strip-components=1 && \
+    cd /fletcher-opae && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr . && \
+    make -j && \
+    make install && \
+    rm -rf /fletcher-opae
+
+ARG ARROW_VERSION=1.0.1
+ARG PULSAR_VERSION=2.6.0
+
+RUN wget https://apache.bintray.com/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-archive-keyring-latest-$(lsb_release --codename --short).deb && \
     dpkg -i apache-arrow-archive-keyring-latest-$(lsb_release --codename --short).deb && \
     apt-get update && \
-    apt-get install -y libarrow-dev && \
-    curl -L -O https://downloads.apache.org/pulsar/pulsar-2.6.0/DEB/apache-pulsar-client.deb && \
+    apt-get install -y libarrow-dev=${ARROW_VERSION}-1 && \
+    curl -L -O https://downloads.apache.org/pulsar/pulsar-${PULSAR_VERSION}/DEB/apache-pulsar-client.deb && \
     dpkg -i apache-pulsar-client.deb && \
-    curl -L -O https://downloads.apache.org/pulsar/pulsar-2.6.0/DEB/apache-pulsar-client-dev.deb && \
-    dpkg -i apache-pulsar-client-dev.deb && \
-    apt-get install -y libzmqpp-dev
+    curl -L -O https://downloads.apache.org/pulsar/pulsar-${PULSAR_VERSION}/DEB/apache-pulsar-client-dev.deb && \
+    dpkg -i apache-pulsar-client-dev.deb
 
-ADD . /src
+# ADD . /src
 
-WORKDIR /src/release
-RUN cmake -DCMAKE_BUILD_TYPE=Release /src && \
-    make -j
+# WORKDIR /src/release
+# RUN cmake /src && \ 
+#     #-DCMAKE_BUILD_TYPE=Release /src && \
+#     make -j

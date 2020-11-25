@@ -22,6 +22,7 @@
 #include "bolson/log.h"
 #include "bolson/cli.h"
 #include "bolson/status.h"
+#include "bolson/stream.h"
 
 namespace bolson {
 
@@ -132,6 +133,11 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   sub_stream->add_option("--seq",
                          out->stream.seq,
                          "Starting sequence number, 64-bit unsigned integer.")->default_val(0);
+  std::map<std::string, convert::Impl> conversion_map{{"cpu", convert::Impl::CPU}, {"fpga", convert::Impl::FPGA}};
+  sub_stream->add_option("--conversion", 
+                         out->stream.conversion, 
+                         "Conversion method")->transform(CLI::CheckedTransformer(conversion_map, CLI::ignore_case))
+                                             ->default_val(convert::Impl::CPU);
   //auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
   AddStatsOpts(sub_stream, &csv);
   AddArrowOpts(sub_stream, &schema_file);
