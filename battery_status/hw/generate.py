@@ -7,6 +7,8 @@ input_schema = pa.schema([
     b'fletcher_name': b'input'
 })
 
+pa.output_stream("in.as").write(input_schema.serialize())
+
 with pa.RecordBatchFileWriter('in.rb', input_schema) as writer:
     writer.write(
         pa.RecordBatch.from_arrays(
