@@ -35,6 +35,7 @@ auto main(int argc, char *argv[]) -> int {
         break;
       case bolson::SubCommand::BENCH: status = bolson::RunBench(opts.bench);
         break;
+      case bolson::SubCommand::NONE: break;
     }
   }
 

@@ -25,19 +25,20 @@
 
 namespace bolson {
 
-enum class SubCommand { FILE, STREAM, BENCH };
+enum class SubCommand { NONE, FILE, STREAM, BENCH };
 
 /// \brief Application options.
 struct AppOptions {
   /// The name of the application.
   constexpr static auto name = "bolson";
   /// A description of the application.
-  constexpr static auto desc = "Converting JSONs to Arrow IPC messages that get sent to Pulsar.";
+  constexpr static auto
+      desc = "Converting JSONs to Arrow IPC messages that get sent to Pulsar.";
 
   /// \brief Populate an instance of the application options based on CLI arguments.
   static auto FromArguments(int argc, char *argv[], AppOptions *out) -> Status;
 
-  SubCommand sub;
+  SubCommand sub = SubCommand::NONE;
 
   FileOptions file;
   StreamOptions stream;
