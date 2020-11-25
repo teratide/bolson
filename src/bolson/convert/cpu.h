@@ -22,16 +22,11 @@
 #include <illex/queue.h>
 #include <blockingconcurrentqueue.h>
 
+#include "bolson/convert/convert.h"
 #include "bolson/status.h"
 #include "bolson/stream.h"
 
 namespace bolson::convert {
-
-// Sequence number field.
-static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
-  static auto seq_field = arrow::field("seq", arrow::uint64(), false);
-  return seq_field;
-}
 
 /// Class to support incremental building up of a RecordBatch from JSONQueueItems.
 class BatchBuilder {

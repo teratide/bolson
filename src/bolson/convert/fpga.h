@@ -20,8 +20,12 @@
 #include <fletcher/fletcher.h>
 #include <fletcher/context.h>
 #include <fletcher/platform.h>
+#include <fletcher/kernel.h>
 
 #include "bolson/stream.h"
+
+#define FPGA_PLATFORM "opae"
+#define AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5eed"
 
 namespace bolson::convert {
 
@@ -29,7 +33,7 @@ namespace bolson::convert {
 class FPGABatchBuilder {
  public:
   static auto Make(std::shared_ptr<FPGABatchBuilder> *out,
-                   std::string afu_id,
+                   std::string afu_id = AFU_ID,
                    size_t input_capacity = 1024 * 1024,
                    size_t output_capacity_off = 1024 * 1024,
                    size_t output_capacity_val = 16 * 1024 * 1024) -> Status;
@@ -50,7 +54,7 @@ class FPGABatchBuilder {
   auto Finish() -> IpcQueueItem;
 
  protected:
-  explicit FPGABatchBuilder(std::string afu_id) : afu_id_(std::move(afu_id)) {}
+  explicit FPGABatchBuilder(std::string afu_id) : afu_id_(afu_id) {}
  private:
   std::string afu_id_;
   /// A vector to hold RecordBatches that we collapse into a single RecordBatch when we finish this builder.
@@ -60,6 +64,13 @@ class FPGABatchBuilder {
 
   std::shared_ptr<fletcher::Platform> platform;
   std::shared_ptr<fletcher::Context> context;
+  std::shared_ptr<fletcher::Kernel> kernel;
+
+  std::shared_ptr<arrow::RecordBatch> input;
+  uint8_t *input_raw;
+  std::shared_ptr<arrow::RecordBatch> output;
+  uint8_t *output_off_raw;
+  uint8_t *output_val_raw;
 };
 
 void ConvertWithFPGA(illex::JSONQueue *in,

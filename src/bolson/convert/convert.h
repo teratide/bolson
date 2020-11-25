@@ -16,6 +16,13 @@
 
 #include "bolson/status.h"
 
+/// Convert Arrow status and return on error.
+#define ARROW_ROE(s) {                                                  \
+  const auto& status = s;                                               \
+  if (!status.ok()) return Status(Error::ArrowError, status.ToString());\
+}                                                                       \
+void()
+
 namespace bolson::convert {
 
 /// Statistics from the conversion drone.
@@ -40,5 +47,11 @@ enum class Impl {
   CPU,
   FPGA
 };
+
+// Sequence number field.
+static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
+  static auto seq_field = arrow::field("seq", arrow::uint64(), false);
+  return seq_field;
+}
 
 }

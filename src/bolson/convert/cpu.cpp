@@ -25,13 +25,6 @@
 #include "bolson/log.h"
 #include "bolson/utils.h"
 
-/// Convert Arrow status and return on error.
-#define ARROW_ROE(s) {                                                  \
-  const auto& status = s;                                               \
-  if (!status.ok()) return Status(Error::ArrowError, status.ToString());\
-}                                                                       \
-void()
-
 namespace bolson::convert {
 
 static void ConversionDroneThread(size_t id,
