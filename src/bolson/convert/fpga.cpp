@@ -131,7 +131,12 @@ void ConvertWithFPGA(illex::JSONQueue *in,
 // This is required to be able to pass it to Fletcher.
 
 static auto input_schema() -> std::shared_ptr<arrow::Schema> {
-  static auto result = arrow::schema({arrow::field("input", arrow::uint8(), false)});
+  static auto result = fletcher::WithMetaRequired(
+      *arrow::schema({arrow::field("input",
+                                   arrow::uint8(),
+                                   false)}),
+      "input",
+      fletcher::Mode::READ);
   return result;
 }
 
@@ -141,13 +146,23 @@ static auto output_type() -> std::shared_ptr<arrow::DataType> {
 }
 
 static auto output_schema() -> std::shared_ptr<arrow::Schema> {
-  static auto result = arrow::schema({arrow::field("voltage", output_type(), false)});
+  static auto result = fletcher::WithMetaRequired(
+      *arrow::schema({arrow::field("voltage", output_type(), false)}),
+      "output",
+      fletcher::Mode::WRITE);
   return result;
 }
 
 static auto GetPageAlignedBuffer(uint8_t **buffer, size_t size) -> Status {
+  size_t page_size = sysconf(_SC_PAGESIZE);
+  if (size % page_size != 0) {
+    return Status(Error::FPGAError,
+                  "Size " + std::to_string(size)
+                      + " is not integer multiple of page size "
+                      + std::to_string(page_size));
+  }
   int pmar = posix_memalign(reinterpret_cast<void **>(buffer),
-                            sysconf(_SC_PAGESIZE),
+                            page_size,
                             size);
   if (pmar != 0) {
     return Status(Error::FPGAError, "Unable to allocate aligned buffer.");
@@ -175,8 +190,8 @@ static auto PrepareOutputBatch(std::shared_ptr<arrow::RecordBatch> *out,
   BOLSON_ROE(GetPageAlignedBuffer(output_off_raw, offsets_size));
   BOLSON_ROE(GetPageAlignedBuffer(output_val_raw, values_size));
 
-  auto offset_buffer = std::make_shared<arrow::Buffer>(*output_off_raw, offsets_size);
-  auto values_buffer = std::make_shared<arrow::Buffer>(*output_val_raw, values_size);
+  auto offset_buffer = arrow::Buffer::Wrap(*output_off_raw, offsets_size);
+  auto values_buffer = arrow::Buffer::Wrap(*output_val_raw, values_size);
   auto values_array =
       std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, values_buffer);
   auto list_array = std::make_shared<arrow::ListArray>(output_type(),
@@ -184,7 +199,7 @@ static auto PrepareOutputBatch(std::shared_ptr<arrow::RecordBatch> *out,
                                                        offset_buffer,
                                                        values_array);
   std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
-  auto output_batch = arrow::RecordBatch::Make(output_schema(), 0, arrays);
+  *out = arrow::RecordBatch::Make(output_schema(), 0, arrays);
 
   return Status::OK();
 }
@@ -197,14 +212,6 @@ auto FPGABatchBuilder::Make(std::shared_ptr<FPGABatchBuilder> *out,
   auto
       result = std::shared_ptr<FPGABatchBuilder>(new FPGABatchBuilder(std::move(afu_id)));
 
-  FLETCHER_ROE(fletcher::Platform::Make(FPGA_PLATFORM, &result->platform, false));
-
-  char *fu_id = result->afu_id_.data();
-  result->platform->init_data = &fu_id;
-  FLETCHER_ROE(result->platform->Init());
-
-  FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));
-
   // Prepare input and output batch.
   BOLSON_ROE(PrepareInputBatch(&result->input, &result->input_raw, input_capacity));
   BOLSON_ROE(PrepareOutputBatch(&result->output,
@@ -212,6 +219,14 @@ auto FPGABatchBuilder::Make(std::shared_ptr<FPGABatchBuilder> *out,
                                 &result->output_val_raw,
                                 output_capacity_off,
                                 output_capacity_val));
+
+  FLETCHER_ROE(fletcher::Platform::Make(FPGA_PLATFORM, &result->platform, false));
+
+  char *fu_id = result->afu_id_.data();
+  result->platform->init_data = &fu_id;
+  FLETCHER_ROE(result->platform->Init());
+
+  FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));
 
   // Queue batches.
   FLETCHER_ROE(result->context->QueueRecordBatch(result->input));
