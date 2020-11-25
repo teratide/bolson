@@ -15,16 +15,22 @@
 #pragma once
 
 #include <memory>
+#include <future>
 #include <arrow/api.h>
 #include <pulsar/Client.h>
 #include <pulsar/Producer.h>
 #include <putong/timer.h>
+#include <blockingconcurrentqueue.h>
 
 #include "bolson/log.h"
 #include "bolson/status.h"
-#include "bolson/converter.h"
+#include "bolson/convert/convert.h"
 
 namespace bolson {
+
+// Forward decls:
+struct IpcQueueItem;
+using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;
 
 /// Pulsar default max message size (from an obscure place in the Pulsar sources)
 constexpr size_t PULSAR_DEFAULT_MAX_MESSAGE_SIZE = 5 * 1024 * 1024 - 10 * 1024;
@@ -84,7 +90,7 @@ auto Publish(pulsar::Producer *producer,
  * \brief A thread to pull IPC messages from the queue and publish them to some Pulsar queue.
  * \param pulsar            Pulsar client and producer.
  * \param in                Incoming queue with IPC messages.
- * \param shutdown              If this is true, this thread will try to terminate.
+ * \param shutdown          If this is true, this thread will try to terminate.
  * \param count             The number of published messages.
  * \param latency_timer     An optional latency timer that is stopped just before the first Pulsar message is sent.
  * \param stats             Statistics about this thread.

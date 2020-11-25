@@ -17,12 +17,25 @@
 #include <utility>
 #include <variant>
 
+#include <blockingconcurrentqueue.h>
 #include <illex/protocol.h>
 #include <arrow/json/api.h>
 
 #include "bolson/pulsar.h"
+#include "bolson/convert/convert.h"
 
 namespace bolson {
+
+/// An item in the IPC queue.
+struct IpcQueueItem {
+  /// Number of rows (i.e. converted JSONs) contained in the RecordBatch of this message.
+  size_t num_rows;
+  /// The IPC message itself.
+  std::shared_ptr<arrow::Buffer> ipc;
+};
+
+/// A queue with Arrow IPC messages.
+using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;
 
 /// Stream subcommand options.
 struct StreamOptions {
@@ -47,6 +60,8 @@ struct StreamOptions {
   bool statistics = true;
   /// Whether to produce succinct statistics.
   bool succinct = false;
+  /// The converter implementation to use.
+  convert::Impl conversion;
 };
 
 /**

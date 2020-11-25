@@ -35,7 +35,8 @@ enum class Error {
   IllexError,
   RapidJSONError,
   ArrowError,
-  IOError
+  IOError,
+  FPGAError
 };
 
 using Status = putong::Status<Error>;

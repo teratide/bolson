@@ -21,7 +21,7 @@
 #include <illex/queue.h>
 #include <putong/putong.h>
 
-#include "bolson/converter.h"
+#include "bolson/convert/cpu.h"
 #include "bolson/log.h"
 #include "bolson/utils.h"
 
@@ -32,11 +32,11 @@
 }                                                                       \
 void()
 
-namespace bolson {
+namespace bolson::convert {
 
 static void ConversionDroneThread(size_t id,
                                   std::atomic<bool> *shutdown,
-                                  std::promise<ConversionStats> &&stats_promise,
+                                  std::promise<Stats> &&stats_promise,
                                   illex::JSONQueue *in,
                                   IpcQueue *out,
                                   const arrow::json::ParseOptions &parse_options,
@@ -52,7 +52,7 @@ static void ConversionDroneThread(size_t id,
   BatchBuilder builder(parse_options);
 
   // Prepare statistics
-  ConversionStats stats;
+  Stats stats;
 
   // Reserve a queue item
   illex::JSONQueueItem json_item;
@@ -64,7 +64,8 @@ static void ConversionDroneThread(size_t id,
   // Loop until thread is stopped.
   while (!shutdown->load()) {
     // Attempt to dequeue an item if the size of the current RecordBatches is not larger than the limit.
-    if (attempt_dequeue && in->wait_dequeue_timed(json_item, std::chrono::microseconds(1))) {
+    if (attempt_dequeue
+        && in->wait_dequeue_timed(json_item, std::chrono::microseconds(1))) {
       // There is a JSON.
       SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
       // Convert the JSON.
@@ -76,7 +77,8 @@ static void ConversionDroneThread(size_t id,
       convert_timer.Stop();
       // Check if threshold was reached.
       if (builder.size() >= batch_threshold) {
-        SPDLOG_DEBUG("Size of batches has reached threshold. Current size: {} bytes", builder.size());
+        SPDLOG_DEBUG("Size of batches has reached threshold. Current size: {} bytes",
+                     builder.size());
         // We reached the threshold, so in the next iteration, just send off the RecordBatch.
         attempt_dequeue = false;
       }
@@ -116,17 +118,17 @@ static void ConversionDroneThread(size_t id,
   SPDLOG_DEBUG("Drone {} Terminating.", id);
 }
 
-void ConversionHiveThread(illex::JSONQueue *in,
-                          IpcQueue *out,
-                          std::atomic<bool> *shutdown,
-                          size_t num_drones,
-                          const arrow::json::ParseOptions &parse_options,
-                          size_t batch_threshold,
-                          std::promise<std::vector<ConversionStats>> &&stats) {
+void ConvertWithCPU(illex::JSONQueue *in,
+                    IpcQueue *out,
+                    std::atomic<bool> *shutdown,
+                    size_t num_drones,
+                    const arrow::json::ParseOptions &parse_options,
+                    size_t batch_threshold,
+                    std::promise<std::vector<Stats>> &&stats) {
   // Reserve some space for the thread handles and futures.
   std::vector<std::thread> threads;
-  std::vector<std::future<ConversionStats>> futures;
-  std::vector<ConversionStats> threads_stats(num_drones);
+  std::vector<std::future<Stats>> futures;
+  std::vector<Stats> threads_stats(num_drones);
   threads.reserve(num_drones);
   futures.reserve(num_drones);
 
@@ -135,7 +137,7 @@ void ConversionHiveThread(illex::JSONQueue *in,
   // Start the conversion threads.
   for (int thread = 0; thread < num_drones; thread++) {
     // Prepare the future/promise.
-    std::promise<ConversionStats> promise_stats;
+    std::promise<Stats> promise_stats;
     futures.push_back(promise_stats.get_future());
     threads.emplace_back(ConversionDroneThread,
                          thread,
@@ -166,7 +168,8 @@ void ConversionHiveThread(illex::JSONQueue *in,
 auto BatchBuilder::Append(const illex::JSONQueueItem &item) -> Status {
   // Wrap Arrow buffer around the JSON string so we can parse it using Arrow.
   auto buffer_wrapper =
-      std::make_shared<arrow::Buffer>(reinterpret_cast<const uint8_t *>(item.string.data()), item.string.length());
+      std::make_shared<arrow::Buffer>(reinterpret_cast<const uint8_t *>(item.string.data()),
+                                      item.string.length());
   // The following code could be better because it seems like:
   // - it always delivers a chunked table
   // - we cannot reuse the internal builders for new JSONs that are being dequeued, we can only read once.
@@ -227,7 +230,8 @@ auto BatchBuilder::Finish() -> IpcQueueItem {
   if (batches.size() == 1) {
     combined_batch = batches[0];
   } else {
-    auto packed_table = arrow::Table::FromRecordBatches(batches).ValueOrDie()->CombineChunks().ValueOrDie();
+    auto packed_table =
+        arrow::Table::FromRecordBatches(batches).ValueOrDie()->CombineChunks().ValueOrDie();
     auto table_reader = arrow::TableBatchReader(*packed_table);
     combined_batch = table_reader.Next().ValueOrDie();
   }
@@ -236,7 +240,8 @@ auto BatchBuilder::Finish() -> IpcQueueItem {
   // Convert to Arrow IPC message.
   auto ipc_item = IpcQueueItem{
       static_cast<size_t>(combined_batch->num_rows()),
-      arrow::ipc::SerializeRecordBatch(*combined_batch, arrow::ipc::IpcWriteOptions::Defaults()).ValueOrDie()
+      arrow::ipc::SerializeRecordBatch(*combined_batch,
+                                       arrow::ipc::IpcWriteOptions::Defaults()).ValueOrDie()
   };
 
   this->Reset();

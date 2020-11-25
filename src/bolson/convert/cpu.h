@@ -23,37 +23,9 @@
 #include <blockingconcurrentqueue.h>
 
 #include "bolson/status.h"
+#include "bolson/stream.h"
 
-namespace bolson {
-
-/// An item in the IPC queue.
-struct IpcQueueItem {
-  /// Number of rows (i.e. converted JSONs) contained in the RecordBatch of this message.
-  size_t num_rows;
-  /// The IPC message itself.
-  std::shared_ptr<arrow::Buffer> ipc;
-};
-
-/// A queue with Arrow IPC messages.
-using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;
-
-/// Statistics from the conversion drone.
-struct ConversionStats {
-  /// Number of converted JSONs.
-  size_t num_jsons = 0;
-  /// Number of IPC messages.
-  size_t num_ipc = 0;
-  /// Number of bytes in the IPC messages.
-  size_t total_ipc_bytes = 0;
-  /// Total time spent on conversion only.
-  double convert_time = 0.0;
-  /// Total time spent on IPC construction only.
-  double ipc_construct_time = 0.0;
-  /// Total time spent in this thread.
-  double thread_time = 0.0;
-  /// Status about the conversion.
-  Status status = Status::OK();
-};
+namespace bolson::convert {
 
 // Sequence number field.
 static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
@@ -64,7 +36,8 @@ static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
 /// Class to support incremental building up of a RecordBatch from JSONQueueItems.
 class BatchBuilder {
  public:
-  explicit BatchBuilder(arrow::json::ParseOptions parse_options) : parse_options(std::move(parse_options)) {}
+  explicit BatchBuilder(arrow::json::ParseOptions parse_options)
+      : parse_options(std::move(parse_options)) {}
 
   /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
   [[nodiscard]] auto size() const -> size_t { return size_; }
@@ -100,12 +73,12 @@ class BatchBuilder {
  * \param parse_options     The JSON parsing options for Arrow.
  * \param stats             Statistics for each conversion thread.
  */
-void ConversionHiveThread(illex::JSONQueue *in,
-                          IpcQueue *out,
-                          std::atomic<bool> *shutdown,
-                          size_t num_drones,
-                          const arrow::json::ParseOptions &parse_options,
-                          size_t batch_threshold,
-                          std::promise<std::vector<ConversionStats>> &&stats);
+void ConvertWithCPU(illex::JSONQueue *in,
+                    IpcQueue *out,
+                    std::atomic<bool> *shutdown,
+                    size_t num_drones,
+                    const arrow::json::ParseOptions &parse_options,
+                    size_t batch_threshold,
+                    std::promise<std::vector<convert::Stats>> &&stats);
 
 }

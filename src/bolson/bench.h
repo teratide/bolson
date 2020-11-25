@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include <arrow/json/api.h>
 #include <putong/timer.h>
 #include <illex/protocol.h>
+#include <illex/document.h>
 
 #include "bolson/pulsar.h"
 #include "bolson/status.h"

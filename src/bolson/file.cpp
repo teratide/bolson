@@ -16,10 +16,9 @@
 #include <rapidjson/document.h>
 #include <putong/timer.h>
 
-#include "./utils.h"
-#include "./file.h"
-#include "./pulsar.h"
-#include "./converter.h"
+#include "bolson/utils.h"
+#include "bolson/file.h"
+#include "bolson/pulsar.h"
 
 namespace fs = std::filesystem;
 namespace pt = putong;

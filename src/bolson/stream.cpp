@@ -20,11 +20,15 @@
 #include <putong/timer.h>
 
 #include "bolson/stream.h"
-#include "bolson/converter.h"
 #include "bolson/pulsar.h"
 #include "bolson/status.h"
+#include "bolson/convert/convert.h"
+#include "bolson/convert/cpu.h"
+#include "bolson/convert/fpga.h"
 
 namespace bolson {
+
+using convert::Stats;
 
 /// Structure to hold timers.
 struct StreamTimers {
@@ -49,8 +53,8 @@ struct StreamThreads {
 };
 
 /// \brief Aggregate statistics for every thread.
-static auto AggrStats(const std::vector<ConversionStats> &conv_stats) -> ConversionStats {
-  ConversionStats all_conv_stats;
+static auto AggrStats(const std::vector<Stats> &conv_stats) -> Stats {
+  Stats all_conv_stats;
   for (const auto &t : conv_stats) {
     // TODO: overload +
     all_conv_stats.num_jsons += t.num_jsons;
@@ -65,7 +69,7 @@ static auto AggrStats(const std::vector<ConversionStats> &conv_stats) -> Convers
 /// \brief Stream succinct CSV-like stats to some output stream.
 static void OutputCSVStats(const StreamTimers &timers,
                            const illex::RawClient &client,
-                           const std::vector<ConversionStats> &conv_stats,
+                           const std::vector<Stats> &conv_stats,
                            const PublishStats &pub_stats,
                            std::ostream *output) {
   auto all_conv_stats = AggrStats(conv_stats);
@@ -75,7 +79,9 @@ static void OutputCSVStats(const StreamTimers &timers,
   (*output) << all_conv_stats.num_jsons << ",";
   //(*output) << all_conv_stats.num_ipc << ","; // this one is redundant
   (*output) << all_conv_stats.total_ipc_bytes << ",";
-  (*output) << static_cast<double>(all_conv_stats.total_ipc_bytes) / all_conv_stats.num_jsons << ",";
+  (*output)
+      << static_cast<double>(all_conv_stats.total_ipc_bytes) / all_conv_stats.num_jsons
+      << ",";
   (*output) << all_conv_stats.convert_time / all_conv_stats.num_jsons << ",";
   (*output) << all_conv_stats.thread_time / all_conv_stats.num_jsons << ",";
   (*output) << pub_stats.num_published << ",";
@@ -87,16 +93,18 @@ static void OutputCSVStats(const StreamTimers &timers,
 /// \brief Log the statistics.
 static void LogStats(const StreamTimers &timers,
                      const illex::RawClient &client,
-                     const std::vector<ConversionStats> &conv_stats,
+                     const std::vector<Stats> &conv_stats,
                      const PublishStats &pub_stats) {
   auto all = AggrStats(conv_stats);
   spdlog::info("Initialization stats:");
   spdlog::info("  Initialization time : {}", timers.init.seconds());
   spdlog::info("TCP stats:");
   spdlog::info("  Received {} JSONs over TCP.", client.received());
-  spdlog::info("  Bytes received      : {} MiB", static_cast<double>(client.bytes_received()) / (1024.0 * 1024.0));
+  spdlog::info("  Bytes received      : {} MiB",
+               static_cast<double>(client.bytes_received()) / (1024.0 * 1024.0));
   spdlog::info("  Client receive time : {} s", timers.tcp.seconds());
-  spdlog::info("  Throughput          : {} MB/s", client.bytes_received() / timers.tcp.seconds() * 1E-6);
+  spdlog::info("  Throughput          : {} MB/s",
+               client.bytes_received() / timers.tcp.seconds() * 1E-6);
 
   spdlog::info("Conversion stats:");
   spdlog::info("  JSONs converted     : {}", all.num_jsons);
@@ -110,7 +118,8 @@ static void LogStats(const StreamTimers &timers,
 
   spdlog::info("Publish stats:");
   spdlog::info("  IPC messages        : {}", pub_stats.num_published);
-  spdlog::info("  Avg. publish time   : {} us.", 1E6 * pub_stats.publish_time / pub_stats.num_published);
+  spdlog::info("  Avg. publish time   : {} us.",
+               1E6 * pub_stats.publish_time / pub_stats.num_published);
   spdlog::info("  Publish thread time : {} s", pub_stats.thread_time);
 
   spdlog::info("Latency stats:");
@@ -151,7 +160,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     IpcQueue arrow_ipc_queue;
 
     // Set up futures for statistics delivered by threads.
-    std::promise<std::vector<ConversionStats>> conv_stats_promise;
+    std::promise<std::vector<Stats>> conv_stats_promise;
     auto conv_stats_future = conv_stats_promise.get_future();
     std::promise<PublishStats> pub_stats_promise;
     auto pub_stats_future = pub_stats_promise.get_future();
@@ -159,14 +168,27 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Spawn two threads:
     // The conversion thread spawns one or multiple drone threads that convert JSONs to Arrow IPC messages and queues
     // them.
-    threads.converter_thread = std::make_unique<std::thread>(ConversionHiveThread,
-                                                             &raw_json_queue,
-                                                             &arrow_ipc_queue,
-                                                             &threads.shutdown,
-                                                             opt.num_threads,
-                                                             opt.parse,
-                                                             opt.batch_threshold,
-                                                             std::move(conv_stats_promise));
+    switch (opt.conversion) {
+      case convert::Impl::CPU:
+        threads.converter_thread = std::make_unique<std::thread>(convert::ConvertWithCPU,
+                                                                 &raw_json_queue,
+                                                                 &arrow_ipc_queue,
+                                                                 &threads.shutdown,
+                                                                 opt.num_threads,
+                                                                 opt.parse,
+                                                                 opt.batch_threshold,
+                                                                 std::move(
+                                                                     conv_stats_promise));
+        break;
+      case convert::Impl::FPGA:
+        threads.converter_thread = std::make_unique<std::thread>(convert::ConvertWithFPGA,
+                                                                 &raw_json_queue,
+                                                                 &arrow_ipc_queue,
+                                                                 &threads.shutdown,
+                                                                 opt.batch_threshold,
+                                                                 std::move(
+                                                                     conv_stats_promise));
+    }
 
     // The publish thread pull from the Arrow IPC queue, fed by the conversion thread, and publish them in Pulsar.
     threads.publish_thread = std::make_unique<std::thread>(PublishThread,
@@ -198,7 +220,8 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Once the server disconnects, we can work towards finishing down this function. Wait until all JSONs have been
     // published, or if either the publish or converter thread have asserted the shutdown signal. The latter indicates
     // some error.
-    while ((client.received() != threads.publish_count.load()) && !threads.shutdown.load()) {
+    while ((client.received() != threads.publish_count.load())
+        && !threads.shutdown.load()) {
       // TODO: use some conditional variable for this
       // Sleep this thread for a bit.
       std::this_thread::sleep_for(std::chrono::milliseconds(1));

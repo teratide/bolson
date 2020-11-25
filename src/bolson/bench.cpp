@@ -21,7 +21,8 @@
 #include "bolson/bench.h"
 #include "bolson/status.h"
 #include "bolson/pulsar.h"
-#include "bolson/converter.h"
+#include "bolson/convert/cpu.h"
+#include "bolson/convert/convert.h"
 
 namespace bolson {
 
@@ -38,7 +39,7 @@ auto BenchConvertSingleThread(const ConvertBenchOptions &opt,
   std::vector<IpcQueueItem> ipc_messages;
   ipc_messages.reserve(opt.num_jsons);
 
-  BatchBuilder builder(opt.parse);
+  convert::BatchBuilder builder(opt.parse);
   t->Start();
   for (size_t i = 0; i < opt.num_jsons; i++) {
     illex::JSONQueueItem json_item;
@@ -61,14 +62,14 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
                              size_t *ipc_size,
                              illex::JSONQueue *json_queue,
                              IpcQueue *ipc_queue) -> Status {
-  std::promise<std::vector<ConversionStats>> promise_stats;
+  std::promise<std::vector<convert::Stats>> promise_stats;
   std::atomic<bool> shutdown = false;
   auto future_stats = promise_stats.get_future();
   size_t num_rows = 0;
   IpcQueueItem ipc_item;
 
   t->Start();
-  std::thread conversion_thread(ConversionHiveThread,
+  std::thread conversion_thread(convert::ConvertWithCPU,
                                 json_queue,
                                 ipc_queue,
                                 &shutdown,
@@ -115,9 +116,11 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   g.Stop();
 
   if (!opt.csv) {
-    spdlog::info("Generated JSONs bytes          : {} MiB", static_cast<double>(raw_chars) / (1024 * 1024));
+    spdlog::info("Generated JSONs bytes          : {} MiB",
+                 static_cast<double>(raw_chars) / (1024 * 1024));
     spdlog::info("Generate time                  : {} s", g.seconds());
-    spdlog::info("Generate throughput            : {} MB/s", static_cast<double>(raw_chars) / g.seconds() * 1E-6);
+    spdlog::info("Generate throughput            : {} MB/s",
+                 static_cast<double>(raw_chars) / g.seconds() * 1E-6);
   } else {
     std::cout << raw_chars << "," << g.seconds() << ",";
   }
@@ -133,9 +136,11 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   auto json_queue_size = raw_chars + sizeof(illex::JSONQueueItem) * opt.num_jsons;
 
   if (!opt.csv) {
-    spdlog::info("JSON Queue bytes               : {} MiB", static_cast<double>(json_queue_size) / (1024 * 1024));
+    spdlog::info("JSON Queue bytes               : {} MiB",
+                 static_cast<double>(json_queue_size) / (1024 * 1024));
     spdlog::info("JSON Queue fill time           : {} s", q.seconds());
-    spdlog::info("JSON Queue fill throughput     : {} MB/s", static_cast<double>(json_queue_size) / q.seconds() * 1E-6);
+    spdlog::info("JSON Queue fill throughput     : {} MB/s",
+                 static_cast<double>(json_queue_size) / q.seconds() * 1E-6);
   } else {
     std::cout << json_queue_size << "," << q.seconds();
   }
@@ -151,10 +156,13 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   }
 
   if (!opt.csv) {
-    spdlog::info("IPC bytes                      : {} MiB", static_cast<double>(ipc_size) / (1024 * 1024));
+    spdlog::info("IPC bytes                      : {} MiB",
+                 static_cast<double>(ipc_size) / (1024 * 1024));
     spdlog::info("IPC Convert time               : {} s", c.seconds());
-    spdlog::info("IPC Convert throughput (in)    : {} MB/s", static_cast<double>(json_queue_size) / c.seconds() * 1E-6);
-    spdlog::info("IPC Convert throughput (out)   : {} MB/s", static_cast<double>(ipc_size) / c.seconds() * 1E-6);
+    spdlog::info("IPC Convert throughput (in)    : {} MB/s",
+                 static_cast<double>(json_queue_size) / c.seconds() * 1E-6);
+    spdlog::info("IPC Convert throughput (out)   : {} MB/s",
+                 static_cast<double>(ipc_size) / c.seconds() * 1E-6);
   } else {
     std::cout << ipc_size << "," << c.seconds() << "," << opt.num_threads << std::endl;
   }
@@ -191,11 +199,14 @@ auto BenchPulsar(const PulsarBenchOptions &opt) -> Status {
   free(junk);
 
   if (opt.csv) {
-    std::cout << opt.num_messages << "," << opt.message_size << "," << t.seconds() << std::endl;
+    std::cout << opt.num_messages << "," << opt.message_size << "," << t.seconds()
+              << std::endl;
   } else {
     // Print stats.
     spdlog::info("  Time   : {} s", t.seconds());
-    spdlog::info("  Goodput: {} MB/s", 1E-6 * static_cast<double>(opt.num_messages * opt.message_size) / t.seconds());
+    spdlog::info("  Goodput: {} MB/s",
+                 1E-6 * static_cast<double>(opt.num_messages * opt.message_size)
+                     / t.seconds());
   }
 
   return Status::OK();

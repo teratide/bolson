@@ -13,18 +13,17 @@
 // limitations under the License.
 
 #include <utility>
-#include <arrow/api.h>
 #include <pulsar/Client.h>
 #include <pulsar/ClientConfiguration.h>
 #include <pulsar/Producer.h>
 #include <pulsar/Result.h>
 #include <pulsar/Logger.h>
-#include <pulsar/defines.h>
 #include <putong/timer.h>
 
 #include "bolson/log.h"
 #include "bolson/pulsar.h"
 #include "bolson/status.h"
+#include "bolson/stream.h"
 
 #define CHECK_PULSAR(result) { \
   auto res = result; \

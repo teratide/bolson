@@ -17,6 +17,7 @@
 #include <arrow/api.h>
 #include <arrow/ipc/api.h>
 #include <arrow/io/api.h>
+#include <arrow/json/api.h>
 
 #include "bolson/log.h"
 #include "bolson/cli.h"

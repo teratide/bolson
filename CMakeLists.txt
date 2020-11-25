@@ -63,11 +63,16 @@ FetchContent_MakeAvailable(putong)
 
 # illex
 FetchContent_Declare(illex
-  GIT_REPOSITORY  https://github.com/abs-tudelft/illex
+  GIT_REPOSITORY  https://github.com/teratide/illex
   GIT_TAG         master
 )
 FetchContent_MakeAvailable(illex)
-# add_subdirectory(/home/johan/workspace/tt/illex illex)
+
+FetchContent_Declare(fletcher
+  GIT_REPOSITORY  https://github.com/abs-tudelft/fletcher
+  GIT_TAG         master
+)
+FetchContent_MakeAvailable(fletcher)
 
 add_compile_unit(
   NAME bolson::obj
@@ -80,9 +85,10 @@ add_compile_unit(
     src/bolson/file.cpp
     src/bolson/pulsar.cpp
     src/bolson/cli.cpp
-    src/bolson/converter.cpp
     src/bolson/stream.cpp
     src/bolson/bench.cpp
+    src/bolson/convert/cpu.cpp
+    src/bolson/convert/fpga.cpp
   DEPS
     arrow_shared
     CLI11::CLI11
@@ -93,6 +99,7 @@ add_compile_unit(
     Threads::Threads
     illex::static
     putong
+    fletcher
 )
 
 add_compile_unit(
