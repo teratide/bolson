@@ -18,20 +18,30 @@ template <typename Clock = std::chrono::high_resolution_clock>
 class Timer
 {
 private:
-  typename Clock::time_point start;
-  typename Clock::time_point end;
+  typename Clock::time_point start_point;
+  double accumulator;
+  int count;
 
 public:
-  Timer() : start(Clock::now())
+  Timer() : start_point(Clock::now()), accumulator(0.0), count(0)
   {
+  }
+  void start()
+  {
+    start_point = Clock::now();
   }
   void stop()
   {
-    end = Clock::now();
+    accumulator += std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - start_point).count() * 1.0e-9;
+    count++;
   }
-  double time()
+  double time() const
   {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() * 1.0e-9;
+    return accumulator / count;
+  }
+  void print(const std::string &msg) const
+  {
+    std::printf("%50s: %15.9fs (average over %d iterations)\n", msg.c_str(), time(), count);
   }
 };
 
@@ -39,85 +49,61 @@ int main(int argc, char **argv)
 {
   fletcher::Status status;
 
-  // open fpga handle
-  Timer<> open_fpga_handle;
-
   static const char *guid = AFU_GUID;
   std::shared_ptr<fletcher::Platform> platform;
-  status = fletcher::Platform::Make(PLATFORM, &platform, false);
-  if (!status.ok())
-  {
-    return -1;
-  }
-  platform->init_data = &guid;
-  status = platform->Init();
-  if (!status.ok())
-  {
-    return -1;
-  }
 
-  open_fpga_handle.stop();
-  std::cerr << "open fpga handle: " << open_fpga_handle.time() << " s" << std::endl;
-
-  // close fpga handle
+  // open fpga handle
+  Timer<> open_fpga_handle;
   Timer<> close_fpga_handle;
-  if (!status.ok())
+  for (int i = 0; i < 1000; i++)
   {
-    return -1;
+
+    open_fpga_handle.start();
+    fletcher::Platform::Make(PLATFORM, &platform, false);
+    platform->init_data = &guid;
+    platform->Init();
+    open_fpga_handle.stop();
+
+    close_fpga_handle.start();
+    platform->Terminate();
+    close_fpga_handle.stop();
   }
 
-  close_fpga_handle.stop();
-  std::cerr << "close fpga handle: " << close_fpga_handle.time() << " s" << std::endl;
+  open_fpga_handle.print("Open and init Platform");
+  close_fpga_handle.print("Terminate Platform");
 
   // mmio read -> write -> read latency
-  status = fletcher::Platform::Make(PLATFORM, &platform, false);
-  if (!status.ok())
-  {
-    return -1;
-  }
+  fletcher::Platform::Make(PLATFORM, &platform, false);
   platform->init_data = &guid;
-  status = platform->Init();
-  if (!status.ok())
-  {
-    return -1;
-  }
-
+  platform->Init();
   uint32_t value;
 
-  Timer<> mmio_read;
-  status = platform->ReadMMIO(5, &value);
-  if (!status.ok())
-  {
-    return -1;
-  }
-  mmio_read.stop();
-  std::cerr << "read mmio: " << mmio_read.time() << " s" << std::endl;
-
-  Timer<> mmio_write;
-  status = platform->WriteMMIO(5, 1234);
-  if (!status.ok())
-  {
-    return -1;
-  }
-  mmio_write.stop();
-  std::cerr << "write mmio: " << mmio_write.time() << " s" << std::endl;
-
+  Timer<> read_mmio;
+  Timer<> write_mmio;
   Timer<> read_write_read_mmio;
-  status = platform->ReadMMIO(5, &value);
-  if (!status.ok())
+  for (int i = 0; i < 1000; i++)
   {
-    return -1;
+    read_write_read_mmio.start();
+
+    read_mmio.start();
+    platform->ReadMMIO(5, &value);
+    read_mmio.stop();
+
+    write_mmio.start();
+    platform->WriteMMIO(5, 1234);
+    mmio_write.stop();
+
+    platform->ReadMMIO(5, &value);
+    read_write_read_mmio.stop();
   }
-  status = platform->WriteMMIO(5, 1234);
-  if (!status.ok())
-  {
-    return -1;
-  }
-  status = platform->ReadMMIO(5, &value);
-  if (!status.ok())
-  {
-    return -1;
-  }
-  read_write_read_mmio.stop();
-  std::cerr << "read -> write -> read mmio: " << read_write_read_mmio.time() << " s" << std::endl;
+
+  read_mmio.print("Read MMIO");
+  write_mmio.print("Write MMIO");
+  read_write_read_mmio.print("RWR MMIO");
+
+  // // create context
+  // std::shared_ptr<fletcher::Context> context;
+  // fletcher::Context::Make(&context, platform);
+  // context->QueueRecordBatch(input_batch);
+  // context->QueueRecordBatch(output_batch);
 }
