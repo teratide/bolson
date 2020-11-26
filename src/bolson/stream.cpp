@@ -114,7 +114,7 @@ static void LogStats(const StreamTimers &timers,
   spdlog::info("  Total IPC bytes     : {}", all.total_ipc_bytes);
   spdlog::info("  Avg. IPC bytes/msg  : {}", all.total_ipc_bytes / all.num_ipc);
   spdlog::info("  Avg. conv. time     : {} us.", 1E6 * all.convert_time / all.num_jsons);
-  spdlog::info("  Avg. thread time    : {} s.", all.thread_time / all.num_jsons);
+  spdlog::info("  Avg. thread time    : {} s.", all.thread_time / conv_stats.size());
 
   spdlog::info("Publish stats:");
   spdlog::info("  IPC messages        : {}", pub_stats.num_published);
