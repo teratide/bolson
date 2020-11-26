@@ -363,7 +363,7 @@ auto FPGABatchBuilder::Finish(IpcQueueItem *out) -> Status {
     combined_batch_r = table_reader.Next();
     if (!combined_batch_r.ok()) {
       return Status(Error::ArrowError,
-                    "Could not pack table chunks: "
+                    "Could not combine table chunks: "
                         + combined_batch_r.status().message());
     }
     combined_batch = combined_batch_r.ValueOrDie();
