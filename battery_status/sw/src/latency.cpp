@@ -6,6 +6,11 @@
 
 #include <malloc.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 
 #include <memory>
 #include <iostream>
@@ -13,11 +18,13 @@
 
 #define AFU_GUID "9ca43fb0-c340-4908-b79b-5c89b4ef5eed";
 #define PLATFORM "opae"
-#define MULTIPLE 10
+#define ITER_COUNT 1000
+#define MULTIPLE 32000
+#define HUGE_PAGE_SIZE 1000 * 1024 * 1024
 
-static const std::string TINY_RECORD("{\"voltage\": [1]}");
+static const std::string TINY_RECORD("{\"voltage\": [1], \"asdf\": \"asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf\"}");
 static const std::string SMALL_RECORD("{\"voltage\": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]}");
-static const std::string LARGE_RECORD("{\"voltage\": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]}");
+static const std::string LARGE_RECORD("{\"voltage\": [1234561,1234562,1234563,1234564,1234565,1234566,1234567,1234568,1234569,12345610,12345611,12345612,12345613,12345614,12345615,12345616,12345617,12345618,12345619,12345620,12345621,12345622,12345623,12345624,12345625,12345626,12345627,12345628,12345629,12345630,12345631,12345632,12345633,12345634,12345635,12345636,12345637,12345638,12345639,12345640,12345641,12345642,12345643,12345644,12345645,12345646,12345647,12345648,12345649,12345650,12345651,12345652,12345653,12345654,12345655,12345656,12345657,12345658,12345659,12345660,12345661,12345662,12345663,12345664]}");
 
 template <typename Clock = std::chrono::high_resolution_clock>
 class Timer
@@ -76,6 +83,19 @@ static auto output_schema() -> std::shared_ptr<arrow::Schema>
   return result;
 }
 
+uint8_t *huge_page()
+{
+  // credits: https://github.com/torvalds/linux/blob/master/tools/testing/selftests/vm/map_hugetlb.c
+  void *addr;
+  addr = mmap((void *)(0x0UL), 1000 * 1024 * 1024, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | (30 << 26)), -1, 0);
+  if (addr == MAP_FAILED)
+  {
+    perror("mmap");
+    exit(1);
+  }
+  return (uint8_t *)addr;
+}
+
 int main(int argc, char **argv)
 {
   fletcher::Status status;
@@ -86,7 +106,7 @@ int main(int argc, char **argv)
   // open fpga handle
   Timer<> open_fpga_handle;
   Timer<> close_fpga_handle;
-  for (int i = 0; i < MULTIPLE; i++)
+  for (int i = 0; i < ITER_COUNT; i++)
   {
 
     open_fpga_handle.start();
@@ -112,7 +132,7 @@ int main(int argc, char **argv)
   Timer<> read_mmio;
   Timer<> write_mmio;
   Timer<> read_write_read_mmio;
-  for (int i = 0; i < MULTIPLE; i++)
+  for (int i = 0; i < ITER_COUNT; i++)
   {
     read_write_read_mmio.start();
 
@@ -135,22 +155,24 @@ int main(int argc, char **argv)
   platform->Terminate();
 
   // allocate output buffers
-  size_t buffer_size = 16 * 1024 * 1024;
-  uint8_t *offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(offset_data, 0, buffer_size);
-  auto offset_buffer = std::make_shared<arrow::Buffer>(offset_data, buffer_size);
-  uint8_t *value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
+
+  // uint8_t *offset_data = (uint8_t *)memalign(2 * 1024 * 1024, buffer_size);
+  uint8_t *offset_data = huge_page();
+  memset(offset_data, 0, HUGE_PAGE_SIZE);
+  auto offset_buffer = std::make_shared<arrow::Buffer>(offset_data, HUGE_PAGE_SIZE);
+  uint8_t *value_data = huge_page();
+  // uint8_t *value_data = (uint8_t *)memalign(2 * 1024 * 1024, buffer_size);
+  auto value_buffer = std::make_shared<arrow::Buffer>(value_data, HUGE_PAGE_SIZE);
   auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
   auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, offset_buffer, value_array);
   std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
   auto output_batch = arrow::RecordBatch::Make(output_schema(), 0, arrays);
 
   // tiny record
-  arrow::UInt8Builder tiny_record_builder;
-  tiny_record_builder.AppendValues({TINY_RECORD.begin(), TINY_RECORD.end()});
-  std::shared_ptr<arrow::Array> tiny_record_array;
-  tiny_record_builder.Finish(&tiny_record_array);
+  uint8_t *tiny_record_data = huge_page();
+  memcpy(tiny_record_data, TINY_RECORD.data(), TINY_RECORD.size());
+  auto tiny_record_buffer = std::make_shared<arrow::Buffer>(tiny_record_data, HUGE_PAGE_SIZE);
+  auto tiny_record_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), TINY_RECORD.size(), tiny_record_buffer);
   auto tiny_record_batch = arrow::RecordBatch::Make(input_schema(), TINY_RECORD.size(), {tiny_record_array});
 
   fletcher::Platform::Make(PLATFORM, &platform, false);
@@ -168,7 +190,7 @@ int main(int argc, char **argv)
   Timer<> tiny_record;
   Timer<> kernel_reset;
 
-  for (int i = 0; i < MULTIPLE; i++)
+  for (int i = 0; i < ITER_COUNT; i++)
   {
     tiny_record.start();
     kernel.Start();
@@ -187,10 +209,10 @@ int main(int argc, char **argv)
   platform->Terminate();
 
   // small record
-  arrow::UInt8Builder small_record_builder;
-  small_record_builder.AppendValues({SMALL_RECORD.begin(), SMALL_RECORD.end()});
-  std::shared_ptr<arrow::Array> small_record_array;
-  small_record_builder.Finish(&small_record_array);
+  uint8_t *small_record_data = huge_page();
+  memcpy(small_record_data, SMALL_RECORD.data(), SMALL_RECORD.size());
+  auto small_record_buffer = std::make_shared<arrow::Buffer>(small_record_data, HUGE_PAGE_SIZE);
+  auto small_record_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), SMALL_RECORD.size(), small_record_buffer);
   auto small_record_batch = arrow::RecordBatch::Make(input_schema(), SMALL_RECORD.size(), {small_record_array});
 
   fletcher::Platform::Make(PLATFORM, &platform, false);
@@ -206,7 +228,7 @@ int main(int argc, char **argv)
 
   Timer<> small_record;
 
-  for (int i = 0; i < MULTIPLE; i++)
+  for (int i = 0; i < ITER_COUNT; i++)
   {
     small_record.start();
     kernel.Start();
@@ -220,10 +242,10 @@ int main(int argc, char **argv)
   platform->Terminate();
 
   // large record
-  arrow::UInt8Builder large_record_builder;
-  large_record_builder.AppendValues({LARGE_RECORD.begin(), LARGE_RECORD.end()});
-  std::shared_ptr<arrow::Array> large_record_array;
-  large_record_builder.Finish(&large_record_array);
+  uint8_t *large_record_data = huge_page();
+  memcpy(large_record_data, LARGE_RECORD.data(), LARGE_RECORD.size());
+  auto large_record_buffer = std::make_shared<arrow::Buffer>(large_record_data, HUGE_PAGE_SIZE);
+  auto large_record_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), LARGE_RECORD.size(), large_record_buffer);
   auto large_record_batch = arrow::RecordBatch::Make(input_schema(), LARGE_RECORD.size(), {large_record_array});
 
   fletcher::Platform::Make(PLATFORM, &platform, false);
@@ -239,7 +261,7 @@ int main(int argc, char **argv)
 
   Timer<> large_record;
 
-  for (int i = 0; i < MULTIPLE; i++)
+  for (int i = 0; i < ITER_COUNT; i++)
   {
     large_record.start();
     kernel.Start();
@@ -253,13 +275,14 @@ int main(int argc, char **argv)
   platform->Terminate();
 
   // multiple tiny record
-  arrow::UInt8Builder multiple_tiny_record_builder;
+  uint8_t *multiple_tiny_record_data = huge_page();
+  memcpy(multiple_tiny_record_data, TINY_RECORD.data(), TINY_RECORD.size());
   for (int i = 0; i < MULTIPLE; i++)
   {
-    multiple_tiny_record_builder.AppendValues({TINY_RECORD.begin(), TINY_RECORD.end()});
+    memcpy(multiple_tiny_record_data + i * TINY_RECORD.size(), TINY_RECORD.data(), TINY_RECORD.size());
   }
-  std::shared_ptr<arrow::Array> multiple_tiny_record_array;
-  multiple_tiny_record_builder.Finish(&multiple_tiny_record_array);
+  auto multiple_tiny_record_buffer = std::make_shared<arrow::Buffer>(multiple_tiny_record_data, HUGE_PAGE_SIZE);
+  auto multiple_tiny_record_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), MULTIPLE * TINY_RECORD.size(), multiple_tiny_record_buffer);
   auto multiple_tiny_record_batch = arrow::RecordBatch::Make(input_schema(), MULTIPLE * TINY_RECORD.size(), {multiple_tiny_record_array});
 
   fletcher::Platform::Make(PLATFORM, &platform, false);
@@ -275,7 +298,7 @@ int main(int argc, char **argv)
 
   Timer<> multiple_tiny_record;
 
-  for (int i = 0; i < MULTIPLE; i++)
+  for (int i = 0; i < ITER_COUNT; i++)
   {
     multiple_tiny_record.start();
     kernel.Start();
@@ -284,7 +307,81 @@ int main(int argc, char **argv)
     kernel.Reset();
   }
 
-  multiple_tiny_record.print("Multiple Tiny record");
+  multiple_tiny_record.print("Multiple tiny records");
   std::cerr << MULTIPLE * TINY_RECORD.size() / multiple_tiny_record.time() << " bytes per second" << std::endl;
+  platform->Terminate();
+
+  // multiple small record
+  uint8_t *multiple_small_record_data = huge_page();
+  memcpy(multiple_small_record_data, SMALL_RECORD.data(), SMALL_RECORD.size());
+  for (int i = 0; i < MULTIPLE; i++)
+  {
+    memcpy(multiple_small_record_data + i * SMALL_RECORD.size(), SMALL_RECORD.data(), SMALL_RECORD.size());
+  }
+  auto multiple_small_record_buffer = std::make_shared<arrow::Buffer>(multiple_small_record_data, HUGE_PAGE_SIZE);
+  auto multiple_small_record_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), MULTIPLE * SMALL_RECORD.size(), multiple_small_record_buffer);
+  auto multiple_small_record_batch = arrow::RecordBatch::Make(input_schema(), MULTIPLE * SMALL_RECORD.size(), {multiple_small_record_array});
+
+  fletcher::Platform::Make(PLATFORM, &platform, false);
+  platform->init_data = &guid;
+  platform->Init();
+  fletcher::Context::Make(&context, platform);
+  context->QueueRecordBatch(multiple_small_record_batch);
+  context->QueueRecordBatch(output_batch);
+  context->Enable();
+  std::cerr << std::endl;
+  kernel = fletcher::Kernel(context);
+  kernel.WriteMetaData();
+
+  Timer<> multiple_small_record;
+
+  for (int i = 0; i < ITER_COUNT; i++)
+  {
+    multiple_small_record.start();
+    kernel.Start();
+    kernel.PollUntilDone();
+    multiple_small_record.stop();
+    kernel.Reset();
+  }
+
+  multiple_small_record.print("Multiple small records");
+  std::cerr << MULTIPLE * SMALL_RECORD.size() / multiple_small_record.time() << " bytes per second" << std::endl;
+  platform->Terminate();
+
+  // multiple large record
+  uint8_t *multiple_large_record_data = huge_page();
+  memcpy(multiple_large_record_data, LARGE_RECORD.data(), LARGE_RECORD.size());
+  for (int i = 0; i < MULTIPLE; i++)
+  {
+    memcpy(multiple_large_record_data + i * LARGE_RECORD.size(), LARGE_RECORD.data(), LARGE_RECORD.size());
+  }
+  auto multiple_large_record_buffer = std::make_shared<arrow::Buffer>(multiple_large_record_data, HUGE_PAGE_SIZE);
+  auto multiple_large_record_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), MULTIPLE * LARGE_RECORD.size(), multiple_large_record_buffer);
+  auto multiple_large_record_batch = arrow::RecordBatch::Make(input_schema(), MULTIPLE * LARGE_RECORD.size(), {multiple_large_record_array});
+
+  fletcher::Platform::Make(PLATFORM, &platform, false);
+  platform->init_data = &guid;
+  platform->Init();
+  fletcher::Context::Make(&context, platform);
+  context->QueueRecordBatch(multiple_large_record_batch);
+  context->QueueRecordBatch(output_batch);
+  context->Enable();
+  std::cerr << std::endl;
+  kernel = fletcher::Kernel(context);
+  kernel.WriteMetaData();
+
+  Timer<> multiple_large_record;
+
+  for (int i = 0; i < ITER_COUNT; i++)
+  {
+    multiple_large_record.start();
+    kernel.Start();
+    kernel.PollUntilDone();
+    multiple_large_record.stop();
+    kernel.Reset();
+  }
+
+  multiple_large_record.print("Multiple large records");
+  std::cerr << MULTIPLE * LARGE_RECORD.size() / multiple_large_record.time() << " bytes per second" << std::endl;
   platform->Terminate();
 }
