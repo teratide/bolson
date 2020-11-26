@@ -275,8 +275,10 @@ static Status CopyAndWrapOutput(int32_t num_rows,
   size_t num_values_bytes = num_values * sizeof(uint64_t);
 
   try {
-    auto new_offs = std::shared_ptr(arrow::AllocateBuffer(num_offset_bytes).ValueOrDie());
-    auto new_vals = std::shared_ptr(arrow::AllocateBuffer(num_values_bytes).ValueOrDie());
+    auto new_offs =
+        std::shared_ptr(std::move(arrow::AllocateBuffer(num_offset_bytes).ValueOrDie()));
+    auto new_vals =
+        std::shared_ptr(std::move(arrow::AllocateBuffer(num_values_bytes).ValueOrDie()));
 
     std::memcpy(new_offs->mutable_data(), offsets, num_offset_bytes);
     std::memcpy(new_vals->mutable_data(), values, num_values_bytes);
