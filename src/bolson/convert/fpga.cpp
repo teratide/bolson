@@ -299,7 +299,8 @@ auto FPGABatchBuilder::Append(const illex::JSONQueueItem &item) -> Status {
 
   dau_t result;
   FLETCHER_ROE(this->kernel->GetReturn(&result.lo, &result.hi));
-  uint64_t num_rows = result.full;
+  uint64_t num_rows = result.full - result_counter;
+  result_counter = result.full;
 
   std::shared_ptr<arrow::RecordBatch> batch_result;
   BOLSON_ROE(WrapOutput(num_rows,
