@@ -14,12 +14,33 @@
 #define AFU_GUID "9ca43fb0-c340-4908-b79b-5c89b4ef5eed";
 #define PLATFORM "opae"
 
+template <typename Clock = std::chrono::high_resolution_clock>
+class Timer
+{
+private:
+  typename Clock::time_point start;
+  typename Clock::time_point end;
+
+public:
+  Timer() : start(Clock::now())
+  {
+  }
+  void stop()
+  {
+    end = Clock::now();
+  }
+  double time()
+  {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() * 1.0e-9;
+  }
+};
+
 int main(int argc, char **argv)
 {
   fletcher::Status status;
 
   // open fpga handle
-  auto start = std::chrono::high_resolution_clock::now();
+  Timer<> open_fpga_handle;
 
   static const char *guid = AFU_GUID;
   std::shared_ptr<fletcher::Platform> platform;
@@ -35,21 +56,18 @@ int main(int argc, char **argv)
     return -1;
   }
 
-  auto end = std::chrono::high_resolution_clock::now();
-  auto time = std::chrono::duration_cast<std::chrono::microseconds>(start - end).count();
-  std::cerr << "open fpga handle: " << time << " us" << std::endl;
+  open_fpga_handle.stop();
+  std::cerr << "open fpga handle: " << open_fpga_handle.time() << " s" << std::endl;
 
   // close fpga handle
-  start = std::chrono::high_resolution_clock::now();
-  status = platform->Terminate();
+  Timer<> close_fpga_handle;
   if (!status.ok())
   {
     return -1;
   }
 
-  end = std::chrono::high_resolution_clock::now();
-  time = std::chrono::duration_cast<std::chrono::microseconds>(start - end).count();
-  std::cerr << "close fpga handle: " << time << " us" << std::endl;
+  close_fpga_handle.stop();
+  std::cerr << "close fpga handle: " << close_fpga_handle.time() << " s" << std::endl;
 
   // mmio read -> write -> read latency
   status = fletcher::Platform::Make(PLATFORM, &platform, false);
@@ -66,27 +84,25 @@ int main(int argc, char **argv)
 
   uint32_t value;
 
-  start = std::chrono::high_resolution_clock::now();
+  Timer<> mmio_read;
   status = platform->ReadMMIO(5, &value);
   if (!status.ok())
   {
     return -1;
   }
-  end = std::chrono::high_resolution_clock::now();
-  time = std::chrono::duration_cast<std::chrono::microseconds>(start - end).count();
-  std::cerr << "read mmio: " << time << " us" << std::endl;
+  mmio_read.stop();
+  std::cerr << "read mmio: " << mmio_read.time() << " s" << std::endl;
 
-  start = std::chrono::high_resolution_clock::now();
+  Timer<> mmio_write;
   status = platform->WriteMMIO(5, 1234);
   if (!status.ok())
   {
     return -1;
   }
-  end = std::chrono::high_resolution_clock::now();
-  time = std::chrono::duration_cast<std::chrono::microseconds>(start - end).count();
-  std::cerr << "write mmio: " << time << " us" << std::endl;
+  mmio_write.stop();
+  std::cerr << "write mmio: " << mmio_write.time() << " s" << std::endl;
 
-  start = std::chrono::high_resolution_clock::now();
+  Timer<> read_write_read_mmio;
   status = platform->ReadMMIO(5, &value);
   if (!status.ok())
   {
@@ -102,7 +118,6 @@ int main(int argc, char **argv)
   {
     return -1;
   }
-  end = std::chrono::high_resolution_clock::now();
-  time = std::chrono::duration_cast<std::chrono::microseconds>(start - end).count();
-  std::cerr << "read -> write -> read mmio: " << time << " us" << std::endl;
+  read_write_read_mmio.stop();
+  std::cerr << "read -> write -> read mmio: " << read_write_read_mmio.time() << " s" << std::endl;
 }
