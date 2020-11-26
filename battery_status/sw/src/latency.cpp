@@ -14,6 +14,9 @@
 #define AFU_GUID "9ca43fb0-c340-4908-b79b-5c89b4ef5eed";
 #define PLATFORM "opae"
 
+static const std::string TINY_RECORD("{\"voltage\": [1]}");
+static const std::string SMALL_RECORD("{\"voltage\": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]}");
+
 template <typename Clock = std::chrono::high_resolution_clock>
 class Timer
 {
@@ -44,6 +47,32 @@ public:
     std::printf("%50s: %15.9fs (average over %d iterations)\n", msg.c_str(), time(), count);
   }
 };
+
+static auto input_schema() -> std::shared_ptr<arrow::Schema>
+{
+  static auto result = fletcher::WithMetaRequired(
+      *arrow::schema({arrow::field("input",
+                                   arrow::uint8(),
+                                   false)}),
+      "input",
+      fletcher::Mode::READ);
+  return result;
+}
+
+static auto output_type() -> std::shared_ptr<arrow::DataType>
+{
+  static auto result = arrow::list(arrow::field("item", arrow::uint64(), false));
+  return result;
+}
+
+static auto output_schema() -> std::shared_ptr<arrow::Schema>
+{
+  static auto result = fletcher::WithMetaRequired(
+      *arrow::schema({arrow::field("voltage", output_type(), false)}),
+      "output",
+      fletcher::Mode::WRITE);
+  return result;
+}
 
 int main(int argc, char **argv)
 {
@@ -91,7 +120,7 @@ int main(int argc, char **argv)
 
     write_mmio.start();
     platform->WriteMMIO(5, 1234);
-    mmio_write.stop();
+    write_mmio.stop();
 
     platform->ReadMMIO(5, &value);
     read_write_read_mmio.stop();
@@ -101,9 +130,33 @@ int main(int argc, char **argv)
   write_mmio.print("Write MMIO");
   read_write_read_mmio.print("RWR MMIO");
 
-  // // create context
-  // std::shared_ptr<fletcher::Context> context;
-  // fletcher::Context::Make(&context, platform);
-  // context->QueueRecordBatch(input_batch);
-  // context->QueueRecordBatch(output_batch);
+  // allocate output buffers
+  size_t buffer_size = 4096;
+  uint8_t *offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  memset(offset_data, 0, buffer_size);
+  auto offset_buffer = std::make_shared<arrow::Buffer>(offset_data, buffer_size);
+  uint8_t *value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
+  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, offset_buffer, value_array);
+  std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
+  auto output_batch = arrow::RecordBatch::Make(output_schema(), 0, arrays);
+
+  // create input record batches
+  arrow::UInt8Builder tiny_record;
+  tiny_record.Append({TINY_RECORD.begin(), TINY_RECORD.end()});
+  auto tiny_record_array = tiny_record.Finish();
+  auto tiny_record_batch = arrow::RecordBatch::Make(input_schema(), 1, {tiny_record_array});
+
+  arrow::UInt8Builder small_record;
+  small_record.Append({SMALL_RECORD.begin(), SMALL_RECORD.end()});
+  auto small_record_array = small_record.Finish();
+  auto small_record_batch = arrow::RecordBatch::Make(input_schema(), 1, {small_record_array});
+
+  // create context
+  std::shared_ptr<fletcher::Context> context;
+  fletcher::Context::Make(&context, platform);
+
+  context->QueueRecordBatch(input_batch);
+  context->QueueRecordBatch(output_batch);
 }
