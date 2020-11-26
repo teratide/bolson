@@ -40,7 +40,7 @@ auto BenchConvertSingleThread(const ConvertBenchOptions &opt,
   std::vector<IpcQueueItem> ipc_messages;
   ipc_messages.reserve(opt.num_jsons);
 
-  convert::BatchBuilder builder(opt.parse_opts);
+  convert::ArrowBatchBuilder builder(opt.parse_opts);
   t->Start();
   for (size_t i = 0; i < opt.num_jsons; i++) {
     illex::JSONQueueItem json_item;
@@ -90,6 +90,7 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
                                       json_queue,
                                       ipc_queue,
                                       &shutdown,
+                                      opt.json_threshold,
                                       opt.batch_threshold,
                                       std::move(promise_stats));
       break;

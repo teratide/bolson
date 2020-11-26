@@ -23,6 +23,7 @@
 #include <fletcher/kernel.h>
 
 #include "bolson/stream.h"
+#include "bolson/convert/cpu.h"
 
 #define FPGA_PLATFORM "opae"
 #define AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5eed"
@@ -30,39 +31,26 @@
 namespace bolson::convert {
 
 /// Class to support incremental building up of a RecordBatch from JSONQueueItems.
-class FPGABatchBuilder {
+class FPGABatchBuilder : public BatchBuilder {
  public:
   static auto Make(std::shared_ptr<FPGABatchBuilder> *out,
                    std::string afu_id = AFU_ID,
                    size_t input_capacity = 2 * 1024 * 1024,
                    size_t output_capacity_off = 2 * 1024 * 1024,
-                   size_t output_capacity_val = 2 * 1024 * 1024) -> Status;
+                   size_t output_capacity_val = 2 * 1024 * 1024,
+                   size_t seq_buffer_init_size = 1024,
+                   size_t str_buffer_init_size = 16 * 1024 * 1024) -> Status;
 
-  /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
-  [[nodiscard]] auto size() const -> size_t { return size_; }
-
-  /// \brief Return true if there are no batches in this builder.
-  [[nodiscard]] auto empty() const -> bool { return batches.empty(); }
-
-  /// \brief Take a JSONQueueItem and convert it to an Arrow RecordBatch, and append it to this builder.
-  auto Append(const illex::JSONQueueItem &item) -> Status;
-
-  /// \brief Resets this builder, clearing contained batches. Can be reused afterwards.
-  void Reset();
-
-  /// \brief Finish the builder, resulting in an IPC queue item. This resets the builder, and can be reused afterwards.
-  auto Finish(IpcQueueItem *out) -> Status;
-
-  uint64_t result_counter;
-
-protected:
-  explicit FPGABatchBuilder(std::string afu_id) : afu_id_(std::move(afu_id)) {}
+  auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status override;
+  auto FlushBuffered() -> Status override;
+ protected:
+  explicit FPGABatchBuilder(std::string afu_id,
+                            size_t seq_buf_init_size,
+                            size_t str_buf_init_size)
+      : BatchBuilder(seq_buf_init_size, str_buf_init_size),
+        afu_id_(std::move(afu_id)) {}
  private:
-  /// A vector to hold RecordBatches that we collapse into a single RecordBatch when we finish this builder.
-  std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-  /// Size of the batches so far.
-  size_t size_ = 0;
-
+  uint64_t result_counter = 0;
   std::string afu_id_;
 
   std::shared_ptr<fletcher::Platform> platform;
@@ -79,7 +67,8 @@ protected:
 void ConvertWithFPGA(illex::JSONQueue *in,
                      IpcQueue *out,
                      std::atomic<bool> *shutdown,
+                     size_t json_threshold,
                      size_t batch_threshold,
-                     std::promise<std::vector<Stats>> &&stats);
+                     std::promise<std::vector<Stats>> &&stats_promise);
 
 }

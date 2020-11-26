@@ -31,8 +31,7 @@ namespace bolson::convert {
 /// Class to support incremental building up of a RecordBatch from JSONQueueItems.
 class BatchBuilder {
  public:
-  explicit BatchBuilder(arrow::json::ParseOptions parse_options,
-                        size_t seq_buf_init_size = 1024 * 1024,
+  explicit BatchBuilder(size_t seq_buf_init_size = 1024 * 1024,
                         size_t str_buf_init_size = 1024 * 1024 * 16);
 
   /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
@@ -42,13 +41,13 @@ class BatchBuilder {
   [[nodiscard]] auto empty() const -> bool { return batches.empty(); }
 
   /// \brief Take one JSONQueueItem and convert it to an Arrow RecordBatch, and append it to this builder.
-  auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status;
+  virtual auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status = 0;
 
   /// \brief Take multiple JSONQueueItems and convert them into an Arrow RecordBatch.
   auto Buffer(const illex::JSONQueueItem &item) -> Status;
 
   /// \brief Flush the buffered JSONs and convert them to a single RecordBatch.
-  auto FlushBuffered() -> Status;
+  virtual auto FlushBuffered() -> Status = 0;
 
   inline auto num_buffered() -> size_t { return seq_builder->length(); }
 
@@ -61,9 +60,7 @@ class BatchBuilder {
   /// \brief Return a string with the state of this builder.
   auto ToString() -> std::string;
 
- private:
-  /// Parsing options.
-  arrow::json::ParseOptions parse_options;
+ protected:
   /// A vector to hold RecordBatches that we collapse into a single RecordBatch when we finish this builder.
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
   /// Size of the batches so far.
@@ -72,6 +69,21 @@ class BatchBuilder {
   std::unique_ptr<arrow::UInt64Builder> seq_builder;
   /// Buffered queue items strings
   std::shared_ptr<arrow::ResizableBuffer> str_buffer;
+};
+
+class ArrowBatchBuilder : public BatchBuilder {
+ public:
+  explicit ArrowBatchBuilder(arrow::json::ParseOptions parse_options,
+                             size_t seq_buf_init_size = 1024 * 1024,
+                             size_t str_buf_init_size = 1024 * 1024 * 16)
+      : BatchBuilder(seq_buf_init_size, str_buf_init_size),
+        parse_options(std::move(parse_options)) {}
+
+  auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status override;
+  auto FlushBuffered() -> Status override;
+ private:
+  /// Parsing options.
+  arrow::json::ParseOptions parse_options;
 };
 
 /**

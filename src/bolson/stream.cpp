@@ -109,11 +109,11 @@ static void LogStats(const StreamTimers &timers,
 }
 
 // Macro to shut down threads in ProduceFromStream whenever Illex client returns some error.
-#define SHUTDOWN_ON_ERROR(status) \
+#define SHUTDOWN_ON_FAILURE(status) \
   if (!status.ok()) { \
     threads.Shutdown(); \
     return Status(Error::IllexError, status.msg()); \
-  }
+  } void()
 
 auto ProduceFromStream(const StreamOptions &opt) -> Status {
   StreamTimers timers;
@@ -165,6 +165,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                                  &raw_json_queue,
                                                                  &arrow_ipc_queue,
                                                                  &threads.shutdown,
+                                                                 opt.json_threshold,
                                                                  opt.batch_threshold,
                                                                  std::move(
                                                                      conv_stats_promise));
@@ -182,19 +183,19 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Set up the client that receives incoming JSONs.
     // We must shut down the threads in case the client returns some errors.
     illex::RawClient client;
-    SHUTDOWN_ON_ERROR(illex::RawClient::Create(std::get<illex::RawProtocol>(opt.protocol),
-                                               opt.hostname,
-                                               opt.seq,
-                                               &client));
+    SHUTDOWN_ON_FAILURE(illex::RawClient::Create(std::get<illex::RawProtocol>(opt.protocol),
+                                                 opt.hostname,
+                                                 opt.seq,
+                                                 &client));
 
     timers.init.Stop();
 
     // Receive JSONs (blocking) until the server closes the connection.
     // Concurrently, the conversion and publish thread will do their job.
     timers.tcp.Start();
-    SHUTDOWN_ON_ERROR(client.ReceiveJSONs(&raw_json_queue, &timers.latency));
+    SHUTDOWN_ON_FAILURE(client.ReceiveJSONs(&raw_json_queue, &timers.latency));
     timers.tcp.Stop();
-    SHUTDOWN_ON_ERROR(client.Close());
+    SHUTDOWN_ON_FAILURE(client.Close());
 
     SPDLOG_DEBUG("Waiting to empty JSON queue.");
     // Once the server disconnects, we can work towards finishing down this function. Wait until all JSONs have been

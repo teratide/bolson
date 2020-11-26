@@ -37,104 +37,124 @@ void()
 
 namespace bolson::convert {
 
+#define SHUTDOWN_ON_FAILURE() if (!stats.status.ok()) { \
+  thread_timer.Stop(); \
+  stats.thread_time = thread_timer.seconds(); \
+  stats_promise.set_value({stats}); \
+  SPDLOG_DEBUG("FPGA terminating with errors."); \
+  shutdown->store(true); \
+  return; \
+} void()
+
 void ConvertWithFPGA(illex::JSONQueue *in,
                      IpcQueue *out,
                      std::atomic<bool> *shutdown,
+                     size_t json_threshold,
                      size_t batch_threshold,
-                     std::promise<std::vector<Stats>> &&stats) {
+                     std::promise<std::vector<Stats>> &&stats_promise) {
   // Prepare some timers
   putong::Timer thread_timer(true);
   putong::Timer convert_timer;
   putong::Timer ipc_construct_timer;
 
+  SPDLOG_DEBUG("[FPGA] Converter thread spawned.");
+
+  // Prepare BatchBuilder
+  std::shared_ptr<FPGABatchBuilder> builder;
+  FPGABatchBuilder::Make(&builder);
+
   // Prepare statistics
-  std::vector<Stats> stats_result(1);
-
-  std::shared_ptr<FPGABatchBuilder> fpga;
-  Status status = FPGABatchBuilder::Make(&fpga);
-
-  if (!status.ok()) {
-    thread_timer.Stop();
-    stats_result[0].thread_time = thread_timer.seconds();
-    stats_result[0].status = status;
-    stats.set_value(stats_result);
-    shutdown->store(true);
-    return;
-  }
-
-  SPDLOG_DEBUG("[convert] FPGA active.");
+  Stats stats;
 
   // Reserve a queue item
   illex::JSONQueueItem json_item;
 
+  // Triggers for IPC construction
+  size_t batches_size = 0;
   bool attempt_dequeue = true;
 
+  // Loop until thread is stopped.
   while (!shutdown->load()) {
+    // Attempt to dequeue an item if the size of the current RecordBatches is not larger
+    // than the limit.
     if (attempt_dequeue
         && in->wait_dequeue_timed(json_item, std::chrono::microseconds(1))) {
+      SPDLOG_DEBUG("[FPGA] Builder status: {}", builder->ToString());
       // There is a JSON.
-      SPDLOG_DEBUG("[convert] FPGA popping JSON: {}.", json_item.string);
-      // Convert the JSON.
-      convert_timer.Start();
-      stats_result[0].status = fpga->Append(json_item);
-      if (!stats_result[0].status.ok()) {
-        break;
+      SPDLOG_DEBUG("[FPGA] popping JSON: {}.", json_item.string);
+      // Buffer the JSON.
+      stats.status = builder->Buffer(json_item);
+      SHUTDOWN_ON_FAILURE();
+
+      // Check if we need to flush the JSON buffer.
+      if (builder->num_buffered() >= json_threshold) {
+        SPDLOG_DEBUG("[FPGA] Builder JSON buffer reached threshold.");
+        convert_timer.Start();
+        stats.num_jsons += builder->num_buffered();
+        stats.status = builder->FlushBuffered();
+        SHUTDOWN_ON_FAILURE();
+        convert_timer.Stop();
+        stats.convert_time += convert_timer.seconds();
       }
-      convert_timer.Stop();
-      // Check if threshold was reached.
-      if (fpga->size() >= batch_threshold) {
-        SPDLOG_DEBUG("Size of batches has reached threshold. Current size: {} bytes",
-                     fpga->size());
+
+      // Check if either of the threshold was reached.
+      if ((builder->size() >= batch_threshold)) {
+        SPDLOG_DEBUG("[FPGA] Size of batches has reached threshold. "
+                     "Current size: {} bytes", builder->size());
         // We reached the threshold, so in the next iteration, just send off the
         // RecordBatch.
         attempt_dequeue = false;
       }
-      // Update stats.
-      stats_result[0].convert_time += convert_timer.seconds();
-      stats_result[0].num_jsons++;
     } else {
       // If there is nothing in the queue or if the RecordBatch size threshold has been
       // reached, construct the IPC message to have this batch sent off. When the queue
       // is empty, this causes the latency to be low. When it is full, it still provides
       // good throughput.
 
+      SPDLOG_DEBUG("[FPGA] Nothing left in queue.");
+      // If there is still something in the buffer, flush it.
+      if (builder->num_buffered() > 0) {
+        SPDLOG_DEBUG("[FPGA] Flushing JSON buffer.");
+        convert_timer.Start();
+        stats.num_jsons += builder->num_buffered();
+        stats.status = builder->FlushBuffered();
+        SHUTDOWN_ON_FAILURE();
+        convert_timer.Stop();
+        stats.convert_time += convert_timer.seconds();
+      }
+
       // There has to be at least one batch.
-      if (!fpga->empty()) {
+      if (!builder->empty()) {
+        SPDLOG_DEBUG("[FPGA] Flushing Batch buffer.");
         // Finish the builder, delivering an IPC item.
         ipc_construct_timer.Start();
         IpcQueueItem ipc_item;
-        auto status = fpga->Finish(&ipc_item);
-        if (!status.ok()) {
-          thread_timer.Stop();
-          stats_result[0].thread_time = thread_timer.seconds();
-          stats_result[0].status = status;
-          stats.set_value(stats_result);
-          SPDLOG_DEBUG("FPGA terminating with errors.");
-          shutdown->store(true);
-          return;
-        }
+        stats.status = builder->Finish(&ipc_item);
+        SHUTDOWN_ON_FAILURE();
         ipc_construct_timer.Stop();
 
         // Enqueue the IPC item.
         out->enqueue(ipc_item);
 
-        SPDLOG_DEBUG("FPGA enqueued IPC message.");
+        SPDLOG_DEBUG("[FPGA] Enqueued IPC message.");
 
         // Attempt to dequeue again.
         attempt_dequeue = true;
 
         // Update stats.
-        stats_result[0].ipc_construct_time += ipc_construct_timer.seconds();
-        stats_result[0].total_ipc_bytes += ipc_item.ipc->size();
-        stats_result[0].num_ipc++;
+        stats.ipc_construct_time += ipc_construct_timer.seconds();
+        stats.total_ipc_bytes += ipc_item.ipc->size();
+        stats.num_ipc++;
       }
     }
   }
   thread_timer.Stop();
-  stats_result[0].thread_time = thread_timer.seconds();
-  stats.set_value(stats_result);
-  SPDLOG_DEBUG("FPGA Terminating.");
+  stats.thread_time = thread_timer.seconds();
+  stats_promise.set_value({stats});
+  SPDLOG_DEBUG("[FPGA] Terminating.");
 }
+
+#undef SHUTDOWN_ON_FAILURE
 
 // Because the input is a plain buffer but managed by Fletcher, we create some helper
 // functions that make an Arrow RecordBatch out of it with a column of uint8 primitives.
@@ -219,9 +239,13 @@ auto FPGABatchBuilder::Make(std::shared_ptr<FPGABatchBuilder> *out,
                             std::string afu_id,
                             size_t input_capacity,
                             size_t output_capacity_off,
-                            size_t output_capacity_val) -> Status {
+                            size_t output_capacity_val,
+                            size_t seq_buffer_init_size,
+                            size_t str_buffer_init_size) -> Status {
   auto
-      result = std::shared_ptr<FPGABatchBuilder>(new FPGABatchBuilder(std::move(afu_id)));
+      result = std::shared_ptr<FPGABatchBuilder>(new FPGABatchBuilder(std::move(afu_id),
+                                                                      seq_buffer_init_size,
+                                                                      str_buffer_init_size));
 
   // Prepare input and output batch.
   BOLSON_ROE(PrepareInputBatch(&result->input, &result->input_raw, input_capacity));
@@ -257,11 +281,11 @@ auto FPGABatchBuilder::Make(std::shared_ptr<FPGABatchBuilder> *out,
 
 #define INPUT_LASTIDX 5
 
-static Status CopyAndWrapOutput(int32_t num_rows,
-                                uint8_t *offsets,
-                                uint8_t *values,
-                                std::shared_ptr<arrow::Schema> schema,
-                                std::shared_ptr<arrow::RecordBatch> *out) {
+static auto CopyAndWrapOutput(int32_t num_rows,
+                              uint8_t *offsets,
+                              uint8_t *values,
+                              std::shared_ptr<arrow::Schema> schema,
+                              std::shared_ptr<arrow::RecordBatch> *out) -> Status {
   auto ret = Status::OK();
 
   // +1 because the last value in offsets buffer is the next free index in the values
@@ -299,7 +323,7 @@ static Status CopyAndWrapOutput(int32_t num_rows,
   return Status::OK();
 }
 
-auto FPGABatchBuilder::Append(const illex::JSONQueueItem &item) -> Status {
+auto FPGABatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status {
   SPDLOG_DEBUG("Appending JSON as RecordBatch");
 
   // Copy the JSON data onto the buffer.
@@ -340,58 +364,46 @@ auto FPGABatchBuilder::Append(const illex::JSONQueueItem &item) -> Status {
   return Status::OK();
 }
 
-void FPGABatchBuilder::Reset() {
-  this->batches.clear();
-  this->size_ = 0;
-}
+auto FPGABatchBuilder::FlushBuffered() -> Status {
+  if (str_buffer->size() > 0) {
+    SPDLOG_DEBUG("Flushing: {}",
+                 std::string(reinterpret_cast<const char *>(str_buffer->data()),
+                             str_buffer->size()));
+    // Copy the JSON data onto the buffer.
+    std::memcpy(this->input_raw, this->str_buffer->data(), this->str_buffer->size());
 
-auto FPGABatchBuilder::Finish(IpcQueueItem *out) -> Status {
-  // Set up a pointer for the combined batch.6
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> combined_batch_r;
-  std::shared_ptr<arrow::RecordBatch> combined_batch;
+    FLETCHER_ROE(this->platform->WriteMMIO(INPUT_LASTIDX,
+                                           static_cast<int32_t>(this->str_buffer->size())));
+    FLETCHER_ROE(this->kernel->Reset());
+    FLETCHER_ROE(this->kernel->Start());
+    FLETCHER_ROE(this->kernel->PollUntilDone());
 
-  // Only wrap a table and combine chunks if there is more than one RecordBatch.
-  if (batches.size() == 1) {
-    combined_batch = batches[0];
-  } else {
-    auto packed_table = arrow::Table::FromRecordBatches(batches);
-    if (!packed_table.ok()) {
-      return Status(Error::ArrowError,
-                    "Could not create table: " + packed_table.status().message());
-    }
-    auto combined_table = packed_table.ValueOrDie()->CombineChunks();
-    if (!combined_table.ok()) {
-      return Status(Error::ArrowError,
-                    "Could not pack table chunks: " + combined_table.status().message());
-    }
-    auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
-    combined_batch_r = table_reader.Next();
-    if (!combined_batch_r.ok()) {
-      return Status(Error::ArrowError,
-                    "Could not combine table chunks: "
-                        + combined_batch_r.status().message());
-    }
-    combined_batch = combined_batch_r.ValueOrDie();
+    dau_t result;
+    FLETCHER_ROE(this->kernel->GetReturn(&result.lo, &result.hi));
+    uint64_t num_rows = result.full - result_counter;
+    result_counter = result.full;
 
+    std::shared_ptr<arrow::RecordBatch> out_batch;
+    BOLSON_ROE(CopyAndWrapOutput(num_rows,
+                                 output_off_raw,
+                                 output_val_raw,
+                                 output_schema(),
+                                 &out_batch));
+
+    // Construct the column for the sequence number.
+    std::shared_ptr<arrow::Array> seq;
+    ARROW_ROE(seq_builder->Finish(&seq));
+
+    // Add the column to the batch.
+    auto batch_with_seq_result = out_batch->AddColumn(0, SeqField(), seq);
+    ARROW_ROE(batch_with_seq_result.status());
+    auto batch_with_seq = batch_with_seq_result.ValueOrDie();
+
+    this->size_ += GetBatchSize(batch_with_seq);
+    this->batches.push_back(std::move(batch_with_seq));
+
+    ARROW_ROE(this->str_buffer->Resize(0));
   }
-
-  SPDLOG_DEBUG("Packed IPC batch: {}", combined_batch->ToString());
-
-  //
-  auto serialized = arrow::ipc::SerializeRecordBatch(*combined_batch,
-                                                     arrow::ipc::IpcWriteOptions::Defaults());
-  if (!serialized.ok()) {
-    return Status(Error::ArrowError,
-                  "Could not serialize batch: " + serialized.status().message());
-  }
-
-  // Convert to Arrow IPC message.
-  auto ipc_item = IpcQueueItem{static_cast<size_t>(combined_batch->num_rows()),
-                               serialized.ValueOrDie()};
-
-  this->Reset();
-
-  *out = ipc_item;
 
   return Status::OK();
 }

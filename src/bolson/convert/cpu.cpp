@@ -27,10 +27,8 @@
 
 namespace bolson::convert {
 
-BatchBuilder::BatchBuilder(arrow::json::ParseOptions parse_options,
-                           size_t seq_buf_init_size,
-                           size_t str_buf_init_size)
-    : parse_options(std::move(parse_options)) {
+BatchBuilder::BatchBuilder(size_t seq_buf_init_size,
+                           size_t str_buf_init_size) {
   str_buffer = std::shared_ptr(std::move(
       arrow::AllocateResizableBuffer(0)
           .ValueOrDie()));
@@ -39,6 +37,184 @@ BatchBuilder::BatchBuilder(arrow::json::ParseOptions parse_options,
   arrow::MakeBuilder(arrow::default_memory_pool(), arrow::uint64(), &arrow_pls);
   seq_builder =
       std::move(std::unique_ptr<arrow::UInt64Builder>(dynamic_cast<arrow::UInt64Builder *>(arrow_pls.release())));
+}
+
+auto BatchBuilder::Buffer(const illex::JSONQueueItem &item) -> Status {
+  // Obtain current sizes.
+  size_t current_size = this->str_buffer->size();
+  size_t str_len = item.string.length();
+
+  // Make some space.
+  ARROW_ROE(this->str_buffer->Resize(current_size + str_len + 1)); // +1 for '\n'
+
+  // Copy string into buffer and place a newline.
+  uint8_t *offset = this->str_buffer->mutable_data() + current_size;
+  memcpy(offset, item.string.data(), str_len); // we know what we're doing clang tidy
+  offset[str_len] = '\n';
+
+  // Copy sequence number into vector.
+  this->seq_builder->Append(item.seq);
+
+  return Status::OK();
+}
+
+void BatchBuilder::Reset() {
+  this->batches.clear();
+  this->size_ = 0;
+}
+
+auto BatchBuilder::Finish(IpcQueueItem *out) -> Status {
+  // Set up a pointer for the combined batch.6
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> combined_batch_r;
+  std::shared_ptr<arrow::RecordBatch> combined_batch;
+
+  // Only wrap a table and combine chunks if there is more than one RecordBatch.
+  if (batches.size() == 1) {
+    combined_batch = batches[0];
+  } else {
+    auto packed_table = arrow::Table::FromRecordBatches(batches);
+    if (!packed_table.ok()) {
+      return Status(Error::ArrowError,
+                    "Could not create table: " + packed_table.status().message());
+    }
+    auto combined_table = packed_table.ValueOrDie()->CombineChunks();
+    if (!combined_table.ok()) {
+      return Status(Error::ArrowError,
+                    "Could not pack table chunks: " + combined_table.status().message());
+    }
+    auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
+    combined_batch_r = table_reader.Next();
+    if (!combined_batch_r.ok()) {
+      return Status(Error::ArrowError,
+                    "Could not pack table chunks: "
+                        + combined_batch_r.status().message());
+    }
+    combined_batch = combined_batch_r.ValueOrDie();
+
+  }
+
+  SPDLOG_DEBUG("Packed IPC batch: {}", combined_batch->ToString());
+
+  //
+  auto serialized = arrow::ipc::SerializeRecordBatch(*combined_batch,
+                                                     arrow::ipc::IpcWriteOptions::Defaults());
+  if (!serialized.ok()) {
+    return Status(Error::ArrowError,
+                  "Could not serialize batch: " + serialized.status().message());
+  }
+
+  // Convert to Arrow IPC message.
+  auto ipc_item = IpcQueueItem{static_cast<size_t>(combined_batch->num_rows()),
+                               serialized.ValueOrDie()};
+
+  this->Reset();
+
+  *out = ipc_item;
+
+  return Status::OK();
+}
+
+auto BatchBuilder::ToString() -> std::string {
+  std::stringstream o;
+  o << "Batch builder:" << std::endl;
+  o << "  Buffered batches: " << this->batches.size() << std::endl;
+  o << "  Buffered batches size: " << this->size() << std::endl;
+  o << "  Buffered JSONS: " << this->num_buffered() << std::endl;
+  o << "  JSON buffer: " << this->str_buffer->size() << std::endl;
+  return o.str();
+}
+
+auto ArrowBatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status {
+  // Wrap Arrow buffer around the JSON string so we can parse it using Arrow.
+  auto buffer_wrapper =
+      std::make_shared<arrow::Buffer>(reinterpret_cast<const uint8_t *>(item.string.data()),
+                                      item.string.length());
+  // The following code could be better because it seems like:
+  // - it always delivers a chunked table
+  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we
+  //   can only read once.
+  // - we could try to work-around previous by buffering JSONs, but that would increase
+  //   latency.
+  // - we wouldn't know how long to buffer because the i/o size ratio is not known,
+  //   - preferably we would append jsons until some threshold is reached, then construct
+  //     the ipc message.
+
+  /*
+  // Wrap a random access file abstraction around the buffer.
+  auto ra_buffer = arrow::Buffer::GetReader(buffer_wrapper).ValueOrDie();
+  // Construct an arrow json TableReader.
+  auto reader = arrow::json::TableReader::Make(arrow::default_memory_pool(),
+                                               ra_buffer,
+                                               arrow::json::ReadOptions::Defaults(),
+                                               arrow::json::ParseOptions::Defaults()).ValueOrDie();
+  auto table = reader->Read().ValueOrDie();
+  auto batch = table->CombineChunks().ValueOrDie();
+  */
+
+  // The following code could be better because it seems like:
+  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we
+  //   can only read once.
+  // - we could try to work-around previous by buffering JSONs, but that would increase
+  //   latency.
+  // - we wouldn't know how long to buffer because the i/o size ratio is not known,
+  //   - preferably we would append jsons until some threshold is reached, then construct
+  //     the ipc message.
+
+  // TODO(johanpel): come up with a solution for all of this. Also don't use ValueOrDie();
+  // Construct a RecordBatch from the JSON string.
+  auto batch_result = arrow::json::ParseOne(parse_options, buffer_wrapper);
+  ARROW_ROE(batch_result.status());
+
+  // Construct the column for the sequence number.
+  std::shared_ptr<arrow::Array> seq;
+  arrow::UInt64Builder seq_builder;
+  ARROW_ROE(seq_builder.Append(item.seq));
+  ARROW_ROE(seq_builder.Finish(&seq));
+
+  // Add the column to the batch.
+  auto batch_with_seq_result = batch_result.ValueOrDie()->AddColumn(0, SeqField(), seq);
+  ARROW_ROE(batch_with_seq_result.status());
+  auto batch_with_seq = batch_with_seq_result.ValueOrDie();
+
+  this->size_ += GetBatchSize(batch_with_seq);
+  this->batches.push_back(std::move(batch_with_seq));
+
+  return Status::OK();
+}
+
+auto ArrowBatchBuilder::FlushBuffered() -> Status {
+  // Check if there is anything to flush.
+  if (str_buffer->size() > 0) {
+    SPDLOG_DEBUG("Flushing: {}",
+                 std::string(reinterpret_cast<const char *>(str_buffer->data()),
+                             str_buffer->size()));
+    auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
+    auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
+                                             br,
+                                             arrow::json::ReadOptions::Defaults(),
+                                             parse_options).ValueOrDie();
+    auto table = tr->Read().ValueOrDie();
+
+    // Construct the column for the sequence number.
+    std::shared_ptr<arrow::Array> seq;
+    ARROW_ROE(seq_builder->Finish(&seq));
+    auto chunked_seq = std::make_shared<arrow::ChunkedArray>(seq);
+
+    // Add the column to the batch.
+    auto tab_with_seq_result = table->AddColumn(0, SeqField(), chunked_seq);
+    ARROW_ROE(tab_with_seq_result.status());
+    auto table_with_seq = tab_with_seq_result.ValueOrDie();
+
+    auto combined_table = table_with_seq->CombineChunks();
+    auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
+    auto combined_batch = table_reader.Next().ValueOrDie();
+
+    this->size_ += GetBatchSize(combined_batch);
+    this->batches.push_back(std::move(combined_batch));
+
+    ARROW_ROE(this->str_buffer->Resize(0));
+  }
+  return Status::OK();
 }
 
 #define SHUTDOWN_ON_FAILURE() \
@@ -68,7 +244,7 @@ static void ConversionDroneThread(size_t id,
   SPDLOG_DEBUG("[conversion] [drone {}] Spawned.", id);
 
   // Prepare BatchBuilder
-  BatchBuilder builder(parse_options);
+  ArrowBatchBuilder builder(parse_options);
 
   // Prepare statistics
   Stats stats;
@@ -161,6 +337,8 @@ static void ConversionDroneThread(size_t id,
   SPDLOG_DEBUG("Drone {} Terminating.", id);
 }
 
+#undef SHUTDOWN_ON_FAILURE
+
 void ConvertWithCPU(illex::JSONQueue *in,
                     IpcQueue *out,
                     std::atomic<bool> *shutdown,
@@ -212,185 +390,6 @@ void ConvertWithCPU(illex::JSONQueue *in,
   }
 
   stats.set_value(threads_stats);
-}
-
-auto BatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status {
-  // Wrap Arrow buffer around the JSON string so we can parse it using Arrow.
-  auto buffer_wrapper =
-      std::make_shared<arrow::Buffer>(reinterpret_cast<const uint8_t *>(item.string.data()),
-                                      item.string.length());
-  // The following code could be better because it seems like:
-  // - it always delivers a chunked table
-  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we
-  //   can only read once.
-  // - we could try to work-around previous by buffering JSONs, but that would increase
-  //   latency.
-  // - we wouldn't know how long to buffer because the i/o size ratio is not known,
-  //   - preferably we would append jsons until some threshold is reached, then construct
-  //     the ipc message.
-
-  /*
-  // Wrap a random access file abstraction around the buffer.
-  auto ra_buffer = arrow::Buffer::GetReader(buffer_wrapper).ValueOrDie();
-  // Construct an arrow json TableReader.
-  auto reader = arrow::json::TableReader::Make(arrow::default_memory_pool(),
-                                               ra_buffer,
-                                               arrow::json::ReadOptions::Defaults(),
-                                               arrow::json::ParseOptions::Defaults()).ValueOrDie();
-  auto table = reader->Read().ValueOrDie();
-  auto batch = table->CombineChunks().ValueOrDie();
-  */
-
-  // The following code could be better because it seems like:
-  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we
-  //   can only read once.
-  // - we could try to work-around previous by buffering JSONs, but that would increase
-  //   latency.
-  // - we wouldn't know how long to buffer because the i/o size ratio is not known,
-  //   - preferably we would append jsons until some threshold is reached, then construct
-  //     the ipc message.
-
-  // TODO(johanpel): come up with a solution for all of this. Also don't use ValueOrDie();
-  // Construct a RecordBatch from the JSON string.
-  auto batch_result = arrow::json::ParseOne(parse_options, buffer_wrapper);
-  ARROW_ROE(batch_result.status());
-
-  // Construct the column for the sequence number.
-  std::shared_ptr<arrow::Array> seq;
-  arrow::UInt64Builder seq_builder;
-  ARROW_ROE(seq_builder.Append(item.seq));
-  ARROW_ROE(seq_builder.Finish(&seq));
-
-  // Add the column to the batch.
-  auto batch_with_seq_result = batch_result.ValueOrDie()->AddColumn(0, SeqField(), seq);
-  ARROW_ROE(batch_with_seq_result.status());
-  auto batch_with_seq = batch_with_seq_result.ValueOrDie();
-
-  this->size_ += GetBatchSize(batch_with_seq);
-  this->batches.push_back(std::move(batch_with_seq));
-
-  return Status::OK();
-}
-
-auto BatchBuilder::Buffer(const illex::JSONQueueItem &item) -> Status {
-  // Obtain current sizes.
-  size_t current_size = this->str_buffer->size();
-  size_t str_len = item.string.length();
-
-  // Make some space.
-  ARROW_ROE(this->str_buffer->Resize(current_size + str_len + 1)); // +1 for '\n'
-
-  // Copy string into buffer and place a newline.
-  uint8_t *offset = this->str_buffer->mutable_data() + current_size;
-  memcpy(offset, item.string.data(), str_len); // we know what we're doing clang tidy
-  offset[str_len] = '\n';
-
-  // Copy sequence number into vector.
-  this->seq_builder->Append(item.seq);
-
-  return Status::OK();
-}
-
-auto BatchBuilder::FlushBuffered() -> Status {
-  // Check if there is anything to flush.
-  if (str_buffer->size() > 0) {
-    SPDLOG_DEBUG("Flushing: {}",
-                 std::string(reinterpret_cast<const char *>(str_buffer->data()),
-                             str_buffer->size()));
-    auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
-    auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
-                                             br,
-                                             arrow::json::ReadOptions::Defaults(),
-                                             parse_options).ValueOrDie();
-    auto table = tr->Read().ValueOrDie();
-
-    // Construct the column for the sequence number.
-    std::shared_ptr<arrow::Array> seq;
-    ARROW_ROE(seq_builder->Finish(&seq));
-
-    auto chunked_seq = std::make_shared<arrow::ChunkedArray>(seq);
-
-    // Add the column to the batch.
-    auto tab_with_seq_result = table->AddColumn(0, SeqField(), chunked_seq);
-    ARROW_ROE(tab_with_seq_result.status());
-    auto table_with_seq = tab_with_seq_result.ValueOrDie();
-
-    auto combined_table = table_with_seq->CombineChunks();
-    auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
-    auto combined_batch = table_reader.Next().ValueOrDie();
-
-    this->size_ += GetBatchSize(combined_batch);
-    this->batches.push_back(std::move(combined_batch));
-
-    ARROW_ROE(this->str_buffer->Resize(0));
-  }
-  return Status::OK();
-}
-
-void BatchBuilder::Reset() {
-  this->batches.clear();
-  this->size_ = 0;
-}
-
-auto BatchBuilder::Finish(IpcQueueItem *out) -> Status {
-  // Set up a pointer for the combined batch.6
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> combined_batch_r;
-  std::shared_ptr<arrow::RecordBatch> combined_batch;
-
-  // Only wrap a table and combine chunks if there is more than one RecordBatch.
-  if (batches.size() == 1) {
-    combined_batch = batches[0];
-  } else {
-    auto packed_table = arrow::Table::FromRecordBatches(batches);
-    if (!packed_table.ok()) {
-      return Status(Error::ArrowError,
-                    "Could not create table: " + packed_table.status().message());
-    }
-    auto combined_table = packed_table.ValueOrDie()->CombineChunks();
-    if (!combined_table.ok()) {
-      return Status(Error::ArrowError,
-                    "Could not pack table chunks: " + combined_table.status().message());
-    }
-    auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
-    combined_batch_r = table_reader.Next();
-    if (!combined_batch_r.ok()) {
-      return Status(Error::ArrowError,
-                    "Could not pack table chunks: "
-                        + combined_batch_r.status().message());
-    }
-    combined_batch = combined_batch_r.ValueOrDie();
-
-  }
-
-  SPDLOG_DEBUG("Packed IPC batch: {}", combined_batch->ToString());
-
-  //
-  auto serialized = arrow::ipc::SerializeRecordBatch(*combined_batch,
-                                                     arrow::ipc::IpcWriteOptions::Defaults());
-  if (!serialized.ok()) {
-    return Status(Error::ArrowError,
-                  "Could not serialize batch: " + serialized.status().message());
-  }
-
-  // Convert to Arrow IPC message.
-  auto ipc_item = IpcQueueItem{static_cast<size_t>(combined_batch->num_rows()),
-                               serialized.ValueOrDie()};
-
-  this->Reset();
-
-  *out = ipc_item;
-
-  return Status::OK();
-}
-
-auto BatchBuilder::ToString() -> std::string {
-  std::stringstream o;
-  o << "Batch builder:" << std::endl;
-  o << "  Buffered batches: " << this->batches.size() << std::endl;
-  o << "  Buffered batches size: " << this->size() << std::endl;
-  o << "  Buffered JSONS: " << this->num_buffered() << std::endl;
-  o << "  JSON buffer: " << this->str_buffer->size() << std::endl;
-  return o.str();
 }
 
 }
