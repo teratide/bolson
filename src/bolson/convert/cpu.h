@@ -33,13 +33,7 @@ class BatchBuilder {
  public:
   explicit BatchBuilder(arrow::json::ParseOptions parse_options,
                         size_t seq_buf_init_size = 1024 * 1024,
-                        size_t str_buf_init_size = 1024 * 1024 * 16)
-      : parse_options(std::move(parse_options)) {
-    str_buffer = std::shared_ptr(std::move(
-        arrow::AllocateResizableBuffer(str_buf_init_size)
-            .ValueOrDie()));
-    seq_buffer.reserve(seq_buf_init_size);
-  }
+                        size_t str_buf_init_size = 1024 * 1024 * 16);
 
   /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
   [[nodiscard]] auto size() const -> size_t { return size_; }
@@ -56,13 +50,16 @@ class BatchBuilder {
   /// \brief Flush the buffered JSONs and convert them to a single RecordBatch.
   auto FlushBuffered() -> Status;
 
-  inline auto num_buffered() -> size_t { return seq_buffer.size(); }
+  inline auto num_buffered() -> size_t { return seq_builder->length(); }
 
   /// \brief Resets this builder, clearing contained batches. Can be reused afterwards.
   void Reset();
 
   /// \brief Finish the builder, resulting in an IPC queue item. This resets the builder, and can be reused afterwards.
   auto Finish(IpcQueueItem *out) -> Status;
+
+  /// \brief Return a string with the state of this builder.
+  auto ToString() -> std::string;
 
  private:
   /// Parsing options.
@@ -72,7 +69,7 @@ class BatchBuilder {
   /// Size of the batches so far.
   size_t size_ = 0;
   /// Buffered queue items sequence numbers
-  std::vector<uint64_t> seq_buffer;
+  std::unique_ptr<arrow::UInt64Builder> seq_builder;
   /// Buffered queue items strings
   std::shared_ptr<arrow::ResizableBuffer> str_buffer;
 };
@@ -92,6 +89,7 @@ void ConvertWithCPU(illex::JSONQueue *in,
                     std::atomic<bool> *shutdown,
                     size_t num_drones,
                     const arrow::json::ParseOptions &parse_options,
+                    const arrow::json::ReadOptions &read_options,
                     size_t json_threshold,
                     size_t batch_threshold,
                     std::promise<std::vector<convert::Stats>> &&stats);

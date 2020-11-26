@@ -91,12 +91,16 @@ static auto CalcThreshold(size_t max_size,
   return Status::OK();
 }
 
-static void AddConvertOpts(CLI::App *sub, convert::Impl *impl) {
+static void AddConvertOpts(CLI::App *sub, convert::Impl *impl, size_t *json_thresh) {
   std::map<std::string, convert::Impl> conversion_map{{"cpu", convert::Impl::CPU},
                                                       {"fpga", convert::Impl::FPGA}};
   sub->add_option("--conversion", *impl, "Converter implementation.")
       ->transform(CLI::CheckedTransformer(conversion_map, CLI::ignore_case))
       ->default_val(convert::Impl::CPU);
+  sub->add_option("--json-buffer-threshold",
+                  *json_thresh,
+                  "Number of JSONs to buffer before converting.")
+      ->default_val(1024);
 }
 
 static void AddStatsOpts(CLI::App *sub, bool *csv) {
@@ -154,7 +158,7 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
                      out->stream.seq,
                      "Starting sequence number, 64-bit unsigned integer.")
       ->default_val(0);
-  AddConvertOpts(stream, &out->bench.convert.conversion);
+  AddConvertOpts(stream, &out->stream.conversion, &out->stream.json_threshold);
 
   //auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
   AddStatsOpts(stream, &csv);
@@ -175,7 +179,9 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   // 'bench convert' subcommand.
   auto *bench_conv =
       bench->add_subcommand("convert", "Run JSON to Arrow IPC convert microbenchmark.");
-  AddConvertOpts(bench_conv, &out->bench.convert.conversion);
+  AddConvertOpts(bench_conv,
+                 &out->bench.convert.conversion,
+                 &out->bench.convert.json_threshold);
   bench_conv->add_option("--num-jsons",
                          out->bench.convert.num_jsons,
                          "Number of JSONs to convert.")
@@ -184,10 +190,6 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
                          out->bench.convert.max_ipc_size,
                          "Maximum size of the IPC messages.")
       ->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
-  bench_conv->add_option("--json-buffer-threshold",
-                         out->bench.convert.json_threshold,
-                         "Number of JSONs to buffer before converting.")
-      ->default_val(1024);
   AddArrowOpts(bench_conv, &schema_file);
   AddThreadsOpts(bench_conv, &out->bench.convert.num_threads);
 
@@ -218,6 +220,7 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
 
   std::shared_ptr<arrow::Schema> schema;
   arrow::json::ParseOptions parse_options;
+  arrow::json::ReadOptions read_options;
 
   if (!schema_file.empty()) {
     // Read the Arrow schema.
@@ -228,6 +231,9 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
     parse_options.explicit_schema = schema;
     parse_options.unexpected_field_behavior = arrow::json::UnexpectedFieldBehavior::Error;
   }
+
+  read_options.use_threads = false;
+  read_options.block_size = 2 * read_options.block_size;
 
   if (file->parsed()) {
     out->sub = SubCommand::FILE;
@@ -251,6 +257,7 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
       out->stream.protocol = raw;
       out->stream.succinct = csv;
       out->stream.parse = parse_options;
+      out->stream.read = read_options;
       // TODO: move this to subcommand execution
       BOLSON_ROE(CalcThreshold(out->stream.pulsar.max_msg_size,
                                schema,
@@ -265,7 +272,8 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
       out->bench.bench = Bench::CONVERT;
       out->bench.convert.csv = csv;
       out->bench.convert.schema = schema;
-      out->bench.convert.parse = parse_options;
+      out->bench.convert.parse_opts = parse_options;
+      out->bench.convert.read_opts = read_options;
       BOLSON_ROE(CalcThreshold(out->bench.convert.max_ipc_size,
                                schema,
                                &out->bench.convert.batch_threshold));

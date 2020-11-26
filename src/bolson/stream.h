@@ -47,6 +47,8 @@ struct StreamOptions {
   uint64_t seq = 0;
   /// The Arrow JSON parsing options.
   arrow::json::ParseOptions parse;
+  /// The Arrow JSON table reader options.
+  arrow::json::ReadOptions read;
   /// RecordBatch size threshold before constructing an IPC message.
   /// The default Pulsar message size limit is 5 MiB - 10 KiB.
   /// We subtract 32 KiB to make some room for padding of RecordBatches.

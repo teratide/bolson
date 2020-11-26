@@ -27,12 +27,37 @@
 
 namespace bolson::convert {
 
+BatchBuilder::BatchBuilder(arrow::json::ParseOptions parse_options,
+                           size_t seq_buf_init_size,
+                           size_t str_buf_init_size)
+    : parse_options(std::move(parse_options)) {
+  str_buffer = std::shared_ptr(std::move(
+      arrow::AllocateResizableBuffer(0)
+          .ValueOrDie()));
+  str_buffer->Reserve(str_buf_init_size);
+  std::unique_ptr<arrow::ArrayBuilder> arrow_pls;
+  arrow::MakeBuilder(arrow::default_memory_pool(), arrow::uint64(), &arrow_pls);
+  seq_builder =
+      std::move(std::unique_ptr<arrow::UInt64Builder>(dynamic_cast<arrow::UInt64Builder *>(arrow_pls.release())));
+}
+
+#define SHUTDOWN_ON_FAILURE() \
+if (!stats.status.ok()) { \
+  thread_timer.Stop(); \
+  stats.thread_time = thread_timer.seconds(); \
+  stats_promise.set_value(stats); \
+  SPDLOG_DEBUG("Drone {} Terminating with errors.", id); \
+  shutdown->store(true); \
+  return; \
+} void()
+
 static void ConversionDroneThread(size_t id,
                                   std::atomic<bool> *shutdown,
                                   std::promise<Stats> &&stats_promise,
                                   illex::JSONQueue *in,
                                   IpcQueue *out,
                                   const arrow::json::ParseOptions &parse_options,
+                                  const arrow::json::ReadOptions &read_options,
                                   size_t json_threshold,
                                   size_t batch_threshold) {
   // Prepare some timers
@@ -57,57 +82,62 @@ static void ConversionDroneThread(size_t id,
 
   // Loop until thread is stopped.
   while (!shutdown->load()) {
-    // Attempt to dequeue an item if the size of the current RecordBatches is not larger than the limit.
+    // Attempt to dequeue an item if the size of the current RecordBatches is not larger
+    // than the limit.
     if (attempt_dequeue
         && in->wait_dequeue_timed(json_item, std::chrono::microseconds(1))) {
+      SPDLOG_DEBUG("Builder status: {}", builder.ToString());
       // There is a JSON.
       SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
       // Buffer the JSON.
-
       stats.status = builder.Buffer(json_item);
-      if (!stats.status.ok()) {
-        break;
-      }
-      // Check if we need to flush.
-      if (builder.num_buffered() > json_threshold) {
+      SHUTDOWN_ON_FAILURE();
+
+      // Check if we need to flush the JSON buffer.
+      if (builder.num_buffered() >= json_threshold) {
+        SPDLOG_DEBUG("Builder JSON buffer reached threshold.");
         convert_timer.Start();
         stats.num_jsons += builder.num_buffered();
-        builder.FlushBuffered();
+        stats.status = builder.FlushBuffered();
+        SHUTDOWN_ON_FAILURE();
         convert_timer.Stop();
         stats.convert_time += convert_timer.seconds();
       }
 
-      // Check if threshold was reached.
-      if (builder.size() >= batch_threshold) {
-        SPDLOG_DEBUG("Size of batches has reached threshold. Current size: {} bytes",
-                     builder.size());
-        // We reached the threshold, so in the next iteration, just send off the RecordBatch.
+      // Check if either of the threshold was reached.
+      if ((builder.size() >= batch_threshold)) {
+        SPDLOG_DEBUG("Size of batches has reached threshold. "
+                     "Current size: {} bytes", builder.size());
+        // We reached the threshold, so in the next iteration, just send off the
+        // RecordBatch.
         attempt_dequeue = false;
       }
     } else {
-      // If there is nothing in the queue or if the RecordBatch size threshold has been reached, construct the IPC
-      // message to have this batch sent off. When the queue is empty, this causes the latency to be low. When it is
-      // full, it still provides good throughput.
+      // If there is nothing in the queue or if the RecordBatch size threshold has been
+      // reached, construct the IPC message to have this batch sent off. When the queue
+      // is empty, this causes the latency to be low. When it is full, it still provides
+      // good throughput.
 
+      SPDLOG_DEBUG("Nothing left in queue.");
+      // If there is still something in the buffer, flush it.
       if (builder.num_buffered() > 0) {
-        builder.FlushBuffered();
+        SPDLOG_DEBUG("Flushing JSON buffer.");
+        convert_timer.Start();
+        stats.num_jsons += builder.num_buffered();
+        stats.status = builder.FlushBuffered();
+        SHUTDOWN_ON_FAILURE();
+        convert_timer.Stop();
+        stats.convert_time += convert_timer.seconds();
       }
 
       // There has to be at least one batch.
       if (!builder.empty()) {
+        SPDLOG_DEBUG("Flushing Batch buffer.");
         // Finish the builder, delivering an IPC item.
         ipc_construct_timer.Start();
         IpcQueueItem ipc_item;
-        auto status = builder.Finish(&ipc_item);
-        if (!status.ok()) {
-          thread_timer.Stop();
-          stats.thread_time = thread_timer.seconds();
-          stats.status = status;
-          stats_promise.set_value(stats);
-          SPDLOG_DEBUG("Drone {} Terminating with errors.", id);
-          shutdown->store(true);
-          return;
-        }
+        stats.status = builder.Finish(&ipc_item);
+        SHUTDOWN_ON_FAILURE();
         ipc_construct_timer.Stop();
 
         // Enqueue the IPC item.
@@ -136,8 +166,9 @@ void ConvertWithCPU(illex::JSONQueue *in,
                     std::atomic<bool> *shutdown,
                     size_t num_drones,
                     const arrow::json::ParseOptions &parse_options,
-                    size_t batch_threshold,
+                    const arrow::json::ReadOptions &read_options,
                     size_t json_threshold,
+                    size_t batch_threshold,
                     std::promise<std::vector<Stats>> &&stats) {
   // Reserve some space for the thread handles and futures.
   std::vector<std::thread> threads;
@@ -147,6 +178,7 @@ void ConvertWithCPU(illex::JSONQueue *in,
   futures.reserve(num_drones);
 
   SPDLOG_DEBUG("Starting {} JSON conversion drones.", num_drones);
+  SPDLOG_DEBUG("  with JSON threshold: {}", json_threshold);
 
   // Start the conversion threads.
   for (int thread = 0; thread < num_drones; thread++) {
@@ -160,6 +192,7 @@ void ConvertWithCPU(illex::JSONQueue *in,
                          in,
                          out,
                          parse_options,
+                         read_options,
                          json_threshold,
                          batch_threshold);
   }
@@ -171,7 +204,8 @@ void ConvertWithCPU(illex::JSONQueue *in,
       threads[t].join();
       threads_stats[t] = futures[t].get();
       if (!threads_stats[t].status.ok()) {
-        // If a thread returned some error status, shut everything down without waiting for the caller to do so.
+        // If a thread returned some error status, shut everything down without waiting
+        // for the caller to do so.
         shutdown->store(true);
       }
     }
@@ -187,10 +221,13 @@ auto BatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status {
                                       item.string.length());
   // The following code could be better because it seems like:
   // - it always delivers a chunked table
-  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we can only read once.
-  // - we could try to work-around previous by buffering JSONs, but that would increase latency.
+  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we
+  //   can only read once.
+  // - we could try to work-around previous by buffering JSONs, but that would increase
+  //   latency.
   // - we wouldn't know how long to buffer because the i/o size ratio is not known,
-  //   - preferably we would append jsons until some threshold is reached, then construct the ipc message.
+  //   - preferably we would append jsons until some threshold is reached, then construct
+  //     the ipc message.
 
   /*
   // Wrap a random access file abstraction around the buffer.
@@ -205,10 +242,13 @@ auto BatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status {
   */
 
   // The following code could be better because it seems like:
-  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we can only read once.
-  // - we could try to work-around previous by buffering JSONs, but that would increase latency.
+  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we
+  //   can only read once.
+  // - we could try to work-around previous by buffering JSONs, but that would increase
+  //   latency.
   // - we wouldn't know how long to buffer because the i/o size ratio is not known,
-  //   - preferably we would append jsons until some threshold is reached, then construct the ipc message.
+  //   - preferably we would append jsons until some threshold is reached, then construct
+  //     the ipc message.
 
   // TODO(johanpel): come up with a solution for all of this. Also don't use ValueOrDie();
   // Construct a RecordBatch from the JSON string.
@@ -238,20 +278,25 @@ auto BatchBuilder::Buffer(const illex::JSONQueueItem &item) -> Status {
   size_t str_len = item.string.length();
 
   // Make some space.
-  ARROW_ROE(this->str_buffer->Resize(current_size + str_len));
+  ARROW_ROE(this->str_buffer->Resize(current_size + str_len + 1)); // +1 for '\n'
 
-  // Copy string into buffer.
+  // Copy string into buffer and place a newline.
   uint8_t *offset = this->str_buffer->mutable_data() + current_size;
   memcpy(offset, item.string.data(), str_len); // we know what we're doing clang tidy
+  offset[str_len] = '\n';
 
   // Copy sequence number into vector.
-  this->seq_buffer.push_back(item.seq);
+  this->seq_builder->Append(item.seq);
 
   return Status::OK();
 }
 
 auto BatchBuilder::FlushBuffered() -> Status {
+  // Check if there is anything to flush.
   if (str_buffer->size() > 0) {
+    SPDLOG_DEBUG("Flushing: {}",
+                 std::string(reinterpret_cast<const char *>(str_buffer->data()),
+                             str_buffer->size()));
     auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
     auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
                                              br,
@@ -261,9 +306,8 @@ auto BatchBuilder::FlushBuffered() -> Status {
 
     // Construct the column for the sequence number.
     std::shared_ptr<arrow::Array> seq;
-    arrow::UInt64Builder seq_builder;
-    ARROW_ROE(seq_builder.AppendValues(seq_buffer));
-    ARROW_ROE(seq_builder.Finish(&seq));
+    ARROW_ROE(seq_builder->Finish(&seq));
+
     auto chunked_seq = std::make_shared<arrow::ChunkedArray>(seq);
 
     // Add the column to the batch.
@@ -275,12 +319,9 @@ auto BatchBuilder::FlushBuffered() -> Status {
     auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
     auto combined_batch = table_reader.Next().ValueOrDie();
 
-    SPDLOG_DEBUG("Flushing: {}", combined_batch->ToString());
-
     this->size_ += GetBatchSize(combined_batch);
     this->batches.push_back(std::move(combined_batch));
 
-    this->seq_buffer.clear();
     ARROW_ROE(this->str_buffer->Resize(0));
   }
   return Status::OK();
@@ -340,6 +381,16 @@ auto BatchBuilder::Finish(IpcQueueItem *out) -> Status {
   *out = ipc_item;
 
   return Status::OK();
+}
+
+auto BatchBuilder::ToString() -> std::string {
+  std::stringstream o;
+  o << "Batch builder:" << std::endl;
+  o << "  Buffered batches: " << this->batches.size() << std::endl;
+  o << "  Buffered batches size: " << this->size() << std::endl;
+  o << "  Buffered JSONS: " << this->num_buffered() << std::endl;
+  o << "  JSON buffer: " << this->str_buffer->size() << std::endl;
+  return o.str();
 }
 
 }

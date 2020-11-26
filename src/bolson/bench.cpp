@@ -40,7 +40,7 @@ auto BenchConvertSingleThread(const ConvertBenchOptions &opt,
   std::vector<IpcQueueItem> ipc_messages;
   ipc_messages.reserve(opt.num_jsons);
 
-  convert::BatchBuilder builder(opt.parse);
+  convert::BatchBuilder builder(opt.parse_opts);
   t->Start();
   for (size_t i = 0; i < opt.num_jsons; i++) {
     illex::JSONQueueItem json_item;
@@ -79,7 +79,8 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
                                       ipc_queue,
                                       &shutdown,
                                       opt.num_threads,
-                                      opt.parse,
+                                      opt.parse_opts,
+                                      opt.read_opts,
                                       opt.json_threshold,
                                       opt.batch_threshold,
                                       std::move(promise_stats));
@@ -170,11 +171,11 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   IpcQueue ipc_queue;
   size_t ipc_size = 0;
 
-  if (opt.num_threads <= 1) {
-    BOLSON_ROE(BenchConvertSingleThread(opt, &c, &ipc_size, &json_queue, &ipc_queue));
-  } else {
-    BOLSON_ROE(BenchConvertMultiThread(opt, &c, &ipc_size, &json_queue, &ipc_queue));
-  }
+  //if (opt.num_threads <= 1) {
+  //BOLSON_ROE(BenchConvertSingleThread(opt, &c, &ipc_size, &json_queue, &ipc_queue));
+  //} else {
+  BOLSON_ROE(BenchConvertMultiThread(opt, &c, &ipc_size, &json_queue, &ipc_queue));
+  //}
 
   if (!opt.csv) {
     spdlog::info("IPC bytes                      : {} MiB",

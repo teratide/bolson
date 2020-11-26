@@ -154,6 +154,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                                  &threads.shutdown,
                                                                  opt.num_threads,
                                                                  opt.parse,
+                                                                 opt.read,
                                                                  opt.json_threshold,
                                                                  opt.batch_threshold,
                                                                  std::move(

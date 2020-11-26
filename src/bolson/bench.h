@@ -36,7 +36,8 @@ struct ClientBenchOptions {
 struct ConvertBenchOptions {
   std::shared_ptr<arrow::Schema> schema;
   illex::GenerateOptions generate;
-  arrow::json::ParseOptions parse;
+  arrow::json::ParseOptions parse_opts;
+  arrow::json::ReadOptions read_opts;
   size_t num_jsons = 1024;
   bool csv = false;
   size_t max_ipc_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
