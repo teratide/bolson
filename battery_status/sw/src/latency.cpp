@@ -143,20 +143,37 @@ int main(int argc, char **argv)
   auto output_batch = arrow::RecordBatch::Make(output_schema(), 0, arrays);
 
   // create input record batches
-  arrow::UInt8Builder tiny_record;
-  tiny_record.Append({TINY_RECORD.begin(), TINY_RECORD.end()});
-  auto tiny_record_array = tiny_record.Finish();
+  arrow::UInt8Builder tiny_record_builder;
+  tiny_record_builder.AppendValues({TINY_RECORD.begin(), TINY_RECORD.end()});
+  std::shared_ptr<arrow::Array> tiny_record_array;
+  tiny_record_builder.Finish(&tiny_record_array);
   auto tiny_record_batch = arrow::RecordBatch::Make(input_schema(), 1, {tiny_record_array});
 
-  arrow::UInt8Builder small_record;
-  small_record.Append({SMALL_RECORD.begin(), SMALL_RECORD.end()});
-  auto small_record_array = small_record.Finish();
+  arrow::UInt8Builder small_record_builder;
+  small_record_builder.AppendValues({SMALL_RECORD.begin(), SMALL_RECORD.end()});
+  std::shared_ptr<arrow::Array> small_record_array;
+  small_record_builder.Finish(&small_record_array);
   auto small_record_batch = arrow::RecordBatch::Make(input_schema(), 1, {small_record_array});
 
   // create context
   std::shared_ptr<fletcher::Context> context;
   fletcher::Context::Make(&context, platform);
 
-  context->QueueRecordBatch(input_batch);
+  // tiny record test
+  context->QueueRecordBatch(tiny_record_batch);
   context->QueueRecordBatch(output_batch);
+  context->Enable();
+
+  fletcher::Kernel kernel(context);
+  kernel->WriteMetaData();
+
+  Timer<> tiny_record;
+  for (int i = 0; i < 1000; i++)
+  {
+    tiny_record.start();
+    kernel->Start();
+    kernel.PollUntilDone();
+    tiny_record.stop();
+  }
+  tiny_record.print("Tiny record");
 }
