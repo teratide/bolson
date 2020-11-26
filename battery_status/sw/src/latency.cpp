@@ -165,13 +165,13 @@ int main(int argc, char **argv)
   context->Enable();
 
   fletcher::Kernel kernel(context);
-  kernel->WriteMetaData();
+  kernel.WriteMetaData();
 
   Timer<> tiny_record;
   for (int i = 0; i < 1000; i++)
   {
     tiny_record.start();
-    kernel->Start();
+    kernel.Start();
     kernel.PollUntilDone();
     tiny_record.stop();
   }
