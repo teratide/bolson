@@ -117,7 +117,7 @@ architecture Implementation of battery_status is
 
 begin
 
-  counter : process (kcd_reset, kcd_clk, json_out_ready, json_out_valid, json_out_last, record_counter, reset)
+  counter : process (kcd_clk)
     is
   begin
     if rising_edge(kcd_clk) then
