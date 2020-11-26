@@ -117,14 +117,14 @@ architecture Implementation of battery_status is
 
 begin
 
-  counter : process (kcd_reset, kcd_clk, json_out_ready, json_out_valid, json_out_last, record_counter)
+  counter : process (kcd_reset, kcd_clk, json_out_ready, json_out_valid, json_out_last, record_counter, reset)
     is
   begin
     if rising_edge(kcd_clk) then
       if json_out_ready = '1' and json_out_valid = '1' and json_out_last(1) = '1' then
         record_counter <= record_counter + 1;
       end if;
-      if kcd_reset = '1' then
+      if kcd_reset = '1' or reset = '1' then
         record_counter <= (others => '0');
       end if;
     end if;
