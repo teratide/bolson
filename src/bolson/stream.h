@@ -52,6 +52,8 @@ struct StreamOptions {
   /// We subtract 32 KiB to make some room for padding of RecordBatches.
   // TODO: This is just guesswork and should be improved.
   size_t batch_threshold = (5 * 1024 * 1024) - (32 * 1024);
+  // TODO: sdfsdfsdf
+  size_t json_threshold = 1024;
   /// Number of conversion drone threads to spawn.
   size_t num_threads = 1;
   /// The Pulsar options.

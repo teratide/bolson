@@ -80,6 +80,7 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
                                       &shutdown,
                                       opt.num_threads,
                                       opt.parse,
+                                      opt.json_threshold,
                                       opt.batch_threshold,
                                       std::move(promise_stats));
       break;

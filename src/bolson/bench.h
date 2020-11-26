@@ -40,7 +40,8 @@ struct ConvertBenchOptions {
   size_t num_jsons = 1024;
   bool csv = false;
   size_t max_ipc_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
-  size_t batch_threshold;
+  size_t json_threshold = 1024;
+  size_t batch_threshold = (5 * 1024 * 1024) - (32 * 1024);
   size_t num_threads = 1;
   convert::Impl conversion = convert::Impl::CPU;
 };

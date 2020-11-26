@@ -92,6 +92,7 @@ void ConvertWithCPU(illex::JSONQueue *in,
                     std::atomic<bool> *shutdown,
                     size_t num_drones,
                     const arrow::json::ParseOptions &parse_options,
+                    size_t json_threshold,
                     size_t batch_threshold,
                     std::promise<std::vector<convert::Stats>> &&stats);
 

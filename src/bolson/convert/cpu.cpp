@@ -33,6 +33,7 @@ static void ConversionDroneThread(size_t id,
                                   illex::JSONQueue *in,
                                   IpcQueue *out,
                                   const arrow::json::ParseOptions &parse_options,
+                                  size_t json_threshold,
                                   size_t batch_threshold) {
   // Prepare some timers
   putong::Timer thread_timer(true);
@@ -61,13 +62,21 @@ static void ConversionDroneThread(size_t id,
         && in->wait_dequeue_timed(json_item, std::chrono::microseconds(1))) {
       // There is a JSON.
       SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
-      // Convert the JSON.
-      convert_timer.Start();
-      stats.status = builder.AppendAsBatch(json_item);
+      // Buffer the JSON.
+
+      stats.status = builder.Buffer(json_item);
       if (!stats.status.ok()) {
         break;
       }
-      convert_timer.Stop();
+      // Check if we need to flush.
+      if (builder.num_buffered() > json_threshold) {
+        convert_timer.Start();
+        stats.num_jsons += builder.num_buffered();
+        builder.FlushBuffered();
+        convert_timer.Stop();
+        stats.convert_time += convert_timer.seconds();
+      }
+
       // Check if threshold was reached.
       if (builder.size() >= batch_threshold) {
         SPDLOG_DEBUG("Size of batches has reached threshold. Current size: {} bytes",
@@ -75,13 +84,14 @@ static void ConversionDroneThread(size_t id,
         // We reached the threshold, so in the next iteration, just send off the RecordBatch.
         attempt_dequeue = false;
       }
-      // Update stats.
-      stats.convert_time += convert_timer.seconds();
-      stats.num_jsons++;
     } else {
       // If there is nothing in the queue or if the RecordBatch size threshold has been reached, construct the IPC
       // message to have this batch sent off. When the queue is empty, this causes the latency to be low. When it is
       // full, it still provides good throughput.
+
+      if (builder.num_buffered() > 0) {
+        builder.FlushBuffered();
+      }
 
       // There has to be at least one batch.
       if (!builder.empty()) {
@@ -127,6 +137,7 @@ void ConvertWithCPU(illex::JSONQueue *in,
                     size_t num_drones,
                     const arrow::json::ParseOptions &parse_options,
                     size_t batch_threshold,
+                    size_t json_threshold,
                     std::promise<std::vector<Stats>> &&stats) {
   // Reserve some space for the thread handles and futures.
   std::vector<std::thread> threads;
@@ -149,6 +160,7 @@ void ConvertWithCPU(illex::JSONQueue *in,
                          in,
                          out,
                          parse_options,
+                         json_threshold,
                          batch_threshold);
   }
 
@@ -239,31 +251,39 @@ auto BatchBuilder::Buffer(const illex::JSONQueueItem &item) -> Status {
 }
 
 auto BatchBuilder::FlushBuffered() -> Status {
-  auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
-  auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
-                                           br,
-                                           arrow::json::ReadOptions::Defaults(),
-                                           parse_options).ValueOrDie();
-  auto table = tr->Read().ValueOrDie();
+  if (str_buffer->size() > 0) {
+    auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
+    auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
+                                             br,
+                                             arrow::json::ReadOptions::Defaults(),
+                                             parse_options).ValueOrDie();
+    auto table = tr->Read().ValueOrDie();
 
-  // Construct the column for the sequence number.
-  std::shared_ptr<arrow::Array> seq;
-  arrow::UInt64Builder seq_builder;
-  ARROW_ROE(seq_builder.AppendValues(seq_buffer));
-  ARROW_ROE(seq_builder.Finish(&seq));
-  auto chunked_seq = std::make_shared<arrow::ChunkedArray>(seq);
+    // Construct the column for the sequence number.
+    std::shared_ptr<arrow::Array> seq;
+    arrow::UInt64Builder seq_builder;
+    ARROW_ROE(seq_builder.AppendValues(seq_buffer));
+    ARROW_ROE(seq_builder.Finish(&seq));
+    auto chunked_seq = std::make_shared<arrow::ChunkedArray>(seq);
 
-  // Add the column to the batch.
-  auto tab_with_seq_result = table->AddColumn(0, SeqField(), chunked_seq);
-  ARROW_ROE(tab_with_seq_result.status());
-  auto table_with_seq = tab_with_seq_result.ValueOrDie();
+    // Add the column to the batch.
+    auto tab_with_seq_result = table->AddColumn(0, SeqField(), chunked_seq);
+    ARROW_ROE(tab_with_seq_result.status());
+    auto table_with_seq = tab_with_seq_result.ValueOrDie();
 
-  auto combined_table = table_with_seq->CombineChunks();
-  auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
-  auto combined_batch = table_reader.Next().ValueOrDie();
+    auto combined_table = table_with_seq->CombineChunks();
+    auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
+    auto combined_batch = table_reader.Next().ValueOrDie();
 
-  this->size_ += GetBatchSize(combined_batch);
-  this->batches.push_back(std::move(combined_batch));
+    SPDLOG_DEBUG("Flushing: {}", combined_batch->ToString());
+
+    this->size_ += GetBatchSize(combined_batch);
+    this->batches.push_back(std::move(combined_batch));
+
+    this->seq_buffer.clear();
+    ARROW_ROE(this->str_buffer->Resize(0));
+  }
+  return Status::OK();
 }
 
 void BatchBuilder::Reset() {

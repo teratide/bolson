@@ -178,11 +178,16 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   AddConvertOpts(bench_conv, &out->bench.convert.conversion);
   bench_conv->add_option("--num-jsons",
                          out->bench.convert.num_jsons,
-                         "Number of JSONs to convert.")->default_val(1024);
+                         "Number of JSONs to convert.")
+      ->default_val(1024);
   bench_conv->add_option("--max-ipc-size",
                          out->bench.convert.max_ipc_size,
-                         "Maximum size of the IPC messages.")->default_val(
-      PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
+                         "Maximum size of the IPC messages.")
+      ->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
+  bench_conv->add_option("--json-buffer-threshold",
+                         out->bench.convert.json_threshold,
+                         "Number of JSONs to buffer before converting.")
+      ->default_val(1024);
   AddArrowOpts(bench_conv, &schema_file);
   AddThreadsOpts(bench_conv, &out->bench.convert.num_threads);
 
