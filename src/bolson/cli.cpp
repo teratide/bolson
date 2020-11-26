@@ -91,6 +91,14 @@ static auto CalcThreshold(size_t max_size,
   return Status::OK();
 }
 
+static void AddConvertOpts(CLI::App *sub, convert::Impl *impl) {
+  std::map<std::string, convert::Impl> conversion_map{{"cpu", convert::Impl::CPU},
+                                                      {"fpga", convert::Impl::FPGA}};
+  sub->add_option("--conversion", *impl, "Converter implementation.")
+      ->transform(CLI::CheckedTransformer(conversion_map, CLI::ignore_case))
+      ->default_val(convert::Impl::CPU);
+}
+
 static void AddStatsOpts(CLI::App *sub, bool *csv) {
   sub->add_flag("-c", *csv, "Print output CSV-style.");
 }
@@ -123,76 +131,72 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   uint16_t stream_port = 0;
   bool csv = false;
 
-  CLI::App
-      app{"bolson : A JSON stream to Arrow IPC to Pulsar conversion and publish tool."};
+  CLI::App app{"bolson : A JSON stream to Arrow IPC to Pulsar conversion and publish "
+               "tool."};
 
   app.require_subcommand();
   app.get_formatter()->column_width(50);
 
   // 'file' subcommand:
-  auto
-      *sub_file = app.add_subcommand("file", "Produce Pulsar messages from a JSON file.");
-  sub_file->add_option("f,-f,--file", out->file.input, "Input file with Tweets.")
+  auto *file = app.add_subcommand("file", "Produce Pulsar messages from a JSON file.");
+  file->add_option("f,-f,--file", out->file.input, "Input file with Tweets.")
       ->check(CLI::ExistingFile)->required();
-  AddArrowOpts(sub_file, &schema_file);
-  AddPulsarOpts(sub_file, &out->file.pulsar);
+  AddArrowOpts(file, &schema_file);
+  AddPulsarOpts(file, &out->file.pulsar);
 
 
   // 'stream' subcommand:
-  auto *sub_stream = app.add_subcommand("stream",
-                                        "Produce Pulsar messages from a JSON TCP stream.");
-  auto *port_opt = sub_stream->add_option("-p,--port", stream_port, "Port.")
+  auto *stream = app.add_subcommand("stream",
+                                    "Produce Pulsar messages from a JSON TCP stream.");
+  auto *port_opt = stream->add_option("-p,--port", stream_port, "Port.")
       ->default_val(illex::RAW_PORT);
-  sub_stream->add_option("--seq",
-                         out->stream.seq,
-                         "Starting sequence number, 64-bit unsigned integer.")
+  stream->add_option("--seq",
+                     out->stream.seq,
+                     "Starting sequence number, 64-bit unsigned integer.")
       ->default_val(0);
-  std::map<std::string, convert::Impl> conversion_map{{"cpu", convert::Impl::CPU},
-                                                      {"fpga", convert::Impl::FPGA}};
-  sub_stream->add_option("--conversion", out->stream.conversion, "Conversion method")
-      ->transform(CLI::CheckedTransformer(conversion_map, CLI::ignore_case))
-      ->default_val(convert::Impl::CPU);
+  AddConvertOpts(stream, &out->bench.convert.conversion);
 
   //auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
-  AddStatsOpts(sub_stream, &csv);
-  AddArrowOpts(sub_stream, &schema_file);
-  AddPulsarOpts(sub_stream, &out->stream.pulsar);
-  AddThreadsOpts(sub_stream, &out->stream.num_threads);
+  AddStatsOpts(stream, &csv);
+  AddArrowOpts(stream, &schema_file);
+  AddPulsarOpts(stream, &out->stream.pulsar);
+  AddThreadsOpts(stream, &out->stream.num_threads);
 
 
   // 'bench' subcommand:
-  auto *sub_bench =
-      app.add_subcommand("bench", "Run some micro-benchmarks.")->require_subcommand();
-  AddStatsOpts(sub_bench, &csv);
+  auto *bench = app.add_subcommand("bench", "Run some micro-benchmarks.")
+      ->require_subcommand();
+  AddStatsOpts(bench, &csv);
 
   // 'bench client' subcommand.
-  auto *sub_bench_client =
-      sub_bench->add_subcommand("client", "Run TCP client interface microbenchmark.");
+  auto *bench_client =
+      bench->add_subcommand("client", "Run TCP client interface microbenchmark.");
 
   // 'bench convert' subcommand.
-  auto *sub_bench_convert = sub_bench->add_subcommand("convert",
-                                                      "Run JSON to Arrow IPC convert microbenchmark.");
-  sub_bench_convert->add_option("--num-jsons",
-                                out->bench.convert.num_jsons,
-                                "Number of JSONs to convert.")->default_val(1024);
-  sub_bench_convert->add_option("--max-ipc-size",
-                                out->bench.convert.max_ipc_size,
-                                "Maximum size of the IPC messages.")->default_val(
+  auto *bench_conv =
+      bench->add_subcommand("convert", "Run JSON to Arrow IPC convert microbenchmark.");
+  AddConvertOpts(bench_conv, &out->bench.convert.conversion);
+  bench_conv->add_option("--num-jsons",
+                         out->bench.convert.num_jsons,
+                         "Number of JSONs to convert.")->default_val(1024);
+  bench_conv->add_option("--max-ipc-size",
+                         out->bench.convert.max_ipc_size,
+                         "Maximum size of the IPC messages.")->default_val(
       PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
-  AddArrowOpts(sub_bench_convert, &schema_file);
-  AddThreadsOpts(sub_bench_convert, &out->bench.convert.num_threads);
+  AddArrowOpts(bench_conv, &schema_file);
+  AddThreadsOpts(bench_conv, &out->bench.convert.num_threads);
 
   // 'bench pulsar' subcommand.
-  auto *sub_bench_pulsar =
-      sub_bench->add_subcommand("pulsar", "Run Pulsar microbenchmark.");
-  sub_bench_pulsar->add_option("--message-size",
-                               out->bench.pulsar.message_size,
-                               "Pulsar message size.")->default_val(
-      PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
-  sub_bench_pulsar->add_option("--num-messages",
-                               out->bench.pulsar.num_messages,
-                               "Pulsar number of messages.")->default_val(1024);
-  AddPulsarOpts(sub_bench, &out->bench.pulsar.pulsar);
+  auto *bench_pulsar =
+      bench->add_subcommand("pulsar", "Run Pulsar microbenchmark.");
+  bench_pulsar->add_option("--message-size",
+                           out->bench.pulsar.message_size,
+                           "Pulsar message size.")
+      ->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
+  bench_pulsar->add_option("--num-messages",
+                           out->bench.pulsar.num_messages,
+                           "Pulsar number of messages.")->default_val(1024);
+  AddPulsarOpts(bench, &out->bench.pulsar.pulsar);
 
   // Attempt to parse the CLI arguments.
   try {
@@ -220,10 +224,10 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
     parse_options.unexpected_field_behavior = arrow::json::UnexpectedFieldBehavior::Error;
   }
 
-  if (sub_file->parsed()) {
+  if (file->parsed()) {
     out->sub = SubCommand::FILE;
     out->file.succinct = out->succinct;
-  } else if (sub_stream->parsed()) {
+  } else if (stream->parsed()) {
     out->sub = SubCommand::STREAM;
 
     // Check which streaming protocol to use.
@@ -247,12 +251,12 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
                                schema,
                                &out->stream.batch_threshold));
     }
-  } else if (sub_bench->parsed()) {
+  } else if (bench->parsed()) {
     out->sub = SubCommand::BENCH;
-    if (sub_bench_client->parsed()) {
+    if (bench_client->parsed()) {
       out->bench.bench = Bench::CLIENT;
       return Status(Error::GenericError, "Not yet implemented.");
-    } else if (sub_bench_convert->parsed()) {
+    } else if (bench_conv->parsed()) {
       out->bench.bench = Bench::CONVERT;
       out->bench.convert.csv = csv;
       out->bench.convert.schema = schema;
@@ -260,7 +264,7 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
       BOLSON_ROE(CalcThreshold(out->bench.convert.max_ipc_size,
                                schema,
                                &out->bench.convert.batch_threshold));
-    } else if (sub_bench_pulsar->parsed()) {
+    } else if (bench_pulsar->parsed()) {
       out->bench.bench = Bench::PULSAR;
       out->bench.pulsar.csv = csv;
     }

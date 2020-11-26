@@ -42,6 +42,7 @@ struct ConvertBenchOptions {
   size_t max_ipc_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
   size_t batch_threshold;
   size_t num_threads = 1;
+  convert::Impl conversion = convert::Impl::CPU;
 };
 
 /// Options for Pulsar interface benchmark.

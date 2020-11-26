@@ -31,8 +31,15 @@ namespace bolson::convert {
 /// Class to support incremental building up of a RecordBatch from JSONQueueItems.
 class BatchBuilder {
  public:
-  explicit BatchBuilder(arrow::json::ParseOptions parse_options)
-      : parse_options(std::move(parse_options)) {}
+  explicit BatchBuilder(arrow::json::ParseOptions parse_options,
+                        size_t seq_buf_init_size = 1024 * 1024,
+                        size_t str_buf_init_size = 1024 * 1024 * 16)
+      : parse_options(std::move(parse_options)) {
+    str_buffer = std::shared_ptr(std::move(
+        arrow::AllocateResizableBuffer(str_buf_init_size)
+            .ValueOrDie()));
+    seq_buffer.reserve(seq_buf_init_size);
+  }
 
   /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
   [[nodiscard]] auto size() const -> size_t { return size_; }
@@ -40,8 +47,16 @@ class BatchBuilder {
   /// \brief Return true if there are no batches in this builder.
   [[nodiscard]] auto empty() const -> bool { return batches.empty(); }
 
-  /// \brief Take a JSONQueueItem and convert it to an Arrow RecordBatch, and append it to this builder.
-  auto Append(const illex::JSONQueueItem &item) -> Status;
+  /// \brief Take one JSONQueueItem and convert it to an Arrow RecordBatch, and append it to this builder.
+  auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status;
+
+  /// \brief Take multiple JSONQueueItems and convert them into an Arrow RecordBatch.
+  auto Buffer(const illex::JSONQueueItem &item) -> Status;
+
+  /// \brief Flush the buffered JSONs and convert them to a single RecordBatch.
+  auto FlushBuffered() -> Status;
+
+  inline auto num_buffered() -> size_t { return seq_buffer.size(); }
 
   /// \brief Resets this builder, clearing contained batches. Can be reused afterwards.
   void Reset();
@@ -56,6 +71,10 @@ class BatchBuilder {
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
   /// Size of the batches so far.
   size_t size_ = 0;
+  /// Buffered queue items sequence numbers
+  std::vector<uint64_t> seq_buffer;
+  /// Buffered queue items strings
+  std::shared_ptr<arrow::ResizableBuffer> str_buffer;
 };
 
 /**

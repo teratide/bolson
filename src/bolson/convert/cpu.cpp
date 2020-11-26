@@ -63,7 +63,7 @@ static void ConversionDroneThread(size_t id,
       SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
       // Convert the JSON.
       convert_timer.Start();
-      stats.status = builder.Append(json_item);
+      stats.status = builder.AppendAsBatch(json_item);
       if (!stats.status.ok()) {
         break;
       }
@@ -168,7 +168,7 @@ void ConvertWithCPU(illex::JSONQueue *in,
   stats.set_value(threads_stats);
 }
 
-auto BatchBuilder::Append(const illex::JSONQueueItem &item) -> Status {
+auto BatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status {
   // Wrap Arrow buffer around the JSON string so we can parse it using Arrow.
   auto buffer_wrapper =
       std::make_shared<arrow::Buffer>(reinterpret_cast<const uint8_t *>(item.string.data()),
@@ -218,6 +218,52 @@ auto BatchBuilder::Append(const illex::JSONQueueItem &item) -> Status {
   this->batches.push_back(std::move(batch_with_seq));
 
   return Status::OK();
+}
+
+auto BatchBuilder::Buffer(const illex::JSONQueueItem &item) -> Status {
+  // Obtain current sizes.
+  size_t current_size = this->str_buffer->size();
+  size_t str_len = item.string.length();
+
+  // Make some space.
+  ARROW_ROE(this->str_buffer->Resize(current_size + str_len));
+
+  // Copy string into buffer.
+  uint8_t *offset = this->str_buffer->mutable_data() + current_size;
+  memcpy(offset, item.string.data(), str_len); // we know what we're doing clang tidy
+
+  // Copy sequence number into vector.
+  this->seq_buffer.push_back(item.seq);
+
+  return Status::OK();
+}
+
+auto BatchBuilder::FlushBuffered() -> Status {
+  auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
+  auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
+                                           br,
+                                           arrow::json::ReadOptions::Defaults(),
+                                           parse_options).ValueOrDie();
+  auto table = tr->Read().ValueOrDie();
+
+  // Construct the column for the sequence number.
+  std::shared_ptr<arrow::Array> seq;
+  arrow::UInt64Builder seq_builder;
+  ARROW_ROE(seq_builder.AppendValues(seq_buffer));
+  ARROW_ROE(seq_builder.Finish(&seq));
+  auto chunked_seq = std::make_shared<arrow::ChunkedArray>(seq);
+
+  // Add the column to the batch.
+  auto tab_with_seq_result = table->AddColumn(0, SeqField(), chunked_seq);
+  ARROW_ROE(tab_with_seq_result.status());
+  auto table_with_seq = tab_with_seq_result.ValueOrDie();
+
+  auto combined_table = table_with_seq->CombineChunks();
+  auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
+  auto combined_batch = table_reader.Next().ValueOrDie();
+
+  this->size_ += GetBatchSize(combined_batch);
+  this->batches.push_back(std::move(combined_batch));
 }
 
 void BatchBuilder::Reset() {

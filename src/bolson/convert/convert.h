@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <arrow/api.h>
+
 #include "bolson/status.h"
 
 /// Convert Arrow status and return on error.
@@ -53,5 +55,15 @@ static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
   static auto seq_field = arrow::field("seq", arrow::uint64(), false);
   return seq_field;
 }
+
+/**
+ * \brief Print some stats about conversion.
+ * \param stats The stats to print.
+ * \param num_threads The number of threads used.
+ */
+void LogConvertStats(const Stats &stats, size_t num_threads);
+
+/// \brief Aggregate statistics from multiple threads.
+auto AggrStats(const std::vector<Stats> &conv_stats) -> Stats;
 
 }

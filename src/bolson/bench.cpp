@@ -22,6 +22,7 @@
 #include "bolson/status.h"
 #include "bolson/pulsar.h"
 #include "bolson/convert/cpu.h"
+#include "bolson/convert/fpga.h"
 #include "bolson/convert/convert.h"
 
 namespace bolson {
@@ -44,7 +45,7 @@ auto BenchConvertSingleThread(const ConvertBenchOptions &opt,
   for (size_t i = 0; i < opt.num_jsons; i++) {
     illex::JSONQueueItem json_item;
     json_queue->wait_dequeue(json_item);
-    BOLSON_ROE(builder.Append(json_item));
+    BOLSON_ROE(builder.AppendAsBatch(json_item));
     // Create IPC msg if the threshold is reached or this is the last JSON.
     if ((builder.size() >= opt.batch_threshold) || (i == opt.num_jsons - 1)) {
       IpcQueueItem ipc_msg;
@@ -68,16 +69,30 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
   auto future_stats = promise_stats.get_future();
   size_t num_rows = 0;
   IpcQueueItem ipc_item;
+  std::thread conversion_thread;
 
   t->Start();
-  std::thread conversion_thread(convert::ConvertWithCPU,
-                                json_queue,
-                                ipc_queue,
-                                &shutdown,
-                                opt.num_threads,
-                                opt.parse,
-                                opt.batch_threshold,
-                                std::move(promise_stats));
+  switch (opt.conversion) {
+    case convert::Impl::CPU:
+      conversion_thread = std::thread(convert::ConvertWithCPU,
+                                      json_queue,
+                                      ipc_queue,
+                                      &shutdown,
+                                      opt.num_threads,
+                                      opt.parse,
+                                      opt.batch_threshold,
+                                      std::move(promise_stats));
+      break;
+    case convert::Impl::FPGA:
+      conversion_thread = std::thread(convert::ConvertWithFPGA,
+                                      json_queue,
+                                      ipc_queue,
+                                      &shutdown,
+                                      opt.batch_threshold,
+                                      std::move(promise_stats));
+      break;
+  }
+
   // Pull from the output queue as fast as possible to know when we're done.
   while (num_rows != opt.num_jsons) {
     ipc_queue->wait_dequeue(ipc_item);
@@ -87,6 +102,10 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
   t->Stop();
   shutdown.store(true);
   conversion_thread.join();
+
+  auto stats = future_stats.get();
+
+  convert::LogConvertStats(AggrStats(stats), opt.num_threads);
 
   return Status::OK();
 }

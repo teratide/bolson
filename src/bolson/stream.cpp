@@ -52,20 +52,6 @@ struct StreamThreads {
   }
 };
 
-/// \brief Aggregate statistics for every thread.
-static auto AggrStats(const std::vector<Stats> &conv_stats) -> Stats {
-  Stats all_conv_stats;
-  for (const auto &t : conv_stats) {
-    // TODO: overload +
-    all_conv_stats.num_jsons += t.num_jsons;
-    all_conv_stats.num_ipc += t.num_ipc;
-    all_conv_stats.convert_time += t.convert_time;
-    all_conv_stats.thread_time += t.thread_time;
-    all_conv_stats.total_ipc_bytes += t.total_ipc_bytes;
-  }
-  return all_conv_stats;
-}
-
 /// \brief Stream succinct CSV-like stats to some output stream.
 static void OutputCSVStats(const StreamTimers &timers,
                            const illex::RawClient &client,
@@ -106,15 +92,7 @@ static void LogStats(const StreamTimers &timers,
   spdlog::info("  Throughput          : {} MB/s",
                client.bytes_received() / timers.tcp.seconds() * 1E-6);
 
-  spdlog::info("Conversion stats:");
-  spdlog::info("  JSONs converted     : {}", all.num_jsons);
-  spdlog::info("  Avg. bytes/json     : {}",
-               static_cast<double>(all.total_ipc_bytes) / all.num_jsons);
-  spdlog::info("  IPC msgs generated  : {}", all.num_ipc);
-  spdlog::info("  Total IPC bytes     : {}", all.total_ipc_bytes);
-  spdlog::info("  Avg. IPC bytes/msg  : {}", all.total_ipc_bytes / all.num_ipc);
-  spdlog::info("  Avg. conv. time     : {} us.", 1E6 * all.convert_time / all.num_jsons);
-  spdlog::info("  Avg. thread time    : {} s.", all.thread_time / conv_stats.size());
+  LogConvertStats(all, conv_stats.size());
 
   spdlog::info("Publish stats:");
   spdlog::info("  IPC messages        : {}", pub_stats.num_published);
