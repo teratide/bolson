@@ -53,7 +53,9 @@ class FPGABatchBuilder {
   /// \brief Finish the builder, resulting in an IPC queue item. This resets the builder, and can be reused afterwards.
   auto Finish(IpcQueueItem *out) -> Status;
 
- protected:
+  uint64_t result_counter;
+
+protected:
   explicit FPGABatchBuilder(std::string afu_id) : afu_id_(std::move(afu_id)) {}
  private:
   /// A vector to hold RecordBatches that we collapse into a single RecordBatch when we finish this builder.
