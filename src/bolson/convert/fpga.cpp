@@ -102,7 +102,17 @@ void ConvertWithFPGA(illex::JSONQueue *in,
       if (!fpga->empty()) {
         // Finish the builder, delivering an IPC item.
         ipc_construct_timer.Start();
-        auto ipc_item = fpga->Finish();
+        IpcQueueItem ipc_item;
+        auto status = fpga->Finish(&ipc_item);
+        if (!status.ok()) {
+          thread_timer.Stop();
+          stats_result[0].thread_time = thread_timer.seconds();
+          stats_result[0].status = status;
+          stats.set_value(stats_result);
+          SPDLOG_DEBUG("FPGA terminating with errors.");
+          shutdown->store(true);
+          return;
+        }
         ipc_construct_timer.Stop();
 
         // Enqueue the IPC item.
@@ -286,7 +296,7 @@ static Status WrapOutput(int32_t num_rows,
 }
 
 auto FPGABatchBuilder::Append(const illex::JSONQueueItem &item) -> Status {
-  SPDLOG_DEBUG("Shit is about to hit the fan.");
+  SPDLOG_DEBUG("Appending JSON as RecordBatch");
 
   // Copy the JSON data onto the buffer.
   std::memcpy(this->input_raw, item.string.data(), item.string.length());
@@ -331,31 +341,55 @@ void FPGABatchBuilder::Reset() {
   this->size_ = 0;
 }
 
-auto FPGABatchBuilder::Finish() -> IpcQueueItem {
-  // Set up a pointer for the combined batch.
+auto FPGABatchBuilder::Finish(IpcQueueItem *out) -> Status {
+  // Set up a pointer for the combined batch.6
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> combined_batch_r;
   std::shared_ptr<arrow::RecordBatch> combined_batch;
 
   // Only wrap a table and combine chunks if there is more than one RecordBatch.
   if (batches.size() == 1) {
     combined_batch = batches[0];
   } else {
-    auto packed_table =
-        arrow::Table::FromRecordBatches(batches).ValueOrDie()->CombineChunks().ValueOrDie();
-    auto table_reader = arrow::TableBatchReader(*packed_table);
-    combined_batch = table_reader.Next().ValueOrDie();
+    auto packed_table = arrow::Table::FromRecordBatches(batches);
+    if (!packed_table.ok()) {
+      return Status(Error::ArrowError,
+                    "Could not create table: " + packed_table.status().message());
+    }
+    auto combined_table = packed_table.ValueOrDie()->CombineChunks();
+    if (!combined_table.ok()) {
+      return Status(Error::ArrowError,
+                    "Could not pack table chunks: " + combined_table.status().message());
+    }
+    auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
+    combined_batch_r = table_reader.Next();
+    if (!combined_batch_r.ok()) {
+      return Status(Error::ArrowError,
+                    "Could not pack table chunks: "
+                        + combined_batch_r.status().message());
+    }
+    combined_batch = combined_batch_r.ValueOrDie();
+
   }
+
   SPDLOG_DEBUG("Packed IPC batch: {}", combined_batch->ToString());
 
+  //
+  auto serialized = arrow::ipc::SerializeRecordBatch(*combined_batch,
+                                                     arrow::ipc::IpcWriteOptions::Defaults());
+  if (!serialized.ok()) {
+    return Status(Error::ArrowError,
+                  "Could not serialize batch: " + serialized.status().message());
+  }
+
   // Convert to Arrow IPC message.
-  auto ipc_item = IpcQueueItem{
-      static_cast<size_t>(combined_batch->num_rows()),
-      arrow::ipc::SerializeRecordBatch(*combined_batch,
-                                       arrow::ipc::IpcWriteOptions::Defaults()).ValueOrDie()
-  };
+  auto ipc_item = IpcQueueItem{static_cast<size_t>(combined_batch->num_rows()),
+                               serialized.ValueOrDie()};
 
   this->Reset();
 
-  return ipc_item;
+  *out = ipc_item;
+
+  return Status::OK();
 }
 
 }

@@ -47,7 +47,8 @@ auto BenchConvertSingleThread(const ConvertBenchOptions &opt,
     BOLSON_ROE(builder.Append(json_item));
     // Create IPC msg if the threshold is reached or this is the last JSON.
     if ((builder.size() >= opt.batch_threshold) || (i == opt.num_jsons - 1)) {
-      auto ipc_msg = builder.Finish();
+      IpcQueueItem ipc_msg;
+      BOLSON_ROE(builder.Finish(&ipc_msg));
       *ipc_size += ipc_msg.ipc->size();
       ipc_queue->enqueue(ipc_msg);
     }

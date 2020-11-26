@@ -47,7 +47,7 @@ class BatchBuilder {
   void Reset();
 
   /// \brief Finish the builder, resulting in an IPC queue item. This resets the builder, and can be reused afterwards.
-  auto Finish() -> IpcQueueItem;
+  auto Finish(IpcQueueItem *out) -> Status;
 
  private:
   /// Parsing options.
