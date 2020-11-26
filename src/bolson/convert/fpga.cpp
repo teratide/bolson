@@ -257,11 +257,11 @@ auto FPGABatchBuilder::Make(std::shared_ptr<FPGABatchBuilder> *out,
 
 #define INPUT_LASTIDX 5
 
-static Status WrapOutput(int32_t num_rows,
-                         uint8_t *offsets,
-                         uint8_t *values,
-                         std::shared_ptr<arrow::Schema> schema,
-                         std::shared_ptr<arrow::RecordBatch> *out) {
+static Status CopyAndWrapOutput(int32_t num_rows,
+                                uint8_t *offsets,
+                                uint8_t *values,
+                                std::shared_ptr<arrow::Schema> schema,
+                                std::shared_ptr<arrow::RecordBatch> *out) {
   auto ret = Status::OK();
 
   // +1 because the last value in offsets buffer is the next free index in the values
@@ -275,15 +275,17 @@ static Status WrapOutput(int32_t num_rows,
   size_t num_values_bytes = num_values * sizeof(uint64_t);
 
   try {
-    // Wrap data into arrow buffers
-    auto offsets_buf = arrow::Buffer::Wrap(offsets, num_offset_bytes);
-    auto values_buf = arrow::Buffer::Wrap(values, num_values_bytes);
+    auto new_offs = std::shared_ptr(arrow::AllocateBuffer(num_offset_bytes).ValueOrDie());
+    auto new_vals = std::shared_ptr(arrow::AllocateBuffer(num_values_bytes).ValueOrDie());
+
+    std::memcpy(new_offs->mutable_data(), offsets, num_offset_bytes);
+    std::memcpy(new_vals->mutable_data(), values, num_values_bytes);
 
     auto value_array =
-        std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_values, values_buf);
+        std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_values, new_vals);
     auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()),
                                                          num_rows,
-                                                         offsets_buf,
+                                                         new_offs,
                                                          value_array);
 
     std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
@@ -313,11 +315,11 @@ auto FPGABatchBuilder::Append(const illex::JSONQueueItem &item) -> Status {
   result_counter = result.full;
 
   std::shared_ptr<arrow::RecordBatch> batch_result;
-  BOLSON_ROE(WrapOutput(num_rows,
-                        output_off_raw,
-                        output_val_raw,
-                        output_schema(),
-                        &batch_result));
+  BOLSON_ROE(CopyAndWrapOutput(num_rows,
+                               output_off_raw,
+                               output_val_raw,
+                               output_schema(),
+                               &batch_result));
 
   // Construct the column for the sequence number.
   std::shared_ptr<arrow::Array> seq;
