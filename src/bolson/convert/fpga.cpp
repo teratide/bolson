@@ -15,6 +15,14 @@
 #include <cstdlib>
 #include <utility>
 
+#include <malloc.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+
 #include <arrow/ipc/api.h>
 
 #include <fletcher/fletcher.h>
@@ -183,29 +191,22 @@ static auto output_schema() -> std::shared_ptr<arrow::Schema> {
   return result;
 }
 
-static auto GetPageAlignedBuffer(uint8_t **buffer, size_t size) -> Status {
-  size_t page_size = 2 * 1024 * 1024;
-  // size_t page_size = sysconf(_SC_PAGESIZE);
-  if (size % page_size != 0) {
-    return Status(Error::FPGAError,
-                  "Size " + std::to_string(size)
-                      + " is not integer multiple of page size "
-                      + std::to_string(page_size));
+static auto GetHugePageBuffer(uint8_t **buffer, size_t size) -> Status {
+  void *addr;
+  addr = mmap((void *)(0x0UL), size, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | (30 << 26)), -1, 0);
+  if (addr == MAP_FAILED)
+  {
+    return Status(Error::FPGAError, "Unable to allocate huge page buffer.");
   }
-  int pmar = posix_memalign(reinterpret_cast<void **>(buffer),
-                            page_size,
-                            size);
-  if (pmar != 0) {
-    return Status(Error::FPGAError, "Unable to allocate aligned buffer.");
-  }
-  std::memset(*buffer, '0', size);
+  memset(addr, 0, size);
+  *buffer = (uint8_t *)addr;
   return Status::OK();
 }
 
 static auto PrepareInputBatch(std::shared_ptr<arrow::RecordBatch> *out,
                               uint8_t **buffer_raw,
                               size_t size) -> Status {
-  BOLSON_ROE(GetPageAlignedBuffer(buffer_raw, size));
+  BOLSON_ROE(GetHugePageBuffer(buffer_raw, size));
   auto buf = arrow::Buffer::Wrap(*buffer_raw, size);
   auto arr = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), size, buf);
   *out = arrow::RecordBatch::Make(input_schema(), size, {arr});
@@ -218,8 +219,8 @@ static auto PrepareOutputBatch(std::shared_ptr<arrow::RecordBatch> *out,
                                size_t offsets_size,
                                size_t values_size) -> Status {
 
-  BOLSON_ROE(GetPageAlignedBuffer(output_off_raw, offsets_size));
-  BOLSON_ROE(GetPageAlignedBuffer(output_val_raw, values_size));
+  BOLSON_ROE(GetHugePageBuffer(output_off_raw, offsets_size));
+  BOLSON_ROE(GetHugePageBuffer(output_val_raw, values_size));
 
   auto offset_buffer = arrow::Buffer::Wrap(*output_off_raw, offsets_size);
   auto values_buffer = arrow::Buffer::Wrap(*output_val_raw, values_size);

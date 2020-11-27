@@ -35,9 +35,9 @@ class FPGABatchBuilder : public BatchBuilder {
  public:
   static auto Make(std::shared_ptr<FPGABatchBuilder> *out,
                    std::string afu_id = AFU_ID,
-                   size_t input_capacity = 2 * 1024 * 1024,
-                   size_t output_capacity_off = 2 * 1024 * 1024,
-                   size_t output_capacity_val = 2 * 1024 * 1024,
+                   size_t input_capacity = 1000 * 1024 * 1024,
+                   size_t output_capacity_off = 1000 * 1024 * 1024,
+                   size_t output_capacity_val = 1000 * 1024 * 1024,
                    size_t seq_buffer_init_size = 1024,
                    size_t str_buffer_init_size = 16 * 1024 * 1024) -> Status;
 
