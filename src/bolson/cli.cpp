@@ -190,6 +190,7 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
                          out->bench.convert.max_ipc_size,
                          "Maximum size of the IPC messages.")
       ->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
+  bench_conv->add_option("--seed", out->bench.convert.generate.seed, "Generation seed.");
   AddArrowOpts(bench_conv, &schema_file);
   AddThreadsOpts(bench_conv, &out->bench.convert.num_threads);
 

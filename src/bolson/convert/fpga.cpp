@@ -17,8 +17,8 @@
 
 #include <malloc.h>
 #include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include <cstdlib>
+#include <cstdio>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <fcntl.h>
@@ -65,14 +65,15 @@ void ConvertWithFPGA(illex::JSONQueue *in,
   putong::Timer convert_timer;
   putong::Timer ipc_construct_timer;
 
+  // Prepare statistics
+  Stats stats;
+
   SPDLOG_DEBUG("[FPGA] Converter thread spawned.");
 
   // Prepare BatchBuilder
   std::shared_ptr<FPGABatchBuilder> builder;
-  FPGABatchBuilder::Make(&builder);
-
-  // Prepare statistics
-  Stats stats;
+  stats.status = FPGABatchBuilder::Make(&builder);
+  SHUTDOWN_ON_FAILURE();
 
   // Reserve a queue item
   illex::JSONQueueItem json_item;
@@ -193,13 +194,17 @@ static auto output_schema() -> std::shared_ptr<arrow::Schema> {
 
 static auto GetHugePageBuffer(uint8_t **buffer, size_t size) -> Status {
   void *addr;
-  addr = mmap((void *)(0x0UL), size, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | (30 << 26)), -1, 0);
-  if (addr == MAP_FAILED)
-  {
+  addr = mmap((void *) (0x0UL),
+              size,
+              (PROT_READ | PROT_WRITE),
+              (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | (30 << 26)),
+              -1,
+              0);
+  if (addr == MAP_FAILED) {
     return Status(Error::FPGAError, "Unable to allocate huge page buffer.");
   }
   memset(addr, 0, size);
-  *buffer = (uint8_t *)addr;
+  *buffer = (uint8_t *) addr;
   return Status::OK();
 }
 
