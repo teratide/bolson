@@ -47,9 +47,11 @@ class BatchBuilder {
   auto Buffer(const illex::JSONQueueItem &item) -> Status;
 
   /// \brief Flush the buffered JSONs and convert them to a single RecordBatch.
-  virtual auto FlushBuffered() -> Status = 0;
+  virtual auto FlushBuffered(putong::Timer<> *t) -> Status = 0;
 
-  inline auto num_buffered() -> size_t { return seq_builder->length(); }
+  inline auto jsons_buffered() -> size_t { return seq_builder->length(); }
+
+  inline auto bytes_buffered() -> size_t { return str_buffer->size(); }
 
   /// \brief Resets this builder, clearing contained batches. Can be reused afterwards.
   void Reset();
@@ -80,7 +82,7 @@ class ArrowBatchBuilder : public BatchBuilder {
         parse_options(std::move(parse_options)) {}
 
   auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status override;
-  auto FlushBuffered() -> Status override;
+  auto FlushBuffered(putong::Timer<> *t) -> Status override;
  private:
   /// Parsing options.
   arrow::json::ParseOptions parse_options;
