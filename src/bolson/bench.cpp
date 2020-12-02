@@ -113,6 +113,26 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
   return Status::OK();
 }
 
+static auto GenerateJSONs(putong::Timer<> *g,
+                          const ConvertBenchOptions &opt,
+                          std::vector<illex::JSONQueueItem> *items) -> size_t {
+  // Generate a message with tweets in JSON format.
+  auto gen = illex::FromArrowSchema(*opt.schema, opt.generate);
+
+  // Generate the JSONs.
+  g->Start();
+  items->reserve(opt.num_jsons);
+  size_t raw_chars = 0;
+  for (size_t i = 0; i < opt.num_jsons; i++) {
+    auto json = gen.GetString();
+    raw_chars += json.size();
+    items->push_back(illex::JSONQueueItem{i, json});
+  }
+  g->Stop();
+
+  return raw_chars;
+}
+
 auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   putong::Timer<> g, q, c, m;
 
@@ -122,21 +142,9 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   } else {
     std::cout << opt.num_jsons << ",";
   }
-
-  // Generate a message with tweets in JSON format.
-  auto gen = illex::FromArrowSchema(*opt.schema, opt.generate);
-
-  // Generate the JSONs.
-  g.Start();
+  // Generate JSONs
   std::vector<illex::JSONQueueItem> items;
-  items.reserve(opt.num_jsons);
-  size_t raw_chars = 0;
-  for (size_t i = 0; i < opt.num_jsons; i++) {
-    auto json = gen.GetString();
-    raw_chars += json.size();
-    items.push_back(illex::JSONQueueItem{i, json});
-  }
-  g.Stop();
+  auto raw_chars = GenerateJSONs(&g, opt, &items);
 
   if (!opt.csv) {
     spdlog::info("Generated JSONs bytes          : {} MiB",
