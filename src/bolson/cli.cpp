@@ -93,7 +93,8 @@ static auto CalcThreshold(size_t max_size,
 
 static void AddConvertOpts(CLI::App *sub, convert::Impl *impl, size_t *json_thresh) {
   std::map<std::string, convert::Impl> conversion_map{{"cpu", convert::Impl::CPU},
-                                                      {"fpga", convert::Impl::FPGA}};
+                                                      {"opae-battery",
+                                                       convert::Impl::OPAE_BATTERY}};
   sub->add_option("--conversion", *impl, "Converter implementation.")
       ->transform(CLI::CheckedTransformer(conversion_map, CLI::ignore_case))
       ->default_val(convert::Impl::CPU);
@@ -216,7 +217,7 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   } catch (CLI::Error &e) {
     // There is some CLI error.
     std::cerr << app.help() << std::endl;
-    return Status(Error::CLIError, e.get_name() + ":" + e.what());
+    return Status(Error::CLIError, "CLI Error: " + e.get_name() + ":" + e.what());
   }
 
   std::shared_ptr<arrow::Schema> schema;

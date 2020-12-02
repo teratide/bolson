@@ -119,7 +119,7 @@ auto BatchBuilder::ToString() -> std::string {
   o << "Batch builder:" << std::endl;
   o << "  Buffered batches: " << this->batches.size() << std::endl;
   o << "  Buffered batches size: " << this->size() << std::endl;
-  o << "  Buffered JSONS: " << this->num_buffered() << std::endl;
+  o << "  Buffered JSONS: " << this->jsons_buffered() << std::endl;
   o << "  JSON buffer: " << this->str_buffer->size() << std::endl;
   return o.str();
 }
@@ -182,7 +182,7 @@ auto ArrowBatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Statu
   return Status::OK();
 }
 
-auto ArrowBatchBuilder::FlushBuffered() -> Status {
+auto ArrowBatchBuilder::FlushBuffered(putong::Timer<> *t) -> Status {
   // Check if there is anything to flush.
   if (str_buffer->size() > 0) {
     SPDLOG_DEBUG("Flushing: {}",
@@ -193,7 +193,9 @@ auto ArrowBatchBuilder::FlushBuffered() -> Status {
                                              br,
                                              arrow::json::ReadOptions::Defaults(),
                                              parse_options).ValueOrDie();
+    t->Start();
     auto table = tr->Read().ValueOrDie();
+    t->Stop();
 
     // Construct the column for the sequence number.
     std::shared_ptr<arrow::Array> seq;
@@ -238,6 +240,7 @@ static void ConversionDroneThread(size_t id,
                                   size_t batch_threshold) {
   // Prepare some timers
   putong::Timer thread_timer(true);
+  putong::Timer parse_timer;
   putong::Timer convert_timer;
   putong::Timer ipc_construct_timer;
 
@@ -270,13 +273,17 @@ static void ConversionDroneThread(size_t id,
       SHUTDOWN_ON_FAILURE();
 
       // Check if we need to flush the JSON buffer.
-      if (builder.num_buffered() >= json_threshold) {
+      if (builder.jsons_buffered() >= json_threshold) {
         SPDLOG_DEBUG("Builder JSON buffer reached threshold.");
+        // Add to stats
+        stats.num_jsons += builder.jsons_buffered();
+        stats.num_json_bytes += builder.bytes_buffered();
         convert_timer.Start();
-        stats.num_jsons += builder.num_buffered();
-        stats.status = builder.FlushBuffered();
+        // Flush the buffer
+        stats.status = builder.FlushBuffered(&parse_timer);
         SHUTDOWN_ON_FAILURE();
         convert_timer.Stop();
+        stats.parse_time += parse_timer.seconds();
         stats.convert_time += convert_timer.seconds();
       }
 
@@ -296,13 +303,17 @@ static void ConversionDroneThread(size_t id,
 
       SPDLOG_DEBUG("Nothing left in queue.");
       // If there is still something in the buffer, flush it.
-      if (builder.num_buffered() > 0) {
+      if (builder.jsons_buffered() > 0) {
         SPDLOG_DEBUG("Flushing JSON buffer.");
+        // Add to stats
+        stats.num_jsons += builder.jsons_buffered();
+        stats.num_json_bytes += builder.bytes_buffered();
         convert_timer.Start();
-        stats.num_jsons += builder.num_buffered();
-        stats.status = builder.FlushBuffered();
+        // Flush the buffer
+        stats.status = builder.FlushBuffered(&parse_timer);
         SHUTDOWN_ON_FAILURE();
         convert_timer.Stop();
+        stats.parse_time += parse_timer.seconds();
         stats.convert_time += convert_timer.seconds();
       }
 

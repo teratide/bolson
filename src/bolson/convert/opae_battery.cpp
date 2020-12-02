@@ -33,7 +33,7 @@
 #include <illex/queue.h>
 
 #include "bolson/convert/convert.h"
-#include "bolson/convert/fpga.h"
+#include "bolson/convert/opae_battery.h"
 #include "bolson/utils.h"
 
 /// Return Bolson error status when Fletcher error status is supplied.
@@ -54,14 +54,15 @@ namespace bolson::convert {
   return; \
 } void()
 
-void ConvertWithFPGA(illex::JSONQueue *in,
-                     IpcQueue *out,
-                     std::atomic<bool> *shutdown,
-                     size_t json_threshold,
-                     size_t batch_threshold,
-                     std::promise<std::vector<Stats>> &&stats_promise) {
+void ConvertBatteryWithOPAE(illex::JSONQueue *in,
+                            IpcQueue *out,
+                            std::atomic<bool> *shutdown,
+                            size_t json_threshold,
+                            size_t batch_threshold,
+                            std::promise<std::vector<Stats>> &&stats_promise) {
   // Prepare some timers
   putong::Timer thread_timer(true);
+  putong::Timer parse_timer;
   putong::Timer convert_timer;
   putong::Timer ipc_construct_timer;
 
@@ -71,8 +72,8 @@ void ConvertWithFPGA(illex::JSONQueue *in,
   SPDLOG_DEBUG("[FPGA] Converter thread spawned.");
 
   // Prepare BatchBuilder
-  std::shared_ptr<FPGABatchBuilder> builder;
-  stats.status = FPGABatchBuilder::Make(&builder);
+  std::shared_ptr<OPAEBatteryBatchBuilder> builder;
+  stats.status = OPAEBatteryBatchBuilder::Make(&builder);
   SHUTDOWN_ON_FAILURE();
 
   // Reserve a queue item
@@ -96,13 +97,17 @@ void ConvertWithFPGA(illex::JSONQueue *in,
       SHUTDOWN_ON_FAILURE();
 
       // Check if we need to flush the JSON buffer.
-      if (builder->num_buffered() >= json_threshold) {
+      if (builder->jsons_buffered() >= json_threshold) {
         SPDLOG_DEBUG("[FPGA] Builder JSON buffer reached threshold.");
+        // Add to stats
+        stats.num_jsons += builder->jsons_buffered();
+        stats.num_json_bytes += builder->bytes_buffered();
         convert_timer.Start();
-        stats.num_jsons += builder->num_buffered();
-        stats.status = builder->FlushBuffered();
+        // Flush the buffer
+        stats.status = builder->FlushBuffered(&parse_timer);
         SHUTDOWN_ON_FAILURE();
         convert_timer.Stop();
+        stats.parse_time += parse_timer.seconds();
         stats.convert_time += convert_timer.seconds();
       }
 
@@ -122,13 +127,17 @@ void ConvertWithFPGA(illex::JSONQueue *in,
 
       SPDLOG_DEBUG("[FPGA] Nothing left in queue.");
       // If there is still something in the buffer, flush it.
-      if (builder->num_buffered() > 0) {
+      if (builder->jsons_buffered() > 0) {
         SPDLOG_DEBUG("[FPGA] Flushing JSON buffer.");
+        // Add to stats
+        stats.num_jsons += builder->jsons_buffered();
+        stats.num_json_bytes += builder->bytes_buffered();
         convert_timer.Start();
-        stats.num_jsons += builder->num_buffered();
-        stats.status = builder->FlushBuffered();
+        // Flush the buffer
+        stats.status = builder->FlushBuffered(&parse_timer);
         SHUTDOWN_ON_FAILURE();
         convert_timer.Stop();
+        stats.parse_time += parse_timer.seconds();
         stats.convert_time += convert_timer.seconds();
       }
 
@@ -241,17 +250,17 @@ static auto PrepareOutputBatch(std::shared_ptr<arrow::RecordBatch> *out,
   return Status::OK();
 }
 
-auto FPGABatchBuilder::Make(std::shared_ptr<FPGABatchBuilder> *out,
-                            std::string afu_id,
-                            size_t input_capacity,
-                            size_t output_capacity_off,
-                            size_t output_capacity_val,
-                            size_t seq_buffer_init_size,
-                            size_t str_buffer_init_size) -> Status {
+auto OPAEBatteryBatchBuilder::Make(std::shared_ptr<OPAEBatteryBatchBuilder> *out,
+                                   std::string afu_id,
+                                   size_t input_capacity,
+                                   size_t output_capacity_off,
+                                   size_t output_capacity_val,
+                                   size_t seq_buffer_init_size,
+                                   size_t str_buffer_init_size) -> Status {
   auto
-      result = std::shared_ptr<FPGABatchBuilder>(new FPGABatchBuilder(std::move(afu_id),
-                                                                      seq_buffer_init_size,
-                                                                      str_buffer_init_size));
+      result = std::shared_ptr<OPAEBatteryBatchBuilder>(new OPAEBatteryBatchBuilder(std::move(afu_id),
+                                                                                    seq_buffer_init_size,
+                                                                                    str_buffer_init_size));
 
   // Prepare input and output batch.
   BOLSON_ROE(PrepareInputBatch(&result->input, &result->input_raw, input_capacity));
@@ -329,7 +338,7 @@ static auto CopyAndWrapOutput(int32_t num_rows,
   return Status::OK();
 }
 
-auto FPGABatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status {
+auto OPAEBatteryBatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status {
   SPDLOG_DEBUG("Appending JSON as RecordBatch");
 
   // Copy the JSON data onto the buffer.
@@ -343,8 +352,7 @@ auto FPGABatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status
 
   dau_t result;
   FLETCHER_ROE(this->kernel->GetReturn(&result.lo, &result.hi));
-  uint64_t num_rows = result.full - result_counter;
-  result_counter = result.full;
+  uint64_t num_rows = result.full;
 
   std::shared_ptr<arrow::RecordBatch> batch_result;
   BOLSON_ROE(CopyAndWrapOutput(num_rows,
@@ -370,24 +378,26 @@ auto FPGABatchBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status
   return Status::OK();
 }
 
-auto FPGABatchBuilder::FlushBuffered() -> Status {
+auto OPAEBatteryBatchBuilder::FlushBuffered(putong::Timer<> *t) -> Status {
   if (str_buffer->size() > 0) {
     SPDLOG_DEBUG("Flushing: {}",
                  std::string(reinterpret_cast<const char *>(str_buffer->data()),
                              str_buffer->size()));
+
     // Copy the JSON data onto the buffer.
     std::memcpy(this->input_raw, this->str_buffer->data(), this->str_buffer->size());
 
     FLETCHER_ROE(this->platform->WriteMMIO(INPUT_LASTIDX,
                                            static_cast<int32_t>(this->str_buffer->size())));
     FLETCHER_ROE(this->kernel->Reset());
+    t->Start();
     FLETCHER_ROE(this->kernel->Start());
     FLETCHER_ROE(this->kernel->PollUntilDone());
+    t->Stop();
 
     dau_t result;
     FLETCHER_ROE(this->kernel->GetReturn(&result.lo, &result.hi));
-    uint64_t num_rows = result.full - result_counter;
-    result_counter = result.full;
+    uint64_t num_rows = result.full;
 
     std::shared_ptr<arrow::RecordBatch> out_batch;
     BOLSON_ROE(CopyAndWrapOutput(num_rows,

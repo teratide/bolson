@@ -89,7 +89,7 @@ add_compile_unit(
     src/bolson/bench.cpp
     src/bolson/convert/convert.cpp
     src/bolson/convert/cpu.cpp
-    src/bolson/convert/fpga.cpp
+    src/bolson/convert/opae_battery.cpp
   DEPS
     arrow_shared
     CLI11::CLI11

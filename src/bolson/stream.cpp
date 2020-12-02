@@ -24,7 +24,7 @@
 #include "bolson/status.h"
 #include "bolson/convert/convert.h"
 #include "bolson/convert/cpu.h"
-#include "bolson/convert/fpga.h"
+#include "bolson/convert/opae_battery.h"
 
 namespace bolson {
 
@@ -160,15 +160,16 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                                  std::move(
                                                                      conv_stats_promise));
         break;
-      case convert::Impl::FPGA:
-        threads.converter_thread = std::make_unique<std::thread>(convert::ConvertWithFPGA,
-                                                                 &raw_json_queue,
-                                                                 &arrow_ipc_queue,
-                                                                 &threads.shutdown,
-                                                                 opt.json_threshold,
-                                                                 opt.batch_threshold,
-                                                                 std::move(
-                                                                     conv_stats_promise));
+      case convert::Impl::OPAE_BATTERY:
+        threads.converter_thread =
+            std::make_unique<std::thread>(convert::ConvertBatteryWithOPAE,
+                                          &raw_json_queue,
+                                          &arrow_ipc_queue,
+                                          &threads.shutdown,
+                                          opt.json_threshold,
+                                          opt.batch_threshold,
+                                          std::move(
+                                              conv_stats_promise));
     }
 
     // The publish thread pull from the Arrow IPC queue, fed by the conversion thread, and publish them in Pulsar.

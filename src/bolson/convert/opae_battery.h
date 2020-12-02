@@ -26,15 +26,15 @@
 #include "bolson/convert/cpu.h"
 
 #define FPGA_PLATFORM "opae"
-#define AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5eed"
+#define OPAE_BATTERY_AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5eed"
 
 namespace bolson::convert {
 
 /// Class to support incremental building up of a RecordBatch from JSONQueueItems.
-class FPGABatchBuilder : public BatchBuilder {
+class OPAEBatteryBatchBuilder : public BatchBuilder {
  public:
-  static auto Make(std::shared_ptr<FPGABatchBuilder> *out,
-                   std::string afu_id = AFU_ID,
+  static auto Make(std::shared_ptr<OPAEBatteryBatchBuilder> *out,
+                   std::string afu_id = OPAE_BATTERY_AFU_ID,
                    size_t input_capacity = 1000 * 1024 * 1024,
                    size_t output_capacity_off = 1000 * 1024 * 1024,
                    size_t output_capacity_val = 1000 * 1024 * 1024,
@@ -42,15 +42,15 @@ class FPGABatchBuilder : public BatchBuilder {
                    size_t str_buffer_init_size = 16 * 1024 * 1024) -> Status;
 
   auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status override;
-  auto FlushBuffered() -> Status override;
+  auto FlushBuffered(putong::Timer<> *t) -> Status override;
  protected:
-  explicit FPGABatchBuilder(std::string afu_id,
-                            size_t seq_buf_init_size,
-                            size_t str_buf_init_size)
+  explicit OPAEBatteryBatchBuilder(std::string afu_id,
+                                   size_t seq_buf_init_size,
+                                   size_t str_buf_init_size)
       : BatchBuilder(seq_buf_init_size, str_buf_init_size),
         afu_id_(std::move(afu_id)) {}
  private:
-  uint64_t result_counter = 0;
+  /// AFU ID
   std::string afu_id_;
 
   std::shared_ptr<fletcher::Platform> platform;
@@ -64,11 +64,11 @@ class FPGABatchBuilder : public BatchBuilder {
   uint8_t *output_val_raw = nullptr;
 };
 
-void ConvertWithFPGA(illex::JSONQueue *in,
-                     IpcQueue *out,
-                     std::atomic<bool> *shutdown,
-                     size_t json_threshold,
-                     size_t batch_threshold,
-                     std::promise<std::vector<Stats>> &&stats_promise);
+void ConvertBatteryWithOPAE(illex::JSONQueue *in,
+                            IpcQueue *out,
+                            std::atomic<bool> *shutdown,
+                            size_t json_threshold,
+                            size_t batch_threshold,
+                            std::promise<std::vector<Stats>> &&stats_promise);
 
 }
