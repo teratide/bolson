@@ -51,7 +51,7 @@ struct Stats {
 
 enum class Impl {
   CPU,
-  FPGA
+  OPAE_BATTERY
 };
 
 // Sequence number field.

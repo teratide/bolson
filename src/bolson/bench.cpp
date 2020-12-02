@@ -22,7 +22,7 @@
 #include "bolson/status.h"
 #include "bolson/pulsar.h"
 #include "bolson/convert/cpu.h"
-#include "bolson/convert/fpga.h"
+#include "bolson/convert/opae_battery.h"
 #include "bolson/convert/convert.h"
 
 namespace bolson {
@@ -85,8 +85,8 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
                                       opt.batch_threshold,
                                       std::move(promise_stats));
       break;
-    case convert::Impl::FPGA:
-      conversion_thread = std::thread(convert::ConvertWithFPGA,
+    case convert::Impl::OPAE_BATTERY:
+      conversion_thread = std::thread(convert::ConvertBatteryWithOPAE,
                                       json_queue,
                                       ipc_queue,
                                       &shutdown,
