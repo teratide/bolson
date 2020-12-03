@@ -72,6 +72,16 @@ class IPCBuilder {
     return seq_builder->length();
   }
 
+  /// \brief Return the number of buffered batches.
+  [[nodiscard]] inline auto batches_buffered() const -> size_t {
+    return this->batches.size();
+  }
+
+  /// \brief Access a specific batch.
+  [[nodiscard]] inline auto GetBatch(size_t i) const -> std::shared_ptr<arrow::RecordBatch> {
+    return batches[i];
+  }
+
   /// \brief Return the number of buffered bytes.
   [[nodiscard]] inline auto bytes_buffered() const -> size_t {
     return str_buffer->size();

@@ -77,7 +77,8 @@ void PublishThread(PulsarContext pulsar,
     if (in->wait_dequeue_timed(ipc_item, std::chrono::microseconds(100))) {
       SPDLOG_DEBUG("Publishing Arrow IPC message.");
       publish_timer.Start();
-      auto status = Publish(pulsar.producer.get(), ipc_item.ipc->data(), ipc_item.ipc->size(), latency);
+      //auto status = Publish(pulsar.producer.get(), ipc_item.ipc->data(), ipc_item.ipc->size(), latency);
+      auto status = Status::OK();
       publish_timer.Stop();
       if (first) {
         latency = nullptr; // todo

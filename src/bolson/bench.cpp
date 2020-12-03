@@ -89,40 +89,10 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
   return Status::OK();
 }
 
-static auto GenerateJSONs(putong::Timer<> *g,
-                          const ConvertBenchOptions &opt,
-                          std::vector<illex::JSONQueueItem> *items) -> size_t {
-  // Generate a message with tweets in JSON format.
-  auto gen = illex::FromArrowSchema(*opt.schema, opt.generate);
-
-  // Generate the JSONs.
-  g->Start();
-  items->reserve(opt.num_jsons);
-  size_t raw_chars = 0;
-  for (size_t i = 0; i < opt.num_jsons; i++) {
-    auto json = gen.GetString();
-    raw_chars += json.size();
-    items->push_back(illex::JSONQueueItem{i, json});
-  }
-  g->Stop();
-
-  return raw_chars;
-}
-
-static auto QueueJSONs(putong::Timer<> *q,
-                       const std::vector<illex::JSONQueueItem> &json_items,
-                       illex::JSONQueue *json_queue) {
-  // Measure time to push all queue items into the queue
-  q->Start();
-  for (const auto &json_item : json_items) {
-    json_queue->enqueue(json_item);
-  }
-  q->Stop();
-}
-
 using Queue = moodycamel::BlockingConcurrentQueue<uint8_t>;
 using QueueTimers = std::vector<putong::SplitTimer<2>>;
 
+// Thread to dequeue
 static void Dequeue(const QueueBenchOptions &opt, Queue *queue, QueueTimers *timers) {
   uint64_t o;
   for (size_t i = 0; i < opt.num_items; i++) {
@@ -160,6 +130,37 @@ auto BenchQueue(const QueueBenchOptions &opt) -> Status {
   }
 
   return Status::OK();
+}
+
+static auto GenerateJSONs(putong::Timer<> *g,
+                          const ConvertBenchOptions &opt,
+                          std::vector<illex::JSONQueueItem> *items) -> size_t {
+  // Generate a message with tweets in JSON format.
+  auto gen = illex::FromArrowSchema(*opt.schema, opt.generate);
+
+  // Generate the JSONs.
+  g->Start();
+  items->reserve(opt.num_jsons);
+  size_t raw_chars = 0;
+  for (size_t i = 0; i < opt.num_jsons; i++) {
+    auto json = gen.GetString();
+    raw_chars += json.size();
+    items->push_back(illex::JSONQueueItem{i, json});
+  }
+  g->Stop();
+
+  return raw_chars;
+}
+
+static auto QueueJSONs(putong::Timer<> *q,
+                       const std::vector<illex::JSONQueueItem> &json_items,
+                       illex::JSONQueue *json_queue) {
+  // Measure time to push all queue items into the queue
+  q->Start();
+  for (const auto &json_item : json_items) {
+    json_queue->enqueue(json_item);
+  }
+  q->Stop();
 }
 
 auto BenchConvert(const ConvertBenchOptions &opt) -> Status {

@@ -155,12 +155,15 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
                                     "Produce Pulsar messages from a JSON TCP stream.");
   auto *port_opt = stream->add_option("-p,--port", stream_port, "Port.")
       ->default_val(illex::RAW_PORT);
-  stream->add_option("--seq",
-                     out->stream.seq,
-                     "Starting sequence number, 64-bit unsigned integer.")
-      ->default_val(0);
+  // The below option needs to be removed because the sequence numbers are used for the
+  // latency timers:
+//  stream->add_option("--seq",
+//                     out->stream.seq,
+//                     "Starting sequence number, 64-bit unsigned integer.")
+//      ->default_val(0);
+  stream->add_option("--latency", out->stream.num_latency_timers)
+      ->default_val(1024);
   AddConvertOpts(stream, &out->stream.conversion, &out->stream.json_threshold);
-
   AddStatsOpts(stream, &csv);
   AddArrowOpts(stream, &schema_file);
   AddPulsarOpts(stream, &out->stream.pulsar);
@@ -247,20 +250,19 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   } else if (stream->parsed()) {
     out->sub = SubCommand::STREAM;
 
-    {
-      illex::RawProtocol raw;
-      if (*port_opt) {
-        raw.port = stream_port;
-      }
-      out->stream.protocol = raw;
-      out->stream.succinct = csv;
-      out->stream.parse = parse_options;
-      out->stream.read = read_options;
-      // TODO: move this to subcommand execution
-      BOLSON_ROE(CalcThreshold(out->stream.pulsar.max_msg_size,
-                               schema,
-                               &out->stream.batch_threshold));
+    illex::RawProtocol raw;
+    if (*port_opt) {
+      raw.port = stream_port;
     }
+    out->stream.protocol = raw;
+    out->stream.succinct = csv;
+    out->stream.parse = parse_options;
+    out->stream.read = read_options;
+    // TODO: move this to subcommand execution
+    BOLSON_ROE(CalcThreshold(out->stream.pulsar.max_msg_size,
+                             schema,
+                             &out->stream.batch_threshold));
+
   } else if (bench->parsed()) {
     out->sub = SubCommand::BENCH;
     if (bench_client->parsed()) {

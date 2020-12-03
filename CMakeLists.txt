@@ -64,7 +64,7 @@ FetchContent_MakeAvailable(putong)
 # illex
 FetchContent_Declare(illex
   GIT_REPOSITORY  https://github.com/teratide/illex
-  GIT_TAG         master
+  GIT_TAG         latency-experiment
 )
 FetchContent_MakeAvailable(illex)
 
@@ -87,6 +87,7 @@ add_compile_unit(
     src/bolson/cli.cpp
     src/bolson/stream.cpp
     src/bolson/bench.cpp
+    src/bolson/latency.cpp
     src/bolson/convert/stats.cpp
     src/bolson/convert/convert.cpp
     src/bolson/convert/cpu.cpp
@@ -119,3 +120,8 @@ add_compile_unit(
 include_directories(include)
 
 compile_units()
+
+option(TRACK_LATENCY ON "Enable internal pipeline latency tracking of single JSONs")
+if (TRACK_LATENCY)
+  target_compile_definitions(bolson PUBLIC BOLSON_WITH_LATENCY)
+endif()

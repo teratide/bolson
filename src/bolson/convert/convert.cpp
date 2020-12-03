@@ -18,6 +18,7 @@
 
 #include "bolson/log.h"
 #include "bolson/convert/convert.h"
+#include "bolson/latency.h"
 
 namespace bolson::convert {
 
@@ -58,6 +59,15 @@ void IPCBuilder::Reset() {
   this->size_ = 0;
 }
 
+static void SplitBatchLatencyTimers(const arrow::RecordBatch &batch) {
+  const auto
+      *seq_col = std::static_pointer_cast<arrow::UInt64Array>(batch.column(0))
+      ->raw_values();
+  for (int i = 0; i < batch.column(0)->length(); i++) {
+    g_latency_timers[seq_col[i]].Split();
+  }
+}
+
 auto IPCBuilder::Finish(IpcQueueItem *out) -> Status {
   // Set up a pointer for the combined batch.6
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> combined_batch_r;
@@ -88,9 +98,12 @@ auto IPCBuilder::Finish(IpcQueueItem *out) -> Status {
 
   }
 
+  // Latency split 2: combining batches
+  SplitBatchLatencyTimers(*combined_batch);
+
   SPDLOG_DEBUG("Packed IPC batch: {}", combined_batch->ToString());
 
-  //
+  // Serialize combined batch
   auto serialized = arrow::ipc::SerializeRecordBatch(*combined_batch,
                                                      arrow::ipc::IpcWriteOptions::Defaults());
   if (!serialized.ok()) {
@@ -98,9 +111,11 @@ auto IPCBuilder::Finish(IpcQueueItem *out) -> Status {
                   "Could not serialize batch: " + serialized.status().message());
   }
 
-  // Convert to Arrow IPC message.
   auto ipc_item = IpcQueueItem{static_cast<size_t>(combined_batch->num_rows()),
                                serialized.ValueOrDie()};
+
+  // Latency split 3: ipc construction
+  SplitBatchLatencyTimers(*combined_batch);
 
   this->Reset();
 
@@ -126,6 +141,13 @@ if (!stats.status.ok()) { \
   return; \
 } void()
 
+static void SplitLastBatchLatencyTimers(const IPCBuilder &builder) {
+  // The last batch now contains the sequence numbers of the timers we need to mark
+  // a split.
+  auto last_batch = builder.GetBatch(builder.batches_buffered() - 1);
+  SplitBatchLatencyTimers(*last_batch);
+}
+
 void Convert(size_t id,
              std::unique_ptr<IPCBuilder> builder,
              illex::JSONQueue *in,
@@ -147,7 +169,6 @@ void Convert(size_t id,
   illex::JSONQueueItem json_item;
 
   // Triggers for IPC construction
-  size_t batches_size = 0;
   bool attempt_dequeue = true;
 
   // Loop until thread is stopped.
@@ -155,10 +176,12 @@ void Convert(size_t id,
     // Attempt to dequeue an item if the size of the current RecordBatches is not larger
     // than the limit.
     if (attempt_dequeue
-        && in->wait_dequeue_timed(json_item, std::chrono::microseconds(10))) {
+        && in->wait_dequeue_timed(json_item, std::chrono::microseconds(1))) {
       SPDLOG_DEBUG("Builder status: {}", builder->ToString());
       // There is a JSON.
       SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
+      // Latency split 0: Converter Dequeue
+      g_latency_timers[json_item.seq].Split();
       // Buffer the JSON.
       stats.status = builder->Buffer(json_item);
       SHUTDOWN_ON_FAILURE();
@@ -172,6 +195,10 @@ void Convert(size_t id,
         convert_timer.Start();
         // Flush the buffer
         stats.status = builder->FlushBuffered(&parse_timer);
+
+        // Latency split 1: Convert to Batch
+        SplitLastBatchLatencyTimers(*builder);
+
         SHUTDOWN_ON_FAILURE();
         convert_timer.Stop();
         stats.parse_time += parse_timer.seconds();
@@ -192,8 +219,13 @@ void Convert(size_t id,
       // is empty, this causes the latency to be low. When it is full, it still provides
       // good throughput.
 
-      SPDLOG_DEBUG("Nothing left in queue.");
-      // If there is still something in the buffer, flush it.
+#ifndef NDEBUG
+      if ((builder->jsons_buffered() > 0) || (!builder->empty())) {
+        SPDLOG_DEBUG("Nothing left in queue.");
+      }
+#endif
+
+      // If there is still something in the JSON buffer, flush it.
       if (builder->jsons_buffered() > 0) {
         SPDLOG_DEBUG("Flushing JSON buffer.");
         // Add to stats
@@ -202,6 +234,10 @@ void Convert(size_t id,
         convert_timer.Start();
         // Flush the buffer
         stats.status = builder->FlushBuffered(&parse_timer);
+
+        // Latency split 1: converting to RecordBatch
+        SplitLastBatchLatencyTimers(*builder);
+
         SHUTDOWN_ON_FAILURE();
         convert_timer.Stop();
         stats.parse_time += parse_timer.seconds();
@@ -215,6 +251,7 @@ void Convert(size_t id,
         ipc_construct_timer.Start();
         IpcQueueItem ipc_item;
         stats.status = builder->Finish(&ipc_item);
+
         SHUTDOWN_ON_FAILURE();
         ipc_construct_timer.Stop();
 

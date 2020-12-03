@@ -25,6 +25,7 @@
 #include "bolson/convert/convert.h"
 #include "bolson/convert/cpu.h"
 #include "bolson/convert/opae_battery.h"
+#include "bolson/latency.h"
 
 namespace bolson {
 
@@ -120,6 +121,8 @@ static void LogStats(const StreamTimers &timers,
   } void()
 
 auto ProduceFromStream(const StreamOptions &opt) -> Status {
+  g_latency_timers = LatencyTimers(opt.num_latency_timers);
+  // Timers for throughput
   StreamTimers timers;
   // Check which protocol to use.
   if (std::holds_alternative<illex::ZMQProtocol>(opt.protocol)) {
@@ -133,8 +136,8 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     StreamThreads threads;
 
     // Set up queues.
-    illex::JSONQueue raw_json_queue;
-    IpcQueue arrow_ipc_queue;
+    illex::JSONQueue raw_json_queue(1024 * 1024 * 16);
+    IpcQueue arrow_ipc_queue(1024 * 1024 * 16);
 
     // Set up futures for statistics delivered by threads.
     std::promise<std::vector<Stats>> conv_stats_promise;
@@ -198,7 +201,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Receive JSONs (blocking) until the server closes the connection.
     // Concurrently, the conversion and publish thread will do their job.
     timers.tcp.Start();
-    SHUTDOWN_ON_FAILURE(client.ReceiveJSONs(&raw_json_queue, &timers.latency));
+    SHUTDOWN_ON_FAILURE(client.ReceiveJSONs(&raw_json_queue, &g_latency_timers));
     timers.tcp.Stop();
     SHUTDOWN_ON_FAILURE(client.Close());
 
@@ -248,7 +251,28 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
       if (opt.succinct) {
         OutputCSVStats(timers, client, conv_stats, pub_stats, &std::cout);
       } else {
-        LogStats(timers, client, conv_stats, pub_stats);
+        //LogStats(timers, client, conv_stats, pub_stats);
+
+        size_t t = 0;
+        std::cout << "Seq,"
+                  << "Converter Dequeue,"
+                  << "Convert to Batch,"
+                  << "Combining Batch,"
+                  << "IPC construct"
+                  << std::endl;
+        for (const auto &timer : g_latency_timers) {
+          auto stages = timer.seconds();
+          std::cout << t << ",";
+          t++;
+          for (int i = 0; i < LATENCY_NUM_STAGES; i++) {
+            std::cout << std::fixed << std::setprecision(9) << stages[i];
+            if (i != LATENCY_NUM_STAGES - 1) {
+              std::cout << ",";
+            } else {
+              std::cout << std::endl;
+            }
+          }
+        }
       }
     }
   }
