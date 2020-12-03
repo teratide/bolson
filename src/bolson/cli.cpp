@@ -161,7 +161,6 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
       ->default_val(0);
   AddConvertOpts(stream, &out->stream.conversion, &out->stream.json_threshold);
 
-  //auto *zmq_flag = sub_stream->add_flag("-z,--zeromq", "Use the ZeroMQ push-pull protocol for the stream.");
   AddStatsOpts(stream, &csv);
   AddArrowOpts(stream, &schema_file);
   AddPulsarOpts(stream, &out->stream.pulsar);
@@ -207,6 +206,11 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
                            "Pulsar number of messages.")->default_val(1024);
   AddPulsarOpts(bench, &out->bench.pulsar.pulsar);
 
+  // 'bench queue' subcommand
+  auto *bench_queue = bench->add_subcommand("queue", "Run queue microbenchmark.");
+  bench_queue->add_option("m,-m,--num-items,", out->bench.queue.num_items)
+      ->default_val(256);
+
   // Attempt to parse the CLI arguments.
   try {
     app.parse(argc, argv);
@@ -243,14 +247,6 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   } else if (stream->parsed()) {
     out->sub = SubCommand::STREAM;
 
-    // Check which streaming protocol to use.
-//    if (*zmq_flag) {
-//      illex::ZMQProtocol zmq;
-//      if (*port_opt) {
-//        zmq.port = stream_port;
-//      }
-//      out->stream.protocol = zmq;
-//    } else
     {
       illex::RawProtocol raw;
       if (*port_opt) {
@@ -282,6 +278,8 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
     } else if (bench_pulsar->parsed()) {
       out->bench.bench = Bench::PULSAR;
       out->bench.pulsar.csv = csv;
+    } else if (bench_queue->parsed()) {
+      out->bench.bench = Bench::QUEUE;
     }
   }
 

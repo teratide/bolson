@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <putong/timer.h>
+
 #include "bolson/status.h"
 #include "bolson/log.h"
 

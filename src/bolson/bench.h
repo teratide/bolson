@@ -60,6 +60,11 @@ struct PulsarBenchOptions {
   size_t message_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
 };
 
+/// Options for queue benchmark
+struct QueueBenchOptions {
+  size_t num_items = 256;
+};
+
 /// Possible benchmark subcommands
 enum class Bench {
   /// Benchmark the client stream interface
@@ -67,7 +72,9 @@ enum class Bench {
   /// Benchmark conversion from JSON to Arrow RecordBatch to Arrow IPC
   CONVERT,
   /// Benchmark the Pulsar interface
-  PULSAR
+  PULSAR,
+  /// Benchmark for queues.
+  QUEUE
 };
 
 /// Benchmark subcommand options
@@ -80,6 +87,8 @@ struct BenchOptions {
   ConvertBenchOptions convert;
   /// Options for Pulsar bench
   PulsarBenchOptions pulsar;
+  /// Options for Queue bench
+  QueueBenchOptions queue;
 };
 
 /**

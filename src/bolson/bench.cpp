@@ -15,6 +15,7 @@
 #include <iostream>
 #include <thread>
 
+#include <blockingconcurrentqueue.h>
 #include <putong/timer.h>
 #include <illex/arrow.h>
 
@@ -29,37 +30,6 @@ namespace bolson {
 
 auto BenchClient(const ClientBenchOptions &opt) -> Status {
   return Status(Error::GenericError, "Not yet implemented.");
-}
-
-auto BenchConvertSingleThread(const ConvertBenchOptions &opt,
-                              putong::Timer<> *t,
-                              size_t *ipc_size,
-                              illex::JSONQueue *json_queue,
-                              IpcQueue *ipc_queue) -> Status {
-  putong::Timer<> m;
-  std::vector<IpcQueueItem> ipc_messages;
-  ipc_messages.reserve(opt.num_jsons);
-
-  convert::ArrowIPCBuilder builder(opt.parse_opts,
-                                   opt.read_opts,
-                                   opt.json_threshold,
-                                   opt.batch_threshold);
-  t->Start();
-  for (size_t i = 0; i < opt.num_jsons; i++) {
-    illex::JSONQueueItem json_item;
-    json_queue->wait_dequeue(json_item);
-    BOLSON_ROE(builder.AppendAsBatch(json_item));
-    // Create IPC msg if the threshold is reached or this is the last JSON.
-    if ((builder.size() >= opt.batch_threshold) || (i == opt.num_jsons - 1)) {
-      IpcQueueItem ipc_msg;
-      BOLSON_ROE(builder.Finish(&ipc_msg));
-      *ipc_size += ipc_msg.ipc->size();
-      ipc_queue->enqueue(ipc_msg);
-    }
-  }
-  t->Stop();
-
-  return Status::OK();
 }
 
 auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
@@ -139,6 +109,59 @@ static auto GenerateJSONs(putong::Timer<> *g,
   return raw_chars;
 }
 
+static auto QueueJSONs(putong::Timer<> *q,
+                       const std::vector<illex::JSONQueueItem> &json_items,
+                       illex::JSONQueue *json_queue) {
+  // Measure time to push all queue items into the queue
+  q->Start();
+  for (const auto &json_item : json_items) {
+    json_queue->enqueue(json_item);
+  }
+  q->Stop();
+}
+
+using Queue = moodycamel::BlockingConcurrentQueue<uint8_t>;
+using QueueTimers = std::vector<putong::SplitTimer<2>>;
+
+static void Dequeue(const QueueBenchOptions &opt, Queue *queue, QueueTimers *timers) {
+  uint64_t o;
+  for (size_t i = 0; i < opt.num_items; i++) {
+    queue->wait_dequeue(o);
+    (*timers)[i].Split();
+  }
+}
+
+auto BenchQueue(const QueueBenchOptions &opt) -> Status {
+  // Make a queue
+  Queue queue;
+  // Make timers.
+  std::vector<putong::SplitTimer<2>> timers(opt.num_items);
+
+  auto deq_thread = std::thread(Dequeue, opt, &queue, &timers);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+  for (size_t i = 0; i < opt.num_items; i++) {
+    timers[i].Start();
+    queue.enqueue(static_cast<uint64_t>(i));
+    timers[i].Split();
+  }
+
+  deq_thread.join();
+
+  size_t i = 0;
+  std::cout << "Item,Enqueue,Dequeue" << std::endl;
+  for (const auto &t: timers) {
+    std::cout << i << ",";
+    i++;
+    std::cout << std::setprecision(9) << std::fixed << t.seconds()[0] << ",";
+    std::cout << std::setprecision(9) << std::fixed << t.seconds()[1];
+    std::cout << std::endl;
+  }
+
+  return Status::OK();
+}
+
 auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   putong::Timer<> g, q, c, m;
 
@@ -150,27 +173,29 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   }
   // Generate JSONs
   std::vector<illex::JSONQueueItem> items;
-  auto raw_chars = GenerateJSONs(&g, opt, &items);
+  auto raw_json_bytes = GenerateJSONs(&g, opt, &items);
 
+  // Queue JSONs
+  illex::JSONQueue json_queue;
+  QueueJSONs(&q, items, &json_queue);
+  auto json_queue_size = raw_json_bytes + sizeof(illex::JSONQueueItem) * opt.num_jsons;
+
+  // Measure time to convert JSONs and fill the IPC queue.
+  IpcQueue ipc_queue;
+  size_t ipc_size = 0;
+
+  BOLSON_ROE(BenchConvertMultiThread(opt, &c, &ipc_size, &json_queue, &ipc_queue));
+
+  // Print all statistics:
   if (!opt.csv) {
     spdlog::info("Generated JSONs bytes          : {} MiB",
-                 static_cast<double>(raw_chars) / (1024 * 1024));
+                 static_cast<double>(raw_json_bytes) / (1024 * 1024));
     spdlog::info("Generate time                  : {} s", g.seconds());
     spdlog::info("Generate throughput            : {} MB/s",
-                 static_cast<double>(raw_chars) / g.seconds() * 1E-6);
+                 static_cast<double>(raw_json_bytes) / g.seconds() * 1E-6);
   } else {
-    std::cout << raw_chars << "," << g.seconds() << ",";
+    std::cout << raw_json_bytes << "," << g.seconds() << ",";
   }
-
-  // Measure time to push all queue items into the queue
-  illex::JSONQueue json_queue;
-  q.Start();
-  for (size_t i = 0; i < opt.num_jsons; i++) {
-    json_queue.enqueue(items[i]);
-  }
-  q.Stop();
-
-  auto json_queue_size = raw_chars + sizeof(illex::JSONQueueItem) * opt.num_jsons;
 
   if (!opt.csv) {
     spdlog::info("JSON Queue bytes               : {} MiB",
@@ -181,16 +206,6 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   } else {
     std::cout << json_queue_size << "," << q.seconds();
   }
-
-  // Measure time to convert JSONs and fill the IPC queue.
-  IpcQueue ipc_queue;
-  size_t ipc_size = 0;
-
-  //if (opt.num_threads <= 1) {
-  //BOLSON_ROE(BenchConvertSingleThread(opt, &c, &ipc_size, &json_queue, &ipc_queue));
-  //} else {
-  BOLSON_ROE(BenchConvertMultiThread(opt, &c, &ipc_size, &json_queue, &ipc_queue));
-  //}
 
   if (!opt.csv) {
     spdlog::info("IPC bytes                      : {} MiB",
@@ -251,9 +266,10 @@ auto BenchPulsar(const PulsarBenchOptions &opt) -> Status {
 
 auto RunBench(const BenchOptions &opt) -> Status {
   switch (opt.bench) {
-    case Bench::CLIENT:return BenchClient(opt.client);
-    case Bench::CONVERT:return BenchConvert(opt.convert);
-    case Bench::PULSAR:return BenchPulsar(opt.pulsar);
+    case Bench::CLIENT: return BenchClient(opt.client);
+    case Bench::CONVERT: return BenchConvert(opt.convert);
+    case Bench::PULSAR: return BenchPulsar(opt.pulsar);
+    case Bench::QUEUE: return BenchQueue(opt.queue);
   }
   return Status::OK();
 }
