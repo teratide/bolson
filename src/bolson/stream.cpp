@@ -111,9 +111,12 @@ static void LogStats(const StreamTimers &timers,
 // Macro to shut down threads in ProduceFromStream whenever Illex client returns some
 // error.
 #define SHUTDOWN_ON_FAILURE(status) \
-  if (!status.ok()) { \
-    threads.Shutdown(); \
-    return Status(Error::IllexError, status.msg()); \
+  { \
+    auto __status = status; \
+    if (!__status.ok()) { \
+      threads.Shutdown(); \
+      return Status(Error::IllexError, __status.msg()); \
+    } \
   } void()
 
 auto ProduceFromStream(const StreamOptions &opt) -> Status {
