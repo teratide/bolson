@@ -26,17 +26,6 @@
 
 namespace bolson {
 
-/// An item in the IPC queue.
-struct IpcQueueItem {
-  /// Number of rows (i.e. converted JSONs) contained in the RecordBatch of this message.
-  size_t num_rows;
-  /// The IPC message itself.
-  std::shared_ptr<arrow::Buffer> ipc;
-};
-
-/// A queue with Arrow IPC messages.
-using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;
-
 /// Stream subcommand options.
 struct StreamOptions {
   /// The hostname of the stream server.

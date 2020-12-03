@@ -12,55 +12,232 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <arrow/api.h>
+#include <arrow/io/api.h>
+#include <arrow/ipc/api.h>
+
 #include "bolson/log.h"
 #include "bolson/convert/convert.h"
 
 namespace bolson::convert {
 
-void LogConvertStats(const Stats &stats, size_t num_threads) {
-  spdlog::info("Conversion stats:");
-  spdlog::info("  JSONs converted            : {}", stats.num_jsons);
-  spdlog::info("  JSON bytes converted       : {}", stats.num_json_bytes);
-  spdlog::info("  JSON parse to Arrow Batch (without sequence numbers)");
-  spdlog::info("    {} threads cumulative T   : {} s", num_threads, stats.parse_time);
-  spdlog::info("    Per thread average T     : {} s", stats.parse_time / num_threads);
-  spdlog::info("    Average TP               : {} MB/s",
-               stats.num_json_bytes / (stats.parse_time / num_threads) * 1E-6);
-
-  spdlog::info("  JSON parse to Arrow Batch (with sequence numbers)");
-  spdlog::info("    {} threads cumulative T   : {} s", num_threads, stats.convert_time);
-  spdlog::info("    Per thread average T     : {} s", stats.convert_time / num_threads);
-  spdlog::info("    Average TP               : {} MB/s",
-               stats.num_json_bytes / (stats.convert_time / num_threads) * 1E-6);
-
-  spdlog::info("  Avg. bytes/json            : {} B / json",
-               static_cast<double>(stats.total_ipc_bytes) / stats.num_jsons);
-  spdlog::info("  IPC msgs generated         : {} ipc", stats.num_ipc);
-  spdlog::info("  Total IPC bytes            : {} B", stats.total_ipc_bytes);
-  spdlog::info("  Avg. IPC bytes/msg         : {} B / ipc",
-               stats.total_ipc_bytes / stats.num_ipc);
-  spdlog::info("  Avg. IPC cnstr. time       : {} s. / ipc",
-               stats.ipc_construct_time / stats.num_ipc);
-  spdlog::info("  Avg. conv. time            : {} us. / json",
-               1E6 * stats.convert_time / stats.num_jsons);
-  spdlog::info("  Avg. thread time           : {} s.", stats.thread_time / num_threads);
+IPCBuilder::IPCBuilder(size_t json_threshold,
+                       size_t batch_threshold,
+                       size_t seq_buf_init_size,
+                       size_t str_buf_init_size)
+    : json_buffer_threshold_(json_threshold), batch_buffer_threshold_(batch_threshold) {
+  str_buffer = std::shared_ptr(std::move(arrow::AllocateResizableBuffer(0).ValueOrDie()));
+  str_buffer->Reserve(str_buf_init_size);
+  std::unique_ptr<arrow::ArrayBuilder> arrow_pls;
+  arrow::MakeBuilder(arrow::default_memory_pool(), arrow::uint64(), &arrow_pls);
+  seq_builder =
+      std::move(std::unique_ptr<arrow::UInt64Builder>(dynamic_cast<arrow::UInt64Builder *>(arrow_pls.release())));
 }
 
-/// \brief Aggregate statistics for every thread.
-auto AggrStats(const std::vector<Stats> &conv_stats) -> Stats {
-  Stats all_conv_stats;
-  for (const auto &t : conv_stats) {
-    // TODO: overload +
-    all_conv_stats.num_jsons += t.num_jsons;
-    all_conv_stats.num_json_bytes += t.num_json_bytes;
-    all_conv_stats.num_ipc += t.num_ipc;
-    all_conv_stats.parse_time += t.parse_time;
-    all_conv_stats.convert_time += t.convert_time;
-    all_conv_stats.thread_time += t.thread_time;
-    all_conv_stats.ipc_construct_time += t.ipc_construct_time;
-    all_conv_stats.total_ipc_bytes += t.total_ipc_bytes;
+auto IPCBuilder::Buffer(const illex::JSONQueueItem &item) -> Status {
+  // Obtain current sizes.
+  size_t current_size = this->str_buffer->size();
+  size_t str_len = item.string.length();
+
+  // Make some space.
+  ARROW_ROE(this->str_buffer->Resize(current_size + str_len + 1)); // +1 for '\n'
+
+  // Copy string into buffer and place a newline.
+  uint8_t *offset = this->str_buffer->mutable_data() + current_size;
+  memcpy(offset, item.string.data(), str_len); // we know what we're doing clang tidy
+  offset[str_len] = '\n';
+
+  // Copy sequence number into vector.
+  this->seq_builder->Append(item.seq);
+
+  return Status::OK();
+}
+
+void IPCBuilder::Reset() {
+  this->batches.clear();
+  this->size_ = 0;
+}
+
+auto IPCBuilder::Finish(IpcQueueItem *out) -> Status {
+  // Set up a pointer for the combined batch.6
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> combined_batch_r;
+  std::shared_ptr<arrow::RecordBatch> combined_batch;
+
+  // Only wrap a table and combine chunks if there is more than one RecordBatch.
+  if (batches.size() == 1) {
+    combined_batch = batches[0];
+  } else {
+    auto packed_table = arrow::Table::FromRecordBatches(batches);
+    if (!packed_table.ok()) {
+      return Status(Error::ArrowError,
+                    "Could not create table: " + packed_table.status().message());
+    }
+    auto combined_table = packed_table.ValueOrDie()->CombineChunks();
+    if (!combined_table.ok()) {
+      return Status(Error::ArrowError,
+                    "Could not pack table chunks: " + combined_table.status().message());
+    }
+    auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
+    combined_batch_r = table_reader.Next();
+    if (!combined_batch_r.ok()) {
+      return Status(Error::ArrowError,
+                    "Could not pack table chunks: "
+                        + combined_batch_r.status().message());
+    }
+    combined_batch = combined_batch_r.ValueOrDie();
+
   }
-  return all_conv_stats;
+
+  SPDLOG_DEBUG("Packed IPC batch: {}", combined_batch->ToString());
+
+  //
+  auto serialized = arrow::ipc::SerializeRecordBatch(*combined_batch,
+                                                     arrow::ipc::IpcWriteOptions::Defaults());
+  if (!serialized.ok()) {
+    return Status(Error::ArrowError,
+                  "Could not serialize batch: " + serialized.status().message());
+  }
+
+  // Convert to Arrow IPC message.
+  auto ipc_item = IpcQueueItem{static_cast<size_t>(combined_batch->num_rows()),
+                               serialized.ValueOrDie()};
+
+  this->Reset();
+
+  *out = ipc_item;
+
+  return Status::OK();
 }
+
+auto IPCBuilder::ToString() -> std::string {
+  std::stringstream o;
+  o << "Batches: " << this->batches.size() << " / " << this->size() << " B, ";
+  o << "JSONs: " << this->jsons_buffered() << " / " << this->str_buffer->size() << " B";
+  return o.str();
+}
+
+#define SHUTDOWN_ON_FAILURE() \
+if (!stats.status.ok()) { \
+  thread_timer.Stop(); \
+  stats.thread_time = thread_timer.seconds(); \
+  stats_promise.set_value(stats); \
+  SPDLOG_DEBUG("Drone {} Terminating with errors.", id); \
+  shutdown->store(true); \
+  return; \
+} void()
+
+void Convert(size_t id,
+             std::unique_ptr<IPCBuilder> builder,
+             illex::JSONQueue *in,
+             IpcQueue *out,
+             std::atomic<bool> *shutdown,
+             std::promise<Stats> &&stats_promise) {
+  // Prepare some timers
+  putong::Timer thread_timer(true);
+  putong::Timer parse_timer;
+  putong::Timer convert_timer;
+  putong::Timer ipc_construct_timer;
+
+  SPDLOG_DEBUG("[conversion] [drone {}] Spawned.", id);
+
+  // Prepare statistics
+  Stats stats;
+
+  // Reserve a queue item
+  illex::JSONQueueItem json_item;
+
+  // Triggers for IPC construction
+  size_t batches_size = 0;
+  bool attempt_dequeue = true;
+
+  // Loop until thread is stopped.
+  while (!shutdown->load()) {
+    // Attempt to dequeue an item if the size of the current RecordBatches is not larger
+    // than the limit.
+    if (attempt_dequeue
+        && in->wait_dequeue_timed(json_item, std::chrono::microseconds(10))) {
+      SPDLOG_DEBUG("Builder status: {}", builder->ToString());
+      // There is a JSON.
+      SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
+      // Buffer the JSON.
+      stats.status = builder->Buffer(json_item);
+      SHUTDOWN_ON_FAILURE();
+
+      // Check if we need to flush the JSON buffer.
+      if (builder->jsons_buffered() >= builder->json_buffer_threshold()) {
+        SPDLOG_DEBUG("Builder JSON buffer reached threshold.");
+        // Add to stats
+        stats.num_jsons += builder->jsons_buffered();
+        stats.num_json_bytes += builder->bytes_buffered();
+        convert_timer.Start();
+        // Flush the buffer
+        stats.status = builder->FlushBuffered(&parse_timer);
+        SHUTDOWN_ON_FAILURE();
+        convert_timer.Stop();
+        stats.parse_time += parse_timer.seconds();
+        stats.convert_time += convert_timer.seconds();
+      }
+
+      // Check if either of the threshold was reached.
+      if ((builder->size() >= builder->batch_size_threshold())) {
+        SPDLOG_DEBUG("Size of batches has reached threshold. "
+                     "Current size: {} bytes", builder->size());
+        // We reached the threshold, so in the next iteration, just send off the
+        // RecordBatch.
+        attempt_dequeue = false;
+      }
+    } else {
+      // If there is nothing in the queue or if the RecordBatch size threshold has been
+      // reached, construct the IPC message to have this batch sent off. When the queue
+      // is empty, this causes the latency to be low. When it is full, it still provides
+      // good throughput.
+
+      SPDLOG_DEBUG("Nothing left in queue.");
+      // If there is still something in the buffer, flush it.
+      if (builder->jsons_buffered() > 0) {
+        SPDLOG_DEBUG("Flushing JSON buffer.");
+        // Add to stats
+        stats.num_jsons += builder->jsons_buffered();
+        stats.num_json_bytes += builder->bytes_buffered();
+        convert_timer.Start();
+        // Flush the buffer
+        stats.status = builder->FlushBuffered(&parse_timer);
+        SHUTDOWN_ON_FAILURE();
+        convert_timer.Stop();
+        stats.parse_time += parse_timer.seconds();
+        stats.convert_time += convert_timer.seconds();
+      }
+
+      // There has to be at least one batch.
+      if (!builder->empty()) {
+        SPDLOG_DEBUG("Flushing Batch buffer.");
+        // Finish the builder, delivering an IPC item.
+        ipc_construct_timer.Start();
+        IpcQueueItem ipc_item;
+        stats.status = builder->Finish(&ipc_item);
+        SHUTDOWN_ON_FAILURE();
+        ipc_construct_timer.Stop();
+
+        // Enqueue the IPC item.
+        out->enqueue(ipc_item);
+
+        SPDLOG_DEBUG("Drone {} enqueued IPC message.", id);
+
+        // Attempt to dequeue again.
+        attempt_dequeue = true;
+
+        // Update stats.
+        stats.ipc_construct_time += ipc_construct_timer.seconds();
+        stats.total_ipc_bytes += ipc_item.ipc->size();
+        stats.num_ipc++;
+      }
+    }
+  }
+  thread_timer.Stop();
+  stats.thread_time = thread_timer.seconds();
+  stats_promise.set_value(stats);
+  SPDLOG_DEBUG("Drone {} Terminating.", id);
+}
+#undef SHUTDOWN_ON_FAILURE
 
 }

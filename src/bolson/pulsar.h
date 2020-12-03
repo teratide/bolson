@@ -24,12 +24,18 @@
 
 #include "bolson/log.h"
 #include "bolson/status.h"
-#include "bolson/convert/convert.h"
 
 namespace bolson {
 
-// Forward decls:
-struct IpcQueueItem;
+/// An item in the IPC queue.
+struct IpcQueueItem {
+  /// Number of rows (i.e. converted JSONs) contained in the RecordBatch of this message.
+  size_t num_rows;
+  /// The IPC message itself.
+  std::shared_ptr<arrow::Buffer> ipc;
+};
+
+/// A queue with Arrow IPC messages.
 using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;
 
 /// Pulsar default max message size (from an obscure place in the Pulsar sources)
@@ -77,8 +83,10 @@ auto SetupClientProducer(const std::string &url,
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
  * \param producer      The Pulsar producer to publish the message through.
- * \param buffer        The Arrow buffer to publish.
- * \param latency_timer A timer that, if supplied, is stopped by this function just before sending the message.
+ * \param buffer        The raw bytes buffer to publish.
+ * \param size          The size of the buffer.
+ * \param latency_timer A timer that, if supplied, is stopped by this function just
+ *                      before sending the message.
  * \return              Status::OK() if successful, some error otherwise.
  */
 auto Publish(pulsar::Producer *producer,
@@ -87,13 +95,14 @@ auto Publish(pulsar::Producer *producer,
              putong::Timer<> *latency_timer = nullptr) -> Status;
 
 /**
- * \brief A thread to pull IPC messages from the queue and publish them to some Pulsar queue.
- * \param pulsar            Pulsar client and producer.
- * \param in                Incoming queue with IPC messages.
- * \param shutdown          If this is true, this thread will try to terminate.
- * \param count             The number of published messages.
- * \param latency_timer     An optional latency timer that is stopped just before the first Pulsar message is sent.
- * \param stats             Statistics about this thread.
+ * \brief A thread to pull IPC messages from the queue and publish them to a Pulsar queue.
+ * \param pulsar        Pulsar client and producer.
+ * \param in            Incoming queue with IPC messages.
+ * \param shutdown      If this is true, this thread will try to terminate.
+ * \param count         The number of published messages.
+ * \param latency_timer An optional latency timer that is stopped just before the first
+ *                      Pulsar message is sent.
+ * \param stats         Statistics about this thread.
  */
 void PublishThread(PulsarContext pulsar,
                    IpcQueue *in,

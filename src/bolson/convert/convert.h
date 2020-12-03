@@ -15,8 +15,12 @@
 #pragma once
 
 #include <arrow/api.h>
+#include <illex/queue.h>
 
+#include "bolson/log.h"
 #include "bolson/status.h"
+#include "bolson/pulsar.h"
+#include "bolson/convert/stats.h"
 
 /// Convert Arrow status and return on error.
 #define ARROW_ROE(s) {                                                  \
@@ -27,47 +31,101 @@ void()
 
 namespace bolson::convert {
 
-/// Statistics from the conversion drone.
-struct Stats {
-  /// Number of converted JSONs.
-  size_t num_jsons = 0;
-  /// Number of converted JSON bytes.
-  size_t num_json_bytes = 0;
-  /// Number of IPC messages.
-  size_t num_ipc = 0;
-  /// Number of bytes in the IPC messages.
-  size_t total_ipc_bytes = 0;
-  /// Total time on JSON parsing only, without adding seq numbers.
-  double parse_time = 0.0;
-  /// Total time spent on conversion, including adding seq numbers.
-  double convert_time = 0.0;
-  /// Total time spent on IPC construction only.
-  double ipc_construct_time = 0.0;
-  /// Total time spent in this thread.
-  double thread_time = 0.0;
-  /// Status about the conversion.
-  Status status = Status::OK();
-};
+/// Class to support incremental building up of a RecordBatch from JSONQueueItems.
+class IPCBuilder {
+ public:
+  explicit IPCBuilder(size_t json_threshold,
+                      size_t batch_threshold,
+                      size_t seq_buf_init_size,
+                      size_t str_buf_init_size);
 
-enum class Impl {
-  CPU,
-  OPAE_BATTERY
-};
+  /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
+  [[nodiscard]] auto size() const -> size_t { return size_; }
 
-// Sequence number field.
-static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
-  static auto seq_field = arrow::field("seq", arrow::uint64(), false);
-  return seq_field;
-}
+  /// \brief Return true if there are no batches in this builder.
+  [[nodiscard]] auto empty() const -> bool { return batches.empty(); }
+
+  /// \brief Take one JSON and convert it to a RecordBatch, and append it to this builder.
+  virtual auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status = 0;
+
+  /// \brief Take multiple JSONQueueItems and convert them into an Arrow RecordBatch.
+  auto Buffer(const illex::JSONQueueItem &item) -> Status;
+
+  /// \brief Flush the buffered JSONs and convert them to a single RecordBatch.
+  virtual auto FlushBuffered(putong::Timer<> *t) -> Status = 0;
+
+  /// \brief Resets this builder, clearing contained batches. Can be reused afterwards.
+  void Reset();
+
+  /**
+   * \brief Finish the builder, resulting in an IPC queue item.
+   * \param out The IpcQueueItem output.
+   * \return This resets the builder, and can be reused afterwards.
+   */
+  auto Finish(IpcQueueItem *out) -> Status;
+
+  /// \brief Return a string with the state of this builder.
+  auto ToString() -> std::string;
+
+  /// \brief Return the number of buffered JSONs.
+  [[nodiscard]] inline auto jsons_buffered() const -> size_t {
+    return seq_builder->length();
+  }
+
+  /// \brief Return the number of buffered bytes.
+  [[nodiscard]] inline auto bytes_buffered() const -> size_t {
+    return str_buffer->size();
+  }
+
+  [[nodiscard]] inline auto json_buffer_threshold() const -> size_t {
+    return json_buffer_threshold_;
+  }
+
+  [[nodiscard]] inline auto batch_size_threshold() const -> size_t {
+    return batch_buffer_threshold_;
+  }
+
+ protected:
+  /// A vector to hold batches that collapse into a single batch when finish is called.
+  std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
+  /// Size of the batches so far.
+  size_t size_ = 0;
+  /// Buffered queue items sequence numbers
+  std::unique_ptr<arrow::UInt64Builder> seq_builder;
+  /// Buffered queue items strings
+  std::shared_ptr<arrow::ResizableBuffer> str_buffer;
+  /// Number of bytes in the JSON buffer before it should be flushed.
+  size_t json_buffer_threshold_;
+  /// Number of bytes in all RecordBatches before builder should be finished.
+  size_t batch_buffer_threshold_;
+};
 
 /**
- * \brief Print some stats about conversion.
- * \param stats The stats to print.
- * \param num_threads The number of threads used.
+ * \brief Pull JSONs from a queue and convert them to Arrow IPC messages.
+ *
+ * The Arrow IPC messages contain the JSONs parsed and deserialized as Arrow
+ * RecordBatches.
+ *
+ * This function is meant to run multi-threaded.
+ *
+ * \param id            Thread id for this function.
+ * \param builder       The Builder to use for conversion.
+ * \param in            The input queue.
+ * \param out           The output queue.
+ * \param shutdown      Shutdown signal for this thread.
+ * \param stats_promise Statistics output.
  */
-void LogConvertStats(const Stats &stats, size_t num_threads);
+void Convert(size_t id,
+             std::unique_ptr<IPCBuilder> builder,
+             illex::JSONQueue *in,
+             IpcQueue *out,
+             std::atomic<bool> *shutdown,
+             std::promise<Stats> &&stats_promise);
 
-/// \brief Aggregate statistics from multiple threads.
-auto AggrStats(const std::vector<Stats> &conv_stats) -> Stats;
+/// Implementations available to convert JSONs to IPC messages.
+enum class Impl {
+  CPU,          ///< A CPU version based on Arrow's internal JSON parser using RapidJSON.
+  OPAE_BATTERY  ///< An FPGA version for only one specific schema.
+};
 
 }

@@ -108,7 +108,8 @@ static void LogStats(const StreamTimers &timers,
 
 }
 
-// Macro to shut down threads in ProduceFromStream whenever Illex client returns some error.
+// Macro to shut down threads in ProduceFromStream whenever Illex client returns some
+// error.
 #define SHUTDOWN_ON_FAILURE(status) \
   if (!status.ok()) { \
     threads.Shutdown(); \
@@ -120,11 +121,6 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
   // Check which protocol to use.
   if (std::holds_alternative<illex::ZMQProtocol>(opt.protocol)) {
     return Status(Error::GenericError, "Not implemented.");
-//    illex::Queue output;
-//    illex::ZMQClient client;
-//    illex::ZMQClient::Create(std::get<illex::ZMQProtocol>(opt.protocol), "localhost", &client);
-//    CHECK_ILLEX(client.ReceiveJSONs(&output));
-//    CHECK_ILLEX(client.Close());
   } else {
     timers.init.Start();
     // Set up Pulsar client and producer.
@@ -143,36 +139,38 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     std::promise<PublishStats> pub_stats_promise;
     auto pub_stats_future = pub_stats_promise.get_future();
 
-    // Spawn two threads:
-    // The conversion thread spawns one or multiple drone threads that convert JSONs to Arrow IPC messages and queues
-    // them.
+    // Spawn a conversion thread. This has various possible implementations.
+    // It takes JSON items and converts them into Arrow RecordBatches and serializes those
+    // into Arrow IPC messages, and pushes them to the IPC queue.
     switch (opt.conversion) {
-      case convert::Impl::CPU:
-        threads.converter_thread = std::make_unique<std::thread>(convert::ConvertWithCPU,
-                                                                 &raw_json_queue,
-                                                                 &arrow_ipc_queue,
-                                                                 &threads.shutdown,
-                                                                 opt.num_threads,
-                                                                 opt.parse,
-                                                                 opt.read,
-                                                                 opt.json_threshold,
-                                                                 opt.batch_threshold,
-                                                                 std::move(
-                                                                     conv_stats_promise));
-        break;
-      case convert::Impl::OPAE_BATTERY:
+      case convert::Impl::CPU: {
         threads.converter_thread =
-            std::make_unique<std::thread>(convert::ConvertBatteryWithOPAE,
+            std::make_unique<std::thread>(convert::ConvertWithCPU,
                                           &raw_json_queue,
                                           &arrow_ipc_queue,
                                           &threads.shutdown,
+                                          opt.num_threads,
+                                          opt.parse,
+                                          opt.read,
                                           opt.json_threshold,
                                           opt.batch_threshold,
-                                          std::move(
-                                              conv_stats_promise));
+                                          std::move(conv_stats_promise));
+        break;
+      }
+      case convert::Impl::OPAE_BATTERY: {
+        threads.converter_thread = std::make_unique<std::thread>(
+            convert::ConvertBatteryWithOPAE,
+            opt.json_threshold,
+            opt.batch_threshold,
+            &raw_json_queue,
+            &arrow_ipc_queue,
+            &threads.shutdown,
+            std::move(conv_stats_promise));
+      }
     }
 
-    // The publish thread pull from the Arrow IPC queue, fed by the conversion thread, and publish them in Pulsar.
+    // Spawn the publish thread, which pulls from the IPC queue and publishes the IPC
+    // messages in Pulsar.
     threads.publish_thread = std::make_unique<std::thread>(PublishThread,
                                                            std::move(pulsar),
                                                            &arrow_ipc_queue,
@@ -182,12 +180,15 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                            std::move(pub_stats_promise));
 
     // Set up the client that receives incoming JSONs.
-    // We must shut down the threads in case the client returns some errors.
+    // We must shut down the already spawned threads in case the client returns some
+    // errors.
     illex::RawClient client;
-    SHUTDOWN_ON_FAILURE(illex::RawClient::Create(std::get<illex::RawProtocol>(opt.protocol),
-                                                 opt.hostname,
-                                                 opt.seq,
-                                                 &client));
+    SHUTDOWN_ON_FAILURE(illex::RawClient::Create(
+        std::get<illex::RawProtocol>(opt.protocol),
+        opt.hostname,
+        opt.seq,
+        &client)
+    );
 
     timers.init.Stop();
 
@@ -199,9 +200,9 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     SHUTDOWN_ON_FAILURE(client.Close());
 
     SPDLOG_DEBUG("Waiting to empty JSON queue.");
-    // Once the server disconnects, we can work towards finishing down this function. Wait until all JSONs have been
-    // published, or if either the publish or converter thread have asserted the shutdown signal. The latter indicates
-    // some error.
+    // Once the server disconnects, we can work towards finishing down this function.
+    // Wait until all JSONs have been published, or if either the publish or converter
+    // thread have asserted the shutdown signal. The latter indicates some error.
     while ((client.received() != threads.publish_count.load())
         && !threads.shutdown.load()) {
       // TODO: use some conditional variable for this
@@ -210,7 +211,9 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
 #ifndef NDEBUG
       // Sleep a bit longer in debug.
       std::this_thread::sleep_for(std::chrono::milliseconds(500));
-      SPDLOG_DEBUG("Received: {}, Published: {}", client.received(), threads.publish_count.load());
+      SPDLOG_DEBUG("Received: {}, Published: {}",
+                   client.received(),
+                   threads.publish_count.load());
 #endif
     }
 

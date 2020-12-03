@@ -40,7 +40,10 @@ auto BenchConvertSingleThread(const ConvertBenchOptions &opt,
   std::vector<IpcQueueItem> ipc_messages;
   ipc_messages.reserve(opt.num_jsons);
 
-  convert::ArrowBatchBuilder builder(opt.parse_opts);
+  convert::ArrowIPCBuilder builder(opt.parse_opts,
+                                   opt.read_opts,
+                                   opt.json_threshold,
+                                   opt.batch_threshold);
   t->Start();
   for (size_t i = 0; i < opt.num_jsons; i++) {
     illex::JSONQueueItem json_item;
@@ -73,7 +76,7 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
 
   t->Start();
   switch (opt.conversion) {
-    case convert::Impl::CPU:
+    case convert::Impl::CPU: {
       conversion_thread = std::thread(convert::ConvertWithCPU,
                                       json_queue,
                                       ipc_queue,
@@ -84,16 +87,19 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
                                       opt.json_threshold,
                                       opt.batch_threshold,
                                       std::move(promise_stats));
+
       break;
-    case convert::Impl::OPAE_BATTERY:
+    }
+    case convert::Impl::OPAE_BATTERY: {
       conversion_thread = std::thread(convert::ConvertBatteryWithOPAE,
+                                      opt.json_threshold,
+                                      opt.batch_threshold,
                                       json_queue,
                                       ipc_queue,
                                       &shutdown,
-                                      opt.json_threshold,
-                                      opt.batch_threshold,
                                       std::move(promise_stats));
       break;
+    }
   }
 
   // Pull from the output queue as fast as possible to know when we're done.
