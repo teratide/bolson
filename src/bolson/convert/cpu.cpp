@@ -135,7 +135,7 @@ auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t,
     this->size_ += GetBatchSize(combined_batch);
     this->batches.push_back(std::move(combined_batch));
 
-    // Mark time point buffer is parsed
+    // Mark time point sequence numbers are added.
     for (const auto &s : this->lat_tracked_seq_in_buffer) {
       lat_tracker->Put(s, BOLSON_LAT_BATCH_CONSTRUCTED, illex::Timer::now());
     }

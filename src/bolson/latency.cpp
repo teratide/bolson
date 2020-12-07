@@ -18,16 +18,17 @@ namespace bolson {
 
 void LogLatency(const illex::LatencyTracker &lat_tracker) {
   std::cout << "Seq,"
-            << "Time in TCP recv. buffer,"
-            << "Time in JSON item queue,"
-            << "Time in JSON buffer,"
-            << "Time in JSON parser,"
-            << "Time adding seq. \\#,"
-            << "Time combining batches,"
-            << "Time serializing batch,"
-            << "Time in publish queue,"
-            << "Time to Pulsar send(),"
-            << "Total"
+            << "1. Time in TCP recv. buffer,"
+            << "2. Time in JSON item queue,"
+            << "3. Time in JSON buffer,"
+            << "4. Time in JSON parser,"
+            << "5. Time adding seq. \\#,"
+            << "6. Time combining batches,"
+            << "7. Time serializing batch,"
+            << "8. Time in publish queue,"
+            << "9. Time in Pulsar message builder,"
+            << "10. Time in Pulsar send(),"
+            << "11. TCP recv $\\rightarrow$ Pulsar send()"
             << std::endl;
   for (size_t t = 0; t < lat_tracker.num_samples(); t++) {
     std::cout << t << ",";

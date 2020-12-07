@@ -28,9 +28,10 @@ namespace bolson {
 #define BOLSON_LAT_BATCH_CONSTRUCTED 5
 #define BOLSON_LAT_BATCH_COMBINED    6
 #define BOLSON_LAT_SERIALIZE         7
-#define BOLSON_LAT_PUBLISH           8
-#define BOLSON_LAT_DONE              9
-#define BOLSON_LAT_NUM_POINTS       10
+#define BOLSON_LAT_BUILD_MESSAGE     8
+#define BOLSON_LAT_PUBLISH           9
+#define BOLSON_LAT_DONE             10
+#define BOLSON_LAT_NUM_POINTS       11
 
 struct LatencyOptions {
   /// Number of latency samples

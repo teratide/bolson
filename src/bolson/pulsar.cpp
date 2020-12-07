@@ -90,6 +90,13 @@ void PublishThread(PulsarContext pulsar,
           ipc_item.num_rows,
           ipc_item.lat->size());
       publish_timer.Start();
+
+      if (lat_tracker != nullptr) {
+        for (const auto &l : *ipc_item.lat) {
+          lat_tracker->Put(l, BOLSON_LAT_BUILD_MESSAGE, illex::Timer::now());
+        }
+      }
+
       auto status = Publish(pulsar.producer.get(),
                             ipc_item.ipc->data(),
                             ipc_item.ipc->size(),
