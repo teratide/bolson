@@ -46,7 +46,7 @@ FetchContent_MakeAvailable(spdlog)
 # concurrentqueue
 FetchContent_Declare(concurrentqueue
   GIT_REPOSITORY  https://github.com/cameron314/concurrentqueue.git
-  GIT_TAG         v1.0.1
+  GIT_TAG         v1.0.2
 )
 FetchContent_GetProperties(concurrentqueue)
 if (NOT concurrentqueue_POPULATED)
