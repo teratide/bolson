@@ -161,7 +161,11 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
 //                     out->stream.seq,
 //                     "Starting sequence number, 64-bit unsigned integer.")
 //      ->default_val(0);
-  stream->add_option("--latency", out->stream.num_latency_timers)
+  stream->add_option("--l-samples",
+                     out->stream.latency.num_samples,
+                     "Number of latency samples.")
+      ->default_val(1024);
+  stream->add_option("--l-interval", out->stream.latency.interval)
       ->default_val(1024);
   AddConvertOpts(stream, &out->stream.conversion, &out->stream.json_threshold);
   AddStatsOpts(stream, &csv);

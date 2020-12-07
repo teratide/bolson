@@ -16,6 +16,7 @@
 
 #include <arrow/api.h>
 #include <illex/queue.h>
+#include <illex/latency.h>
 
 #include "bolson/log.h"
 #include "bolson/status.h"
@@ -49,10 +50,12 @@ class IPCBuilder {
   virtual auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status = 0;
 
   /// \brief Take multiple JSONQueueItems and convert them into an Arrow RecordBatch.
-  auto Buffer(const illex::JSONQueueItem &item) -> Status;
+  auto Buffer(const illex::JSONQueueItem &item,
+              illex::LatencyTracker *lat_tracker) -> Status;
 
   /// \brief Flush the buffered JSONs and convert them to a single RecordBatch.
-  virtual auto FlushBuffered(putong::Timer<> *t) -> Status = 0;
+  virtual auto FlushBuffered(putong::Timer<> *t,
+                             illex::LatencyTracker *lat_tracker) -> Status = 0;
 
   /// \brief Resets this builder, clearing contained batches. Can be reused afterwards.
   void Reset();
@@ -62,7 +65,7 @@ class IPCBuilder {
    * \param out The IpcQueueItem output.
    * \return This resets the builder, and can be reused afterwards.
    */
-  auto Finish(IpcQueueItem *out) -> Status;
+  auto Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -> Status;
 
   /// \brief Return a string with the state of this builder.
   auto ToString() -> std::string;
@@ -96,6 +99,8 @@ class IPCBuilder {
   }
 
  protected:
+  std::vector<illex::Seq> lat_tracked_seq_in_buffer;
+  std::vector<illex::Seq> lat_tracked_seq_in_batches;
   /// A vector to hold batches that collapse into a single batch when finish is called.
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
   /// Size of the batches so far.
@@ -129,6 +134,7 @@ void Convert(size_t id,
              std::unique_ptr<IPCBuilder> builder,
              illex::JSONQueue *in,
              IpcQueue *out,
+             illex::LatencyTracker *lat_tracker,
              std::atomic<bool> *shutdown,
              std::promise<Stats> &&stats_promise);
 

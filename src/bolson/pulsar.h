@@ -21,6 +21,8 @@
 #include <pulsar/Producer.h>
 #include <putong/timer.h>
 #include <blockingconcurrentqueue.h>
+#include <illex/queue.h>
+#include <illex/latency.h>
 
 #include "bolson/log.h"
 #include "bolson/status.h"
@@ -33,13 +35,15 @@ struct IpcQueueItem {
   size_t num_rows;
   /// The IPC message itself.
   std::shared_ptr<arrow::Buffer> ipc;
+  /// Sequence numbers for latency timing.
+  std::shared_ptr<std::vector<illex::Seq>> lat;
 };
 
 /// A queue with Arrow IPC messages.
 using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;
 
 /// Pulsar default max message size (from an obscure place in the Pulsar sources)
-constexpr size_t PULSAR_DEFAULT_MAX_MESSAGE_SIZE = 5 * 1024 * 1024 - 10 * 1024;
+constexpr size_t PULSAR_DEFAULT_MAX_MESSAGE_SIZE = 5 * 1024 * 1024 - 32 * 1024;
 
 /// A Pulsar context for functions to operate on.
 struct PulsarContext {
@@ -92,7 +96,8 @@ auto SetupClientProducer(const std::string &url,
 auto Publish(pulsar::Producer *producer,
              const uint8_t *buffer,
              size_t size,
-             putong::Timer<> *latency_timer = nullptr) -> Status;
+             illex::LatencyTracker *lat_tracker = nullptr,
+             std::vector<illex::Seq> *seq_nums = nullptr) -> Status;
 
 /**
  * \brief A thread to pull IPC messages from the queue and publish them to a Pulsar queue.
@@ -108,7 +113,7 @@ void PublishThread(PulsarContext pulsar,
                    IpcQueue *in,
                    std::atomic<bool> *shutdown,
                    std::atomic<size_t> *count,
-                   putong::Timer<> *latency_timer,
+                   illex::LatencyTracker *lat_tracker,
                    std::promise<PublishStats> &&stats);
 
 /**

@@ -43,7 +43,8 @@ class ArrowIPCBuilder : public IPCBuilder {
         parse_options(std::move(parse_options)), read_options(read_options) {}
 
   auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status override;
-  auto FlushBuffered(putong::Timer<> *t) -> Status override;
+  auto FlushBuffered(putong::Timer<> *t,
+                     illex::LatencyTracker *lat_tracker) -> Status override;
  private:
   /// Arrow JSON parser parse options.
   arrow::json::ParseOptions parse_options;
@@ -77,6 +78,7 @@ void ConvertWithCPU(illex::JSONQueue *in,
                     const arrow::json::ReadOptions &read_options,
                     size_t json_buffer_threshold,
                     size_t batch_size_threshold,
+                    illex::LatencyTracker *lat_tracker,
                     std::promise<std::vector<convert::Stats>> &&stats);
 
 }

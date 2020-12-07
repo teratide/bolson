@@ -91,13 +91,20 @@ auto ArrowIPCBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status 
   return Status::OK();
 }
 
-auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t) -> Status {
+auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t,
+                                    illex::LatencyTracker *lat_tracker) -> Status {
   // Check if there is anything to flush.
   if (str_buffer->size() > 0) {
     SPDLOG_DEBUG("Flushing: {}",
                  std::string(reinterpret_cast<const char *>(str_buffer->data()),
                              str_buffer->size()));
     auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
+
+    // Mark time point buffer is flushed into table reader.
+    for (const auto &s : this->lat_tracked_seq_in_buffer) {
+      lat_tracker->Put(s, BOLSON_LAT_BUFFER_FLUSH, illex::Timer::now());
+    }
+
     auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
                                              br,
                                              read_options,
@@ -105,6 +112,11 @@ auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t) -> Status {
     t->Start();
     auto table = tr->Read().ValueOrDie();
     t->Stop();
+
+    // Mark time point buffer is parsed
+    for (const auto &s : this->lat_tracked_seq_in_buffer) {
+      lat_tracker->Put(s, BOLSON_LAT_BUFFER_PARSED, illex::Timer::now());
+    }
 
     // Construct the column for the sequence number.
     std::shared_ptr<arrow::Array> seq;
@@ -123,6 +135,13 @@ auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t) -> Status {
     this->size_ += GetBatchSize(combined_batch);
     this->batches.push_back(std::move(combined_batch));
 
+    // Mark time point buffer is parsed
+    for (const auto &s : this->lat_tracked_seq_in_buffer) {
+      lat_tracker->Put(s, BOLSON_LAT_BATCH_CONSTRUCTED, illex::Timer::now());
+    }
+
+    // Clear the buffers.
+    this->lat_tracked_seq_in_buffer.clear();
     ARROW_ROE(this->str_buffer->Resize(0));
   }
   return Status::OK();
@@ -136,6 +155,7 @@ void ConvertWithCPU(illex::JSONQueue *in,
                     const arrow::json::ReadOptions &read_options,
                     size_t json_buffer_threshold,
                     size_t batch_size_threshold,
+                    illex::LatencyTracker *lat_tracker,
                     std::promise<std::vector<Stats>> &&stats) {
   // Reserve some space for the thread handles and futures.
   std::vector<std::thread> threads;
@@ -162,6 +182,7 @@ void ConvertWithCPU(illex::JSONQueue *in,
                          std::move(builder),
                          in,
                          out,
+                         lat_tracker,
                          shutdown,
                          std::move(thread_stats_promise));
   }

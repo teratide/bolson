@@ -15,10 +15,11 @@
 #include <arrow/api.h>
 #include <arrow/io/api.h>
 #include <arrow/ipc/api.h>
+#include <illex/latency.h>
 
 #include "bolson/log.h"
-#include "bolson/convert/convert.h"
 #include "bolson/latency.h"
+#include "bolson/convert/convert.h"
 
 namespace bolson::convert {
 
@@ -35,7 +36,15 @@ IPCBuilder::IPCBuilder(size_t json_threshold,
       std::move(std::unique_ptr<arrow::UInt64Builder>(dynamic_cast<arrow::UInt64Builder *>(arrow_pls.release())));
 }
 
-auto IPCBuilder::Buffer(const illex::JSONQueueItem &item) -> Status {
+auto IPCBuilder::Buffer(const illex::JSONQueueItem &item,
+                        illex::LatencyTracker *lat_tracker) -> Status {
+  // Keep track of which items are buffered that we also want to track latency for.
+  // Anything that is buffered is also batched, so we push it to both buffers.
+  if (lat_tracker->Put(item.seq, BOLSON_LAT_BUFFER_ENTRY, illex::Timer::now())) {
+    this->lat_tracked_seq_in_buffer.push_back(item.seq);
+    this->lat_tracked_seq_in_batches.push_back(item.seq);
+  }
+
   // Obtain current sizes.
   size_t current_size = this->str_buffer->size();
   size_t str_len = item.string.length();
@@ -55,21 +64,14 @@ auto IPCBuilder::Buffer(const illex::JSONQueueItem &item) -> Status {
 }
 
 void IPCBuilder::Reset() {
+  this->lat_tracked_seq_in_batches.clear();
+  this->lat_tracked_seq_in_buffer.clear();
   this->batches.clear();
   this->size_ = 0;
 }
 
-static void SplitBatchLatencyTimers(const arrow::RecordBatch &batch) {
-  const auto
-      *seq_col = std::static_pointer_cast<arrow::UInt64Array>(batch.column(0))
-      ->raw_values();
-  for (int i = 0; i < batch.column(0)->length(); i++) {
-    g_latency_timers[seq_col[i]].Split();
-  }
-}
-
-auto IPCBuilder::Finish(IpcQueueItem *out) -> Status {
-  // Set up a pointer for the combined batch.6
+auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -> Status {
+  // Set up a pointer for the combined batch.
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> combined_batch_r;
   std::shared_ptr<arrow::RecordBatch> combined_batch;
 
@@ -95,13 +97,14 @@ auto IPCBuilder::Finish(IpcQueueItem *out) -> Status {
                         + combined_batch_r.status().message());
     }
     combined_batch = combined_batch_r.ValueOrDie();
-
   }
 
-  // Latency split 2: combining batches
-  SplitBatchLatencyTimers(*combined_batch);
-
   SPDLOG_DEBUG("Packed IPC batch: {}", combined_batch->ToString());
+
+  // Mark time point batches are combined.
+  for (const auto &s : this->lat_tracked_seq_in_batches) {
+    lat_tracker->Put(s, BOLSON_LAT_BATCH_COMBINED, illex::Timer::now());
+  }
 
   // Serialize combined batch
   auto serialized = arrow::ipc::SerializeRecordBatch(*combined_batch,
@@ -112,13 +115,16 @@ auto IPCBuilder::Finish(IpcQueueItem *out) -> Status {
   }
 
   auto ipc_item = IpcQueueItem{static_cast<size_t>(combined_batch->num_rows()),
-                               serialized.ValueOrDie()};
+                               serialized.ValueOrDie(),
+                               std::make_shared<std::vector<illex::Seq>>(
+                                   lat_tracked_seq_in_batches)};
 
-  // Latency split 3: ipc construction
-  SplitBatchLatencyTimers(*combined_batch);
+  // Mark time point batch is serialized
+  for (const auto &s : this->lat_tracked_seq_in_batches) {
+    lat_tracker->Put(s, BOLSON_LAT_SERIALIZE, illex::Timer::now());
+  }
 
   this->Reset();
-
   *out = ipc_item;
 
   return Status::OK();
@@ -141,17 +147,11 @@ if (!stats.status.ok()) { \
   return; \
 } void()
 
-static void SplitLastBatchLatencyTimers(const IPCBuilder &builder) {
-  // The last batch now contains the sequence numbers of the timers we need to mark
-  // a split.
-  auto last_batch = builder.GetBatch(builder.batches_buffered() - 1);
-  SplitBatchLatencyTimers(*last_batch);
-}
-
 void Convert(size_t id,
              std::unique_ptr<IPCBuilder> builder,
              illex::JSONQueue *in,
              IpcQueue *out,
+             illex::LatencyTracker *lat_tracker,
              std::atomic<bool> *shutdown,
              std::promise<Stats> &&stats_promise) {
   // Prepare some timers
@@ -176,14 +176,11 @@ void Convert(size_t id,
     // Attempt to dequeue an item if the size of the current RecordBatches is not larger
     // than the limit.
     if (attempt_dequeue
-        && in->wait_dequeue_timed(json_item, std::chrono::microseconds(1))) {
-      SPDLOG_DEBUG("Builder status: {}", builder->ToString());
+        && in->wait_dequeue_timed(json_item, std::chrono::microseconds(10))) {
       // There is a JSON.
       SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
-      // Latency split 0: Converter Dequeue
-      g_latency_timers[json_item.seq].Split();
       // Buffer the JSON.
-      stats.status = builder->Buffer(json_item);
+      stats.status = builder->Buffer(json_item, lat_tracker);
       SHUTDOWN_ON_FAILURE();
 
       // Check if we need to flush the JSON buffer.
@@ -194,11 +191,7 @@ void Convert(size_t id,
         stats.num_json_bytes += builder->bytes_buffered();
         convert_timer.Start();
         // Flush the buffer
-        stats.status = builder->FlushBuffered(&parse_timer);
-
-        // Latency split 1: Convert to Batch
-        SplitLastBatchLatencyTimers(*builder);
-
+        stats.status = builder->FlushBuffered(&parse_timer, lat_tracker);
         SHUTDOWN_ON_FAILURE();
         convert_timer.Stop();
         stats.parse_time += parse_timer.seconds();
@@ -233,11 +226,7 @@ void Convert(size_t id,
         stats.num_json_bytes += builder->bytes_buffered();
         convert_timer.Start();
         // Flush the buffer
-        stats.status = builder->FlushBuffered(&parse_timer);
-
-        // Latency split 1: converting to RecordBatch
-        SplitLastBatchLatencyTimers(*builder);
-
+        stats.status = builder->FlushBuffered(&parse_timer, lat_tracker);
         SHUTDOWN_ON_FAILURE();
         convert_timer.Stop();
         stats.parse_time += parse_timer.seconds();
@@ -250,7 +239,7 @@ void Convert(size_t id,
         // Finish the builder, delivering an IPC item.
         ipc_construct_timer.Start();
         IpcQueueItem ipc_item;
-        stats.status = builder->Finish(&ipc_item);
+        stats.status = builder->Finish(&ipc_item, lat_tracker);
 
         SHUTDOWN_ON_FAILURE();
         ipc_construct_timer.Stop();

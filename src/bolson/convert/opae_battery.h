@@ -48,7 +48,8 @@ class OPAEBatteryIPCBuilder : public IPCBuilder {
                    const OPAEBatteryOptions &opts = OPAEBatteryOptions()) -> Status;
 
   auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status override;
-  auto FlushBuffered(putong::Timer<> *t) -> Status override;
+  auto FlushBuffered(putong::Timer<> *t,
+                     illex::LatencyTracker *lat_tracker) -> Status override;
  protected:
   explicit OPAEBatteryIPCBuilder(size_t json_buffer_threshold,
                                  size_t batch_size_threshold,
@@ -79,6 +80,7 @@ void ConvertBatteryWithOPAE(size_t json_threshold,
                             size_t batch_threshold,
                             illex::JSONQueue *in,
                             IpcQueue *out,
+                            illex::LatencyTracker *lat_tracker,
                             std::atomic<bool> *shutdown,
                             std::promise<std::vector<Stats>> &&stats_promise);
 

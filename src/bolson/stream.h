@@ -22,6 +22,7 @@
 #include <arrow/json/api.h>
 
 #include "bolson/pulsar.h"
+#include "bolson/latency.h"
 #include "bolson/convert/convert.h"
 
 namespace bolson {
@@ -42,7 +43,7 @@ struct StreamOptions {
   /// The default Pulsar message size limit is 5 MiB - 10 KiB.
   /// We subtract 32 KiB to make some room for padding of RecordBatches.
   // TODO: This is just guesswork and should be improved.
-  size_t batch_threshold = (5 * 1024 * 1024) - (512 * 1024);
+  size_t batch_threshold = (5 * 1024 * 1024) - (32 * 1024);
   // TODO: sdfsdfsdf
   size_t json_threshold = 1024;
   /// Number of conversion drone threads to spawn.
@@ -55,8 +56,8 @@ struct StreamOptions {
   bool succinct = false;
   /// The converter implementation to use.
   convert::Impl conversion;
-  /// Number of latency timers to use.
-  size_t num_latency_timers = 1;
+  /// Options related to tracking latency.
+  LatencyOptions latency;
 };
 
 /**

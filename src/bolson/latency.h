@@ -16,14 +16,29 @@
 
 #include <vector>
 #include <putong/timer.h>
-
-#define LATENCY_NUM_STAGES 4
+#include <illex/latency.h>
 
 namespace bolson {
 
-using LatencyTimers = std::vector<putong::SplitTimer<LATENCY_NUM_STAGES>>;
+#define BOLSON_LAT_TCP_RECV          0
+#define BOLSON_LAT_TCP_UNWRAP        1
+#define BOLSON_LAT_BUFFER_ENTRY      2
+#define BOLSON_LAT_BUFFER_FLUSH      3
+#define BOLSON_LAT_BUFFER_PARSED     4
+#define BOLSON_LAT_BATCH_CONSTRUCTED 5
+#define BOLSON_LAT_BATCH_COMBINED    6
+#define BOLSON_LAT_SERIALIZE         7
+#define BOLSON_LAT_PUBLISH           8
+#define BOLSON_LAT_DONE              9
+#define BOLSON_LAT_NUM_POINTS       10
 
-/// Timers to track the latency of single JSONs
-extern LatencyTimers g_latency_timers;
+struct LatencyOptions {
+  /// Number of latency samples
+  size_t num_samples = 1;
+  /// Sequence number sample interval for latency samples.
+  size_t interval = 1024;
+};
+
+void LogLatency(const illex::LatencyTracker &lat_tracker);
 
 }

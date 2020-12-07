@@ -19,13 +19,13 @@
 #include <illex/zmq_client.h>
 #include <putong/timer.h>
 
+#include "bolson/latency.h"
+#include "bolson/status.h"
 #include "bolson/stream.h"
 #include "bolson/pulsar.h"
-#include "bolson/status.h"
 #include "bolson/convert/convert.h"
 #include "bolson/convert/cpu.h"
 #include "bolson/convert/opae_battery.h"
-#include "bolson/latency.h"
 
 namespace bolson {
 
@@ -78,20 +78,22 @@ static void OutputCSVStats(const StreamTimers &timers,
 }
 
 /// \brief Log the statistics.
-static void LogStats(const StreamTimers &timers,
-                     const illex::RawClient &client,
-                     const std::vector<Stats> &conv_stats,
-                     const PublishStats &pub_stats) {
+static void LogStreamStats(const StreamTimers &timers,
+                           const illex::RawClient &client,
+                           const std::vector<Stats> &conv_stats,
+                           const PublishStats &pub_stats) {
   auto all = AggrStats(conv_stats);
   spdlog::info("Initialization stats:");
   spdlog::info("  Initialization time : {}", timers.init.seconds());
-  spdlog::info("TCP stats:");
+  spdlog::info("TCP client stats:");
   spdlog::info("  Received {} JSONs over TCP.", client.received());
   spdlog::info("  Bytes received      : {} MiB",
                static_cast<double>(client.bytes_received()) / (1024.0 * 1024.0));
   spdlog::info("  Client receive time : {} s", timers.tcp.seconds());
   spdlog::info("  Throughput          : {} MB/s",
                client.bytes_received() / timers.tcp.seconds() * 1E-6);
+  spdlog::info("  Throughput          : {} KJSONS/s",
+               client.received() / timers.tcp.seconds() * 1E-3);
 
   LogConvertStats(all, conv_stats.size());
 
@@ -121,7 +123,8 @@ static void LogStats(const StreamTimers &timers,
   } void()
 
 auto ProduceFromStream(const StreamOptions &opt) -> Status {
-  g_latency_timers = LatencyTimers(opt.num_latency_timers);
+  illex::LatencyTracker lat_tracker
+      (opt.latency.num_samples, BOLSON_LAT_NUM_POINTS, opt.latency.interval);
   // Timers for throughput
   StreamTimers timers;
   // Check which protocol to use.
@@ -136,8 +139,8 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     StreamThreads threads;
 
     // Set up queues.
-    illex::JSONQueue raw_json_queue(1024 * 1024 * 16);
-    IpcQueue arrow_ipc_queue(1024 * 1024 * 16);
+    illex::JSONQueue raw_json_queue(16 * 1024 * 1024);
+    IpcQueue arrow_ipc_queue(16 * 1024 * 1024);
 
     // Set up futures for statistics delivered by threads.
     std::promise<std::vector<Stats>> conv_stats_promise;
@@ -160,6 +163,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                           opt.read,
                                           opt.json_threshold,
                                           opt.batch_threshold,
+                                          &lat_tracker,
                                           std::move(conv_stats_promise));
         break;
       }
@@ -170,6 +174,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
             opt.batch_threshold,
             &raw_json_queue,
             &arrow_ipc_queue,
+            &lat_tracker,
             &threads.shutdown,
             std::move(conv_stats_promise));
       }
@@ -182,7 +187,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
                                                            &arrow_ipc_queue,
                                                            &threads.shutdown,
                                                            &threads.publish_count,
-                                                           &timers.latency,
+                                                           &lat_tracker,
                                                            std::move(pub_stats_promise));
 
     // Set up the client that receives incoming JSONs.
@@ -201,7 +206,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Receive JSONs (blocking) until the server closes the connection.
     // Concurrently, the conversion and publish thread will do their job.
     timers.tcp.Start();
-    SHUTDOWN_ON_FAILURE(client.ReceiveJSONs(&raw_json_queue, &g_latency_timers));
+    SHUTDOWN_ON_FAILURE(client.ReceiveJSONs(&raw_json_queue, &lat_tracker));
     timers.tcp.Stop();
     SHUTDOWN_ON_FAILURE(client.Close());
 
@@ -251,28 +256,8 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
       if (opt.succinct) {
         OutputCSVStats(timers, client, conv_stats, pub_stats, &std::cout);
       } else {
-        //LogStats(timers, client, conv_stats, pub_stats);
-
-        size_t t = 0;
-        std::cout << "Seq,"
-                  << "Converter Dequeue,"
-                  << "Convert to Batch,"
-                  << "Combining Batch,"
-                  << "IPC construct"
-                  << std::endl;
-        for (const auto &timer : g_latency_timers) {
-          auto stages = timer.seconds();
-          std::cout << t << ",";
-          t++;
-          for (int i = 0; i < LATENCY_NUM_STAGES; i++) {
-            std::cout << std::fixed << std::setprecision(9) << stages[i];
-            if (i != LATENCY_NUM_STAGES - 1) {
-              std::cout << ",";
-            } else {
-              std::cout << std::endl;
-            }
-          }
-        }
+        LogStreamStats(timers, client, conv_stats, pub_stats);
+        LogLatency(lat_tracker);
       }
     }
   }

@@ -16,7 +16,30 @@
 
 namespace bolson {
 
-/// Timers to track the latency of single JSONs
-LatencyTimers g_latency_timers;
+void LogLatency(const illex::LatencyTracker &lat_tracker) {
+  std::cout << "Seq,"
+            << "Time in TCP recv. buffer,"
+            << "Time in JSON item queue,"
+            << "Time in JSON buffer,"
+            << "Time in JSON parser,"
+            << "Time adding seq. \\#,"
+            << "Time combining batches,"
+            << "Time serializing batch,"
+            << "Time in publish queue,"
+            << "Time to Pulsar send(),"
+            << "Total"
+            << std::endl;
+  for (size_t t = 0; t < lat_tracker.num_samples(); t++) {
+    std::cout << t << ",";
+    for (size_t s = 1; s < BOLSON_LAT_NUM_POINTS; s++) {
+      std::cout << std::fixed << std::setprecision(9)
+                << lat_tracker.GetInterval(t, s);
+      std::cout << ",";
+    }
+    std::chrono::duration<double>
+        total = lat_tracker.Get(t, BOLSON_LAT_NUM_POINTS - 1) - lat_tracker.Get(t, 0);
+    std::cout << std::fixed << std::setprecision(9) << total.count() << std::endl;
+  }
+}
 
 }

@@ -44,13 +44,14 @@ void ConvertBatteryWithOPAE(size_t json_threshold,
                             size_t batch_threshold,
                             illex::JSONQueue *in,
                             IpcQueue *out,
+                            illex::LatencyTracker *lat_tracker,
                             std::atomic<bool> *shutdown,
                             std::promise<std::vector<Stats>> &&stats_promise) {
   std::promise<Stats> stats;
   auto future_stats = stats.get_future();
   std::unique_ptr<OPAEBatteryIPCBuilder> builder;
   OPAEBatteryIPCBuilder::Make(&builder);
-  Convert(0, std::move(builder), in, out, shutdown, std::move(stats));
+  Convert(0, std::move(builder), in, out, lat_tracker, shutdown, std::move(stats));
   std::vector<Stats> result = {future_stats.get()};
   stats_promise.set_value(result);
 }
@@ -263,7 +264,8 @@ auto OPAEBatteryIPCBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> S
   return Status::OK();
 }
 
-auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t) -> Status {
+auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t,
+                                          illex::LatencyTracker *lat_tracker) -> Status {
   if (str_buffer->size() > 0) {
     SPDLOG_DEBUG("Flushing: {}",
                  std::string(reinterpret_cast<const char *>(str_buffer->data()),

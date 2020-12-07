@@ -37,6 +37,7 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
                              size_t *ipc_size,
                              illex::JSONQueue *json_queue,
                              IpcQueue *ipc_queue) -> Status {
+  illex::LatencyTracker lat_tracker(1, BOLSON_LAT_NUM_POINTS, opt.num_jsons);
   std::promise<std::vector<convert::Stats>> promise_stats;
   std::atomic<bool> shutdown = false;
   auto future_stats = promise_stats.get_future();
@@ -56,6 +57,7 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
                                       opt.read_opts,
                                       opt.json_threshold,
                                       opt.batch_threshold,
+                                      &lat_tracker,
                                       std::move(promise_stats));
 
       break;
@@ -66,6 +68,7 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
                                       opt.batch_threshold,
                                       json_queue,
                                       ipc_queue,
+                                      &lat_tracker,
                                       &shutdown,
                                       std::move(promise_stats));
       break;
@@ -206,6 +209,15 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
                  static_cast<double>(json_queue_size) / q.seconds() * 1E-6);
   } else {
     std::cout << json_queue_size << "," << q.seconds();
+  }
+
+  if (!opt.csv) {
+    spdlog::info("JSONs converted                : {}",
+                 static_cast<double>(opt.num_jsons));
+    spdlog::info("JSON convert throughput        : {} MJSONS/s",
+                 opt.num_jsons / c.seconds() * 1E-6);
+  } else {
+    std::cout << c.seconds() << ",";
   }
 
   if (!opt.csv) {

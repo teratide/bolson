@@ -46,13 +46,24 @@ auto SetupClientProducer(const std::string &url,
 auto Publish(pulsar::Producer *producer,
              const uint8_t *buffer,
              size_t size,
-             putong::Timer<> *latency_timer) -> Status {
-  pulsar::Message msg = pulsar::MessageBuilder().setAllocatedContent(const_cast<uint8_t *>(buffer), size).build();
-  // TODO: no
-  if (latency_timer != nullptr) {
-    latency_timer->Stop();
+             illex::LatencyTracker *lat_tracker,
+             std::vector<illex::Seq> *seq_nums) -> Status {
+  pulsar::Message msg =
+      pulsar::MessageBuilder().setAllocatedContent(const_cast<uint8_t *>(buffer),
+                                                   size).build();
+  if (lat_tracker != nullptr) {
+    for (const auto &s : *seq_nums) {
+      lat_tracker->Put(s, BOLSON_LAT_PUBLISH, illex::Timer::now());
+    }
   }
+
   CHECK_PULSAR(producer->send(msg));
+
+  if (lat_tracker != nullptr) {
+    for (const auto &s : *seq_nums) {
+      lat_tracker->Put(s, BOLSON_LAT_DONE, illex::Timer::now());
+    }
+  }
   return Status::OK();
 }
 
@@ -60,11 +71,8 @@ void PublishThread(PulsarContext pulsar,
                    IpcQueue *in,
                    std::atomic<bool> *shutdown,
                    std::atomic<size_t> *count,
-                   putong::Timer<> *latency, // TODO: this could be wrapped in an atomic
+                   illex::LatencyTracker *lat_tracker,
                    std::promise<PublishStats> &&stats) {
-
-  // Remember whether this is the first message.
-  bool first = true;
   // Set up timers.
   auto thread_timer = putong::Timer(true);
   auto publish_timer = putong::Timer();
@@ -74,21 +82,28 @@ void PublishThread(PulsarContext pulsar,
   // Try pulling stuff from the queue until the stop signal is given.
   IpcQueueItem ipc_item;
   while (!shutdown->load()) {
-    if (in->wait_dequeue_timed(ipc_item, std::chrono::microseconds(100))) {
-      SPDLOG_DEBUG("Publishing Arrow IPC message.");
+    if (in->wait_dequeue_timed(ipc_item, std::chrono::microseconds(10))) {
+      SPDLOG_DEBUG(
+          "Publishing Arrow IPC message of size {} B with {} rows. "
+          "Tracking {} JSON items latency.",
+          ipc_item.ipc->size(),
+          ipc_item.num_rows,
+          ipc_item.lat->size());
       publish_timer.Start();
-      //auto status = Publish(pulsar.producer.get(), ipc_item.ipc->data(), ipc_item.ipc->size(), latency);
-      auto status = Status::OK();
+      auto status = Publish(pulsar.producer.get(),
+                            ipc_item.ipc->data(),
+                            ipc_item.ipc->size(),
+                            lat_tracker,
+                            ipc_item.lat.get());
       publish_timer.Stop();
-      if (first) {
-        latency = nullptr; // todo
-        first = false;
-      }
 
       // Deal with Pulsar errors.
       // In case the Producer causes some error, shut everything down.
       if (!status.ok()) {
-        spdlog::error("Pulsar error: {}", status.msg());
+        spdlog::error("Pulsar error: {} for message of size {} B with {} rows.",
+                      status.msg(),
+                      ipc_item.ipc->size(),
+                      ipc_item.num_rows);
         pulsar.producer->close();
         pulsar.client->close();
         // Fulfill the promise.
@@ -130,7 +145,9 @@ class bolsonLogger : public pulsar::Logger {
   }
 };
 
-auto bolsonLoggerFactory::getLogger(const std::string &file) -> pulsar::Logger * { return new bolsonLogger(file); }
+auto bolsonLoggerFactory::getLogger(const std::string &file) -> pulsar::Logger * {
+  return new bolsonLogger(file);
+}
 
 auto bolsonLoggerFactory::create() -> std::unique_ptr<bolsonLoggerFactory> {
   return std::make_unique<bolsonLoggerFactory>();
