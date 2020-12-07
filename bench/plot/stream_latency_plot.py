@@ -2,6 +2,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import argparse
+import math
 
 # Parse arguments
 parser = argparse.ArgumentParser(description='Plot queue latency.')
@@ -14,7 +15,7 @@ pdf = args.pdf[0]
 title = args.title[0]
 
 # Prepare data
-df = pd.read_csv(csv, index_col=0)
+df = pd.read_csv(csv, index_col=0, skiprows=34)
 n = len(df.index)
 m = len(df.columns)
 
@@ -28,16 +29,19 @@ plt.rcParams.update({"text.usetex": True})
 plt.rcParams.update({"font.size": '15'})
 
 # Plot stuff
-fig, axs = plt.subplots(m, 1, figsize=(5, 2 + 2 * m))
+cols = 2
+fig, axs = plt.subplots(math.ceil(m/cols), cols, figsize=(5 * cols, 2 + 3 * (m/cols)))
 
 for a in range(0, m):
-    sns.violinplot(ax=axs[a], x=y[a])
-    #axs[a].scatter(label='', x=df.index, y=y[a], s=0.25)
-    #axs[a].grid(which='both')
-    axs[a].set_title(df.columns[a])
-    #axs[a].set_xlabel('JSON')
-    #axs[a].axhline(y=y[a].mean(), linestyle='--')
-    axs[a].set_xlabel('Latency ($\mu s$)')
+    ay = int(a/cols)
+    ax = a % cols
+    # sns.violinplot(ax=axs[a], x=y[a])
+    axs[ay][ax].scatter(label='', x=df.index, y=y[a], s=0.25)
+    axs[ay][ax].grid(which='both')
+    axs[ay][ax].set_title(df.columns[a])
+    axs[ay][ax].set_xlabel('Sample \#')
+    axs[ay][ax].axhline(y=y[a].mean(), linestyle='--')
+    axs[ay][ax].set_ylabel('Time ($\mu s$)')
 
 fig.suptitle(title)
 fig.tight_layout()
