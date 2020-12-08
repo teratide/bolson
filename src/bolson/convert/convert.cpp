@@ -29,11 +29,22 @@ IPCBuilder::IPCBuilder(size_t json_threshold,
                        size_t str_buf_init_size)
     : json_buffer_threshold_(json_threshold), batch_buffer_threshold_(batch_threshold) {
   str_buffer = std::shared_ptr(std::move(arrow::AllocateResizableBuffer(0).ValueOrDie()));
-  str_buffer->Reserve(str_buf_init_size);
-  std::unique_ptr<arrow::ArrayBuilder> arrow_pls;
-  arrow::MakeBuilder(arrow::default_memory_pool(), arrow::uint64(), &arrow_pls);
+
+  auto status = str_buffer->Reserve(str_buf_init_size);
+  
+  // TODO: make a static function that returns status to construct ipc builder
+  if (!status.ok()) {
+    throw std::runtime_error(status.message());
+  }
+
+  std::unique_ptr<arrow::ArrayBuilder> sb;
+  status = arrow::MakeBuilder(arrow::default_memory_pool(), arrow::uint64(), &sb);
+  if (!status.ok()) {
+    throw std::runtime_error(status.message());
+  }
+
   seq_builder =
-      std::move(std::unique_ptr<arrow::UInt64Builder>(dynamic_cast<arrow::UInt64Builder *>(arrow_pls.release())));
+      std::move(std::unique_ptr<arrow::UInt64Builder>(dynamic_cast<arrow::UInt64Builder *>(sb.release())));
 }
 
 auto IPCBuilder::Buffer(const illex::JSONQueueItem &item,
@@ -58,7 +69,7 @@ auto IPCBuilder::Buffer(const illex::JSONQueueItem &item,
   offset[str_len] = '\n';
 
   // Copy sequence number into vector.
-  this->seq_builder->Append(item.seq);
+  ARROW_ROE(this->seq_builder->Append(item.seq));
 
   return Status::OK();
 }
@@ -132,8 +143,8 @@ auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -
 
 auto IPCBuilder::ToString() -> std::string {
   std::stringstream o;
-  o << "Batches: " << this->batches.size() << " / " << this->size() << " B, ";
-  o << "JSONs: " << this->jsons_buffered() << " / " << this->str_buffer->size() << " B";
+  o << "Batches: " << this->batches.size() << " | " << this->size() << " B, ";
+  o << "JSONs: " << this->jsons_buffered() << " | " << this->str_buffer->size() << " B";
   return o.str();
 }
 
@@ -179,6 +190,7 @@ void Convert(size_t id,
         in->wait_dequeue_timed(json_item,
                                std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
       // There is a JSON.
+      SPDLOG_DEBUG("{}", builder->ToString());
       SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
       // Buffer the JSON.
       stats.status = builder->Buffer(json_item, lat_tracker);
