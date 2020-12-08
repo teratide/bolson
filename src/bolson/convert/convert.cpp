@@ -98,13 +98,13 @@ auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -
     auto combined_table = packed_table.ValueOrDie()->CombineChunks();
     if (!combined_table.ok()) {
       return Status(Error::ArrowError,
-                    "Could not pack table chunks: " + combined_table.status().message());
+                    "Could not combine chunks: " + combined_table.status().message());
     }
     auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
     combined_batch_r = table_reader.Next();
     if (!combined_batch_r.ok()) {
       return Status(Error::ArrowError,
-                    "Could not pack table chunks: "
+                    "Could not read first chunk with combined batch: "
                         + combined_batch_r.status().message());
     }
     combined_batch = combined_batch_r.ValueOrDie();
