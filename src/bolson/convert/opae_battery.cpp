@@ -267,6 +267,12 @@ auto OPAEBatteryIPCBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> S
 auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t,
                                           illex::LatencyTracker *lat_tracker) -> Status {
   if (str_buffer->size() > 0) {
+
+    // Mark time point buffer is flushed into the parser
+    for (const auto &s : this->lat_tracked_seq_in_buffer) {
+      lat_tracker->Put(s, BOLSON_LAT_BUFFER_FLUSH, illex::Timer::now());
+    }
+
     SPDLOG_DEBUG("Flushing: {}",
                  std::string(reinterpret_cast<const char *>(str_buffer->data()),
                              str_buffer->size()));
@@ -281,6 +287,11 @@ auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t,
     FLETCHER_ROE(this->kernel->Start());
     FLETCHER_ROE(this->kernel->PollUntilDone());
     t->Stop();
+
+    // Mark time point buffer is parsed
+    for (const auto &s : this->lat_tracked_seq_in_buffer) {
+      lat_tracker->Put(s, BOLSON_LAT_BUFFER_PARSED, illex::Timer::now());
+    }
 
     dau_t result;
     FLETCHER_ROE(this->kernel->GetReturn(&result.lo, &result.hi));
@@ -305,6 +316,12 @@ auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t,
     this->size_ += GetBatchSize(batch_with_seq);
     this->batches.push_back(std::move(batch_with_seq));
 
+    // Mark time point sequence numbers are added.
+    for (const auto &s : this->lat_tracked_seq_in_buffer) {
+      lat_tracker->Put(s, BOLSON_LAT_BATCH_CONSTRUCTED, illex::Timer::now());
+    }
+
+    this->lat_tracked_seq_in_buffer.clear();
     ARROW_ROE(this->str_buffer->Resize(0));
   }
 

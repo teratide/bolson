@@ -95,16 +95,17 @@ auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t,
                                     illex::LatencyTracker *lat_tracker) -> Status {
   // Check if there is anything to flush.
   if (str_buffer->size() > 0) {
-    SPDLOG_DEBUG("Flushing: {}",
-                 std::string(reinterpret_cast<const char *>(str_buffer->data()),
-                             str_buffer->size()));
-    auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
 
     // Mark time point buffer is flushed into table reader.
     for (const auto &s : this->lat_tracked_seq_in_buffer) {
       lat_tracker->Put(s, BOLSON_LAT_BUFFER_FLUSH, illex::Timer::now());
     }
 
+    SPDLOG_DEBUG("Flushing: {}",
+                 std::string(reinterpret_cast<const char *>(str_buffer->data()),
+                             str_buffer->size()));
+
+    auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
     auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
                                              br,
                                              read_options,
