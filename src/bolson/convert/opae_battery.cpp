@@ -276,6 +276,10 @@ auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t,
     ARROW_ROE(seq_builder->Finish(&seq));
 
     // Add the column to the batch.
+    if (num_rows != seq->length()) {
+      return Status(Error, "Number of rows in output batch " + std::to_string(num_rows) +
+          "and sequence array {} " + std::to_string(seq->length()) + " mismatch.");
+    }
     auto batch_with_seq_result = out_batch->AddColumn(0, SeqField(), seq);
     ARROW_ROE(batch_with_seq_result.status());
     auto batch_with_seq = batch_with_seq_result.ValueOrDie();
