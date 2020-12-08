@@ -101,7 +101,13 @@ auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -
       spdlog::info("Failed to combine {} batches.", this->batches.size());
       spdlog::info("Contents:");
       for (const auto &b : this->batches) {
-        spdlog::info("{}", b->ToString());
+        spdlog::info("Batch offsets:");
+        auto la = std::static_pointer_cast<arrow::ListArray>(b->column(1));
+        std::stringstream s;
+        for (int i = 0; i < la->length(); i++) {
+          s << la->value_offset(i) << std::endl;
+          spdlog::info("{}", s.str());
+        }
       }
       //end debug zooi
       return Status(Error::ArrowError,
