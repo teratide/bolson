@@ -50,7 +50,7 @@ void ConvertBatteryWithOPAE(size_t json_threshold,
   std::promise<Stats> stats;
   auto future_stats = stats.get_future();
   std::unique_ptr<OPAEBatteryIPCBuilder> builder;
-  auto status = OPAEBatteryIPCBuilder::Make(&builder);
+  auto status = OPAEBatteryIPCBuilder::Make(&builder, json_threshold, batch_threshold);
   if (!status.ok()) {
     auto err_stats = Stats();
     err_stats.status = status;
