@@ -201,7 +201,7 @@ static auto CopyAndWrapOutput(int32_t num_rows,
   int32_t num_offsets = num_rows + 1;
 
   // Obtain the last value in the offsets buffer to know how many values there are.
-  int32_t num_values = reinterpret_cast<int32_t *>(offsets)[num_offsets];
+  int32_t num_values = (reinterpret_cast<int32_t *>(offsets))[num_rows];
 
   size_t num_offset_bytes = num_offsets * sizeof(int32_t);
   size_t num_values_bytes = num_values * sizeof(uint64_t);
@@ -217,12 +217,11 @@ static auto CopyAndWrapOutput(int32_t num_rows,
 
     auto value_array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_values, new_vals);
-    auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()),
-                                                         num_rows,
-                                                         new_offs,
-                                                         value_array);
+    auto offsets_array =
+        std::make_shared<arrow::PrimitiveArray>(arrow::int32(), num_offsets, new_offs);
+    auto list_array = arrow::ListArray::FromArrays(*offsets_array, *value_array);
 
-    std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
+    std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array.ValueOrDie()};
     *out = arrow::RecordBatch::Make(std::move(schema), num_rows, arrays);
   } catch (std::exception &e) {
     return Status(Error::ArrowError, e.what());
