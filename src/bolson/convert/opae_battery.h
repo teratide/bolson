@@ -43,8 +43,8 @@ struct OPAEBatteryOptions {
 class OPAEBatteryIPCBuilder : public IPCBuilder {
  public:
   static auto Make(std::unique_ptr<OPAEBatteryIPCBuilder> *out,
-                   size_t json_buffer_threshold = 5 * 1024 * 1024,
-                   size_t batch_size_threshold = 5 * 1024 * 1024 - 100 * 1024,
+                   size_t json_buffer_threshold,
+                   size_t batch_size_threshold,
                    const OPAEBatteryOptions &opts = OPAEBatteryOptions()) -> Status;
 
   auto FlushBuffered(putong::Timer<> *t,
