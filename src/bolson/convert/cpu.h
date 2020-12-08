@@ -42,7 +42,6 @@ class ArrowIPCBuilder : public IPCBuilder {
                    str_buf_init_size),
         parse_options(std::move(parse_options)), read_options(read_options) {}
 
-  auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status override;
   auto FlushBuffered(putong::Timer<> *t,
                      illex::LatencyTracker *lat_tracker) -> Status override;
  private:

@@ -224,46 +224,6 @@ static auto CopyAndWrapOutput(int32_t num_rows,
   return Status::OK();
 }
 
-auto OPAEBatteryIPCBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status {
-  SPDLOG_DEBUG("Appending JSON as RecordBatch");
-
-  // Copy the JSON data onto the buffer.
-  std::memcpy(this->input_raw, item.string.data(), item.string.length());
-
-  FLETCHER_ROE(this->platform->WriteMMIO(OPAE_BATTERY_INPUT_LASTIDX,
-                                         static_cast<int32_t>(item.string.length())));
-  FLETCHER_ROE(this->kernel->Reset());
-  FLETCHER_ROE(this->kernel->Start());
-  FLETCHER_ROE(this->kernel->PollUntilDone());
-
-  dau_t result;
-  FLETCHER_ROE(this->kernel->GetReturn(&result.lo, &result.hi));
-  uint64_t num_rows = result.full;
-
-  std::shared_ptr<arrow::RecordBatch> batch_result;
-  BOLSON_ROE(CopyAndWrapOutput(num_rows,
-                               output_off_raw,
-                               output_val_raw,
-                               output_schema(),
-                               &batch_result));
-
-  // Construct the column for the sequence number.
-  std::shared_ptr<arrow::Array> seq;
-  arrow::UInt64Builder seq_builder;
-  ARROW_ROE(seq_builder.Append(item.seq));
-  ARROW_ROE(seq_builder.Finish(&seq));
-
-  // Add the column to the batch.
-  auto batch_with_seq_result = batch_result->AddColumn(0, SeqField(), seq);
-  ARROW_ROE(batch_with_seq_result.status());
-  auto batch_with_seq = batch_with_seq_result.ValueOrDie();
-
-  this->size_ += GetBatchSize(batch_with_seq);
-  this->batches.push_back(std::move(batch_with_seq));
-
-  return Status::OK();
-}
-
 auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t,
                                           illex::LatencyTracker *lat_tracker) -> Status {
   if (str_buffer->size() > 0) {

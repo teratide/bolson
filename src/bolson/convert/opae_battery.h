@@ -47,7 +47,6 @@ class OPAEBatteryIPCBuilder : public IPCBuilder {
                    size_t batch_size_threshold = 5 * 1024 * 1024 - 100 * 1024,
                    const OPAEBatteryOptions &opts = OPAEBatteryOptions()) -> Status;
 
-  auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status override;
   auto FlushBuffered(putong::Timer<> *t,
                      illex::LatencyTracker *lat_tracker) -> Status override;
  protected:

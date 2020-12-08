@@ -46,9 +46,6 @@ class IPCBuilder {
   /// \brief Return true if there are no batches in this builder.
   [[nodiscard]] auto empty() const -> bool { return batches.empty(); }
 
-  /// \brief Take one JSON and convert it to a RecordBatch, and append it to this builder.
-  virtual auto AppendAsBatch(const illex::JSONQueueItem &item) -> Status = 0;
-
   /// \brief Take multiple JSONQueueItems and convert them into an Arrow RecordBatch.
   auto Buffer(const illex::JSONQueueItem &item,
               illex::LatencyTracker *lat_tracker) -> Status;

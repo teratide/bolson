@@ -33,64 +33,6 @@ static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
   return seq_field;
 }
 
-auto ArrowIPCBuilder::AppendAsBatch(const illex::JSONQueueItem &item) -> Status {
-  // Wrap Arrow buffer around the JSON string so we can parse it using Arrow.
-  auto buffer_wrapper =
-      std::make_shared<arrow::Buffer>(reinterpret_cast<const uint8_t *>(item.string.data()),
-                                      item.string.length());
-  // The following code could be better because it seems like:
-  // - it always delivers a chunked table
-  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we
-  //   can only read once.
-  // - we could try to work-around previous by buffering JSONs, but that would increase
-  //   latency.
-  // - we wouldn't know how long to buffer because the i/o size ratio is not known,
-  //   - preferably we would append jsons until some threshold is reached, then construct
-  //     the ipc message.
-
-  /*
-  // Wrap a random access file abstraction around the buffer.
-  auto ra_buffer = arrow::Buffer::GetReader(buffer_wrapper).ValueOrDie();
-  // Construct an arrow json TableReader.
-  auto reader = arrow::json::TableReader::Make(arrow::default_memory_pool(),
-                                               ra_buffer,
-                                               arrow::json::ReadOptions::Defaults(),
-                                               arrow::json::ParseOptions::Defaults()).ValueOrDie();
-  auto table = reader->Read().ValueOrDie();
-  auto batch = table->CombineChunks().ValueOrDie();
-  */
-
-  // The following code could be better because it seems like:
-  // - we cannot reuse the internal builders for new JSONs that are being dequeued, we
-  //   can only read once.
-  // - we could try to work-around previous by buffering JSONs, but that would increase
-  //   latency.
-  // - we wouldn't know how long to buffer because the i/o size ratio is not known,
-  //   - preferably we would append jsons until some threshold is reached, then construct
-  //     the ipc message.
-
-  // TODO(johanpel): come up with a solution for all of this. Also don't use ValueOrDie();
-  // Construct a RecordBatch from the JSON string.
-  auto batch_result = arrow::json::ParseOne(parse_options, buffer_wrapper);
-  ARROW_ROE(batch_result.status());
-
-  // Construct the column for the sequence number.
-  std::shared_ptr<arrow::Array> seq;
-  arrow::UInt64Builder seq_builder;
-  ARROW_ROE(seq_builder.Append(item.seq));
-  ARROW_ROE(seq_builder.Finish(&seq));
-
-  // Add the column to the batch.
-  auto batch_with_seq_result = batch_result.ValueOrDie()->AddColumn(0, SeqField(), seq);
-  ARROW_ROE(batch_with_seq_result.status());
-  auto batch_with_seq = batch_with_seq_result.ValueOrDie();
-
-  this->size_ += GetBatchSize(batch_with_seq);
-  this->batches.push_back(std::move(batch_with_seq));
-
-  return Status::OK();
-}
-
 auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t,
                                     illex::LatencyTracker *lat_tracker) -> Status {
   // Check if there is anything to flush.
