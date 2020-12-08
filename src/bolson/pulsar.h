@@ -59,15 +59,24 @@ struct PulsarOptions {
   std::string topic = "bolson";
   /// Maximum message size.
   size_t max_msg_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
+
+  inline void Log() const {
+    spdlog::info("Pulsar:");
+    spdlog::info("  URL           : {}", url);
+    spdlog::info("  Topic         : {}", topic);
+    spdlog::info("  Max msg. size : {} B", max_msg_size);
+  }
 };
 
 /// Statistics about publishing
 struct PublishStats {
-  /// Number of messages published.
-  size_t num_published = 0;
+  /// Number of JSONs published.
+  size_t num_jsons_published = 0;
+  /// Number of IPC messages published.
+  size_t num_ipc_published = 0;
   /// Time spent on publishing message.
   double publish_time = 0.;
-  /// Time spent in thread.
+  /// Time spent in publish thread.
   double thread_time = 0.;
   /// Status of the publishing thread.
   Status status = Status::OK();

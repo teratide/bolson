@@ -18,28 +18,38 @@ namespace bolson {
 
 void LogLatency(const illex::LatencyTracker &lat_tracker) {
   std::cout << "Seq,"
-            << "1. Time in TCP recv. buffer,"
-            << "2. Time in JSON item queue,"
-            << "3. Time in JSON buffer,"
-            << "4. Time in JSON parser,"
-            << "5. Time adding seq. \\#,"
-            << "6. Time combining batches,"
-            << "7. Time serializing batch,"
-            << "8. Time in publish queue,"
-            << "9. Time in Pulsar message builder,"
-            << "10. Time in Pulsar send(),"
-            << "11. TCP recv $\\rightarrow$ Pulsar send()"
+            << " 1. TCP recv. buffer,"
+            << " 2. JSON queue,"
+            << " 3. JSON buffer,"
+            << " 4. JSON parser,"
+            << " 5. Adding seq. \\#,"
+            << " 6. Combining batches,"
+            << " 7. Serializing,"
+            << " 8. Publish queue,"
+            << " 9. Pulsar message build,"
+            << "10. Pulsar send(),"
+            << "11. TCP recv $\\rightarrow$ Pulsar send(),"
+            << "12. TCP recv $\\rightarrow$ Publish queue"
             << std::endl;
+  // Dump every sample
   for (size_t t = 0; t < lat_tracker.num_samples(); t++) {
     std::cout << t << ",";
-    for (size_t s = 1; s < BOLSON_LAT_NUM_POINTS; s++) {
+    // Dump every time point
+    for (size_t s = BOLSON_LAT_TCP_UNWRAP; s < BOLSON_LAT_NUM_POINTS; s++) {
       std::cout << std::fixed << std::setprecision(9)
                 << lat_tracker.GetInterval(t, s);
       std::cout << ",";
     }
+    // Get the time after Pulsar send:
     std::chrono::duration<double>
-        total = lat_tracker.Get(t, BOLSON_LAT_NUM_POINTS - 1) - lat_tracker.Get(t, 0);
-    std::cout << std::fixed << std::setprecision(9) << total.count() << std::endl;
+        total = lat_tracker.Get(t, BOLSON_LAT_MESSAGE_SENT) - lat_tracker.Get(t, 0);
+    std::cout << std::fixed << std::setprecision(9) << total.count() << ',';
+
+    // Get the time when the IPC message was serialized.
+    // This should be very near the time it was put in the publish queue.
+    std::chrono::duration<double>
+        fom = lat_tracker.Get(t, BOLSON_LAT_BATCH_SERIALIZED) - lat_tracker.Get(t, 0);
+    std::cout << std::fixed << std::setprecision(9) << fom.count() << std::endl;
   }
 }
 

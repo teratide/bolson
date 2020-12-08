@@ -25,6 +25,7 @@ namespace bolson {
 
 inline void StartLogger() {
   auto logger = spdlog::stdout_logger_mt("bolson");
+  logger->set_pattern("[%n] [%l] %v");
   spdlog::set_default_logger(logger);
 #ifndef NDEBUG
   spdlog::set_level(spdlog::level::debug);

@@ -37,32 +37,48 @@ auto AggrStats(const std::vector<Stats> &conv_stats) -> Stats {
 }
 
 void LogConvertStats(const Stats &stats, size_t num_threads) {
-  spdlog::info("Conversion stats:");
-  spdlog::info("  JSONs converted            : {}", stats.num_jsons);
-  spdlog::info("  JSON bytes converted       : {}", stats.num_json_bytes);
-  spdlog::info("  JSON parse to Arrow Batch (without sequence numbers)");
-  spdlog::info("    {} threads cumulative T   : {} s", num_threads, stats.parse_time);
-  spdlog::info("    Per thread average T     : {} s", stats.parse_time / num_threads);
-  spdlog::info("    Average TP               : {} MB/s",
-               stats.num_json_bytes / (stats.parse_time / num_threads) * 1E-6);
 
-  spdlog::info("  JSON parse to Arrow Batch (with sequence numbers)");
-  spdlog::info("    {} threads cumulative T   : {} s", num_threads, stats.convert_time);
-  spdlog::info("    Per thread average T     : {} s", stats.convert_time / num_threads);
-  spdlog::info("    Average TP               : {} MB/s",
-               stats.num_json_bytes / (stats.convert_time / num_threads) * 1E-6);
+  // Input stats.
+  auto json_MiB = stats.num_json_bytes;
 
-  spdlog::info("  Avg. bytes/json            : {} B / json",
-               static_cast<double>(stats.total_ipc_bytes) / stats.num_jsons);
-  spdlog::info("  IPC msgs generated         : {} ipc", stats.num_ipc);
-  spdlog::info("  Total IPC bytes            : {} B", stats.total_ipc_bytes);
-  spdlog::info("  Avg. IPC bytes/msg         : {} B / ipc",
-               stats.total_ipc_bytes / stats.num_ipc);
-  spdlog::info("  Avg. IPC cnstr. time       : {} s. / ipc",
-               stats.ipc_construct_time / stats.num_ipc);
-  spdlog::info("  Avg. conv. time            : {} us. / json",
-               1E6 * stats.convert_time / stats.num_jsons);
-  spdlog::info("  Avg. thread time           : {} s.", stats.thread_time / num_threads);
+  spdlog::info("JSON to Arrow conversion:");
+  spdlog::info("  Converted              : {}", stats.num_jsons);
+  spdlog::info("  Raw JSON bytes         : {} MiB", json_MiB);
+
+  // Raw parsing stats.
+  auto parse_tt = stats.parse_time / num_threads;
+  auto json_MB = stats.num_json_bytes / 1e6;
+  auto json_M = stats.num_jsons / 1e6;
+
+  spdlog::info("  JSON parse to Arrow RecordBatch (without sequence numbers)");
+  spdlog::info("    Time in {:2} threads   : {} s", num_threads, stats.parse_time);
+  spdlog::info("    Avg. time            : {} s", parse_tt);
+  spdlog::info("    Avg. throughput      : {} MB/s", json_MB / parse_tt);
+  spdlog::info("    Avg. throughput      : {} MJ/s", json_M / parse_tt);
+
+  // Parsing plus seq no's stats.
+  auto seq_tt = stats.convert_time / num_threads;
+
+  spdlog::info("  JSON parse to Arrow RecordBatch (with sequence numbers)");
+  spdlog::info("    Time in {:2} threads   : {} s", num_threads, stats.convert_time);
+  spdlog::info("    Avg. time            : {} s", seq_tt);
+  spdlog::info("    Avg. throughput      : {} MB/s", json_MB / seq_tt);
+  spdlog::info("    Avg. throughput      : {} MJ/s", json_M / seq_tt);
+
+  // IPC construction
+  auto ipc_tt = stats.ipc_construct_time / num_threads;
+  auto ipc_bpj = static_cast<double>(stats.total_ipc_bytes) / stats.num_jsons;
+  auto ipc_bpi = stats.total_ipc_bytes / stats.num_ipc;
+
+  spdlog::info("  Arrow RecordBatch serialization");
+  spdlog::info("    IPC messages         : {}", stats.num_ipc);
+  spdlog::info("    IPC bytes            : {}", stats.total_ipc_bytes);
+  spdlog::info("    Avg. IPC bytes/json  : {} B / J", ipc_bpj);
+  spdlog::info("    Avg. IPC bytes/msg   : {} B / I", ipc_bpi);
+  spdlog::info("    Time in {:2} threads   : {} s", num_threads, stats.ipc_construct_time);
+  spdlog::info("    Avg. time            : {} s", ipc_tt);
+  spdlog::info("    Avg. throughput      : {} MB/s", json_MB / ipc_tt);
+  spdlog::info("    Avg. throughput      : {} MJ/s", json_M / ipc_tt);
 }
 
 }

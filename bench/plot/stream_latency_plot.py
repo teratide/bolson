@@ -16,42 +16,76 @@ pdf = args.pdf[0]
 title = args.title[0]
 violin = args.violin
 
-# Prepare data
-df = pd.read_csv(csv, index_col=0, skiprows=34)
+# Prepare latency data
+df = pd.read_csv(csv, index_col=0, skiprows=43)
+# Number of sampled JSONs
 n = len(df.index)
+# Number of time points
 m = len(df.columns)
 
-# Use microseconds
 y = []
 for col in df.columns:
     y.append(df[col])
 
+
+def get_tp(which):
+    s_val = open(csv, "r").readlines()
+    s_val = filter(lambda l: which in l, s_val)
+    s_val = map(lambda s: float(s.split(':')[1].split(which)[0]), s_val)
+    s_val = list(s_val)
+    return s_val
+
+
+s_val_mjs = get_tp('MJ/s')
+
+s_dsc = [
+    "TCP client",
+    "JSON to Batch (w/o seq.)",
+    "JSON to Batch (w/  seq.)",
+    "IPC construct",
+    "Pulsar publish"
+]
+
 # Plot settings
 plt.rcParams.update({"text.usetex": True})
-plt.rcParams.update({"font.size": '15'})
+#plt.rcParams.update({"font.size": '12'})
 
-# Plot stuff
+# Set up figure and axes
 cols = 3
-fig, axs = plt.subplots(math.ceil(m/cols), cols, figsize=(5 * cols, 2 + 3 * (m/cols)))
+fig, axs = plt.subplots(math.ceil((m + 1) / cols), cols, figsize=(5 * cols, 2 + 3 * ((m + 1) / cols)))
 
+# Plot latencies
 for a in range(0, m):
-    ay = int(a/cols)
+    ay = int(a / cols)
     ax = a % cols
     if args.violin:
-        sns.violinplot(ax=axs[ay][ax], x=y[a], bw=1e-1)
-        #axs[ay][ax].set_xlim(0, max(y[m-1]))
-        axs[ay][ax].set_xlabel('Time (s)')
+        sns.violinplot(ax=axs[ay][ax], x=y[a], bw=2.5e-2)
+        # axs[ay][ax].set_xlim(0, max(y[m-1]))
+        axs[ay][ax].set_xlabel('Time ($s$)')
     else:
         axs[ay][ax].scatter(label='', x=df.index, y=y[a], s=0.25)
         axs[ay][ax].set_xlabel('Sample \#')
-        axs[ay][ax].axhline(y=y[a].mean(), linestyle='--')
-        axs[ay][ax].set_ylabel('Time (s)')
-        axs[ay][ax].set_ylim(1e-7, 2*max(y[m-1]))
-        axs[ay][ax].set_yscale('log')
+        axs[ay][ax].axhline(y=y[a].mean(), linestyle='--', color='red')
+        axs[ay][ax].set_ylabel('Time ($s$)')
+        # axs[ay][ax].set_ylim(1e-7, 2*max(y[m-1]))
+        # axs[ay][ax].set_yscale('log')
 
     axs[ay][ax].grid(which='both')
     axs[ay][ax].set_title(df.columns[a])
 
+# Plot throughput on last axis
+ay = int(m / cols)
+ax = m % cols
+ys = range(0, len(s_dsc))
+a = axs[ay][ax]
+a.set_title("Average stage throughput")
+a.barh(ys, s_val_mjs)
+a.set_yticks(ys)
+a.set_yticklabels(s_dsc)
+a.set_xscale('log')
+a.set_xlabel('Throughput (MJ/s)')
+
+# Finalize the figure and save
 fig.suptitle(title)
 fig.tight_layout()
 

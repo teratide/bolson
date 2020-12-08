@@ -27,8 +27,9 @@
 
 #define CHECK_PULSAR(result) { \
   auto res = result; \
-  if (res != pulsar::ResultOk) \
-    return Status(Error::PulsarError, std::string("Pulsar error: ") + pulsar::strResult(result)); \
+  if (res != pulsar::ResultOk) { \
+    return Status(Error::PulsarError, std::string("Pulsar error: ") + pulsar::strResult(res)); \
+  } \
 }
 
 namespace bolson {
@@ -53,7 +54,7 @@ auto Publish(pulsar::Producer *producer,
                                                    size).build();
   if (lat_tracker != nullptr) {
     for (const auto &s : *seq_nums) {
-      lat_tracker->Put(s, BOLSON_LAT_PUBLISH, illex::Timer::now());
+      lat_tracker->Put(s, BOLSON_LAT_MESSAGE_BUILT, illex::Timer::now());
     }
   }
 
@@ -61,7 +62,7 @@ auto Publish(pulsar::Producer *producer,
 
   if (lat_tracker != nullptr) {
     for (const auto &s : *seq_nums) {
-      lat_tracker->Put(s, BOLSON_LAT_DONE, illex::Timer::now());
+      lat_tracker->Put(s, BOLSON_LAT_MESSAGE_SENT, illex::Timer::now());
     }
   }
   return Status::OK();
@@ -82,27 +83,30 @@ void PublishThread(PulsarContext pulsar,
   // Try pulling stuff from the queue until the stop signal is given.
   IpcQueueItem ipc_item;
   while (!shutdown->load()) {
-    if (in->wait_dequeue_timed(ipc_item, std::chrono::microseconds(10))) {
+    if (in->wait_dequeue_timed(ipc_item,
+                               std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
+      // Mark time point.
+      if (lat_tracker != nullptr) {
+        for (const auto &l : *ipc_item.lat) {
+          lat_tracker->Put(l, BOLSON_LAT_PUBLISH_DEQUEUE, illex::Timer::now());
+        }
+      }
+
+      // Start measuring time to handle an IPC message on the Pulsar side.
+      publish_timer.Start();
+
       SPDLOG_DEBUG(
           "Publishing Arrow IPC message of size {} B with {} rows. "
           "Tracking {} JSON items latency.",
           ipc_item.ipc->size(),
           ipc_item.num_rows,
           ipc_item.lat->size());
-      publish_timer.Start();
-
-      if (lat_tracker != nullptr) {
-        for (const auto &l : *ipc_item.lat) {
-          lat_tracker->Put(l, BOLSON_LAT_BUILD_MESSAGE, illex::Timer::now());
-        }
-      }
 
       auto status = Publish(pulsar.producer.get(),
                             ipc_item.ipc->data(),
                             ipc_item.ipc->size(),
                             lat_tracker,
                             ipc_item.lat.get());
-      publish_timer.Stop();
 
       // Deal with Pulsar errors.
       // In case the Producer causes some error, shut everything down.
@@ -120,12 +124,16 @@ void PublishThread(PulsarContext pulsar,
         return;
       }
 
-      // Update some statistics.
-      s.publish_time += publish_timer.seconds();
-      s.num_published++;
+      // Add number of rows in IPC message to the count, signaling the main thread how
+      // many JSONs are published.
       count->fetch_add(ipc_item.num_rows);
+
+      // Update some statistics.
+      s.num_ipc_published++;
+      s.num_jsons_published += ipc_item.num_rows;
+      publish_timer.Stop();
+      s.publish_time += publish_timer.seconds();
     }
-    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   // Stop thread timer.
   thread_timer.Stop();

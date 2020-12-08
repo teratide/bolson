@@ -112,6 +112,7 @@ auto BenchQueue(const QueueBenchOptions &opt) -> Status {
 
   auto deq_thread = std::thread(Dequeue, opt, &queue, &timers);
 
+  // Wait for the thread to spawn.
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
   for (size_t i = 0; i < opt.num_items; i++) {

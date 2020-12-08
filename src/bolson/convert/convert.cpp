@@ -121,7 +121,7 @@ auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -
 
   // Mark time point batch is serialized
   for (const auto &s : this->lat_tracked_seq_in_batches) {
-    lat_tracker->Put(s, BOLSON_LAT_SERIALIZE, illex::Timer::now());
+    lat_tracker->Put(s, BOLSON_LAT_BATCH_SERIALIZED, illex::Timer::now());
   }
 
   this->Reset();
@@ -175,8 +175,9 @@ void Convert(size_t id,
   while (!shutdown->load()) {
     // Attempt to dequeue an item if the size of the current RecordBatches is not larger
     // than the limit.
-    if (attempt_dequeue
-        && in->wait_dequeue_timed(json_item, std::chrono::microseconds(10))) {
+    if (attempt_dequeue &&
+        in->wait_dequeue_timed(json_item,
+                               std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
       // There is a JSON.
       SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
       // Buffer the JSON.
@@ -240,7 +241,6 @@ void Convert(size_t id,
         ipc_construct_timer.Start();
         IpcQueueItem ipc_item;
         stats.status = builder->Finish(&ipc_item, lat_tracker);
-
         SHUTDOWN_ON_FAILURE();
         ipc_construct_timer.Stop();
 

@@ -33,7 +33,6 @@ using convert::Stats;
 
 /// Structure to hold timers.
 struct StreamTimers {
-  putong::Timer<> latency;
   putong::Timer<> tcp;
   putong::Timer<> init;
 };
@@ -71,10 +70,9 @@ static void OutputCSVStats(const StreamTimers &timers,
       << ",";
   (*output) << all_conv_stats.convert_time / all_conv_stats.num_jsons << ",";
   (*output) << all_conv_stats.thread_time / all_conv_stats.num_jsons << ",";
-  (*output) << pub_stats.num_published << ",";
-  (*output) << pub_stats.publish_time / pub_stats.num_published << ",";
+  (*output) << pub_stats.num_ipc_published << ",";
+  (*output) << pub_stats.publish_time / pub_stats.num_ipc_published << ",";
   (*output) << pub_stats.thread_time << ",";
-  (*output) << timers.latency.seconds() << std::endl;
 }
 
 /// \brief Log the statistics.
@@ -83,31 +81,37 @@ static void LogStreamStats(const StreamTimers &timers,
                            const std::vector<Stats> &conv_stats,
                            const PublishStats &pub_stats) {
   auto all = AggrStats(conv_stats);
-  spdlog::info("Initialization stats:");
-  spdlog::info("  Initialization time : {}", timers.init.seconds());
-  spdlog::info("TCP client stats:");
-  spdlog::info("  Received {} JSONs over TCP.", client.received());
-  spdlog::info("  Bytes received      : {} MiB",
-               static_cast<double>(client.bytes_received()) / (1024.0 * 1024.0));
-  spdlog::info("  Client receive time : {} s", timers.tcp.seconds());
-  spdlog::info("  Throughput          : {} MB/s",
-               client.bytes_received() / timers.tcp.seconds() * 1E-6);
-  spdlog::info("  Throughput          : {} KJSONS/s",
-               client.received() / timers.tcp.seconds() * 1E-3);
+  spdlog::info("Initialization");
+  spdlog::info("  Time : {}", timers.init.seconds());
+
+  // TCP client statistics.
+  auto tcp_MiB = static_cast<double>(client.bytes_received()) / (1024.0 * 1024.0);
+  auto tcp_MB = static_cast<double>(client.bytes_received()) / 1E6;
+  auto tcp_MJs = client.received() / 1E6;
+
+  spdlog::info("TCP client:");
+  spdlog::info("  JSONs received : {}", client.received());
+  spdlog::info("  Bytes received : {} MiB", tcp_MiB);
+  spdlog::info("  Time           : {} s", timers.tcp.seconds());
+  spdlog::info("  Throughput     : {} MJ/s", tcp_MJs / timers.tcp.seconds());
+  spdlog::info("  Throughput     : {} MB/s", tcp_MB / timers.tcp.seconds());
 
   LogConvertStats(all, conv_stats.size());
 
+  // Pulsar producer / publishing statistics
+  auto pub_MJs = pub_stats.num_jsons_published / 1E6;
+
   spdlog::info("Publish stats:");
-  spdlog::info("  IPC messages        : {}", pub_stats.num_published);
-  spdlog::info("  Avg. publish time   : {} us.",
-               1E6 * pub_stats.publish_time / pub_stats.num_published);
-  spdlog::info("  Publish thread time : {} s", pub_stats.thread_time);
+  spdlog::info("  JSONs published : {}", pub_stats.num_jsons_published);
+  spdlog::info("  IPC messages    : {}", pub_stats.num_ipc_published);
+  spdlog::info("  Time            : {} s", pub_stats.publish_time);
+  spdlog::info("    in thread     : {} s", pub_stats.thread_time);
+  spdlog::info("  Throughput      : {} MJ/s.", pub_MJs / pub_stats.publish_time);
 
-  spdlog::info("Latency stats:");
-  spdlog::info("  First latency       : {} us", 1E6 * timers.latency.seconds());
-
-  spdlog::info("Timer steady?         : {}", putong::Timer<>::steady());
-  spdlog::info("Timer resoluion       : {} us", putong::Timer<>::resolution_us());
+  // Timer properties
+  spdlog::info("Timers:");
+  spdlog::info("  Steady?         : {}", putong::Timer<>::steady());
+  spdlog::info("  Resolution      : {} us", putong::Timer<>::resolution_us());
 
 }
 
@@ -218,10 +222,10 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
         && !threads.shutdown.load()) {
       // TODO: use some conditional variable for this
       // Sleep this thread for a bit.
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      std::this_thread::sleep_for(std::chrono::milliseconds(BOLSON_QUEUE_WAIT_US));
 #ifndef NDEBUG
       // Sleep a bit longer in debug.
-      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      std::this_thread::sleep_for(std::chrono::milliseconds(100 * BOLSON_QUEUE_WAIT_US));
       SPDLOG_DEBUG("Received: {}, Published: {}",
                    client.received(),
                    threads.publish_count.load());
@@ -257,6 +261,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
         OutputCSVStats(timers, client, conv_stats, pub_stats, &std::cout);
       } else {
         LogStreamStats(timers, client, conv_stats, pub_stats);
+        opt.pulsar.Log();
         LogLatency(lat_tracker);
       }
     }
