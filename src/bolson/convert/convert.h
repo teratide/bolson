@@ -107,9 +107,9 @@ class IPCBuilder {
                       size_t seq_buf_init_size,
                       size_t str_buf_init_size);
 
-  /// Sequence numbers of JSONs that are in the JSON buffer.
+  /// Sequence numbers of latency-tracked JSONs that are in the JSON buffer.
   std::vector<illex::Seq> lat_tracked_seq_in_buffer;
-  /// Sequence numbers of JSONs that are in the Batches buffer.
+  /// Sequence numbers of atency-tracked JSONs that are in the Batches buffer.
   std::vector<illex::Seq> lat_tracked_seq_in_batches;
   /// A vector to hold batches that collapse into a single batch when finish is called.
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;

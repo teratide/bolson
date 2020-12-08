@@ -87,16 +87,23 @@ auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -
   std::shared_ptr<arrow::RecordBatch> combined_batch;
 
   // Only wrap a table and combine chunks if there is more than one RecordBatch.
-  if (batches.size() == 1) {
+  if (this->batches.size() == 1) {
     combined_batch = batches[0];
   } else {
-    auto packed_table = arrow::Table::FromRecordBatches(batches);
+    auto packed_table = arrow::Table::FromRecordBatches(this->batches);
     if (!packed_table.ok()) {
       return Status(Error::ArrowError,
                     "Could not create table: " + packed_table.status().message());
     }
     auto combined_table = packed_table.ValueOrDie()->CombineChunks();
     if (!combined_table.ok()) {
+      // begin debug zooi
+      spdlog::info("Failed to combine {} batches.", this->batches.size());
+      spdlog::info("Contents:");
+      for (const auto &b : this->batches) {
+        spdlog::info("{}", b->ToString());
+      }
+      //end debug zooi
       return Status(Error::ArrowError,
                     "Could not combine chunks: " + combined_table.status().message());
     }
