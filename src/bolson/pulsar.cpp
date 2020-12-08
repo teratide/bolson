@@ -95,13 +95,6 @@ void PublishThread(PulsarContext pulsar,
       // Start measuring time to handle an IPC message on the Pulsar side.
       publish_timer.Start();
 
-      SPDLOG_DEBUG(
-          "Publishing Arrow IPC message of size {} B with {} rows. "
-          "Tracking {} JSON items latency.",
-          ipc_item.ipc->size(),
-          ipc_item.num_rows,
-          ipc_item.lat->size());
-
       auto status = Publish(pulsar.producer.get(),
                             ipc_item.ipc->data(),
                             ipc_item.ipc->size(),

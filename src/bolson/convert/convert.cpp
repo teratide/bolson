@@ -110,8 +110,6 @@ auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -
     combined_batch = combined_batch_r.ValueOrDie();
   }
 
-  SPDLOG_DEBUG("Packed IPC batch: {}", combined_batch->ToString());
-
   // Mark time point batches are combined.
   for (const auto &s : this->lat_tracked_seq_in_batches) {
     lat_tracker->Put(s, BOLSON_LAT_BATCH_COMBINED, illex::Timer::now());
@@ -189,16 +187,12 @@ void Convert(size_t id,
     if (attempt_dequeue &&
         in->wait_dequeue_timed(json_item,
                                std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
-      // There is a JSON.
-      SPDLOG_DEBUG("{}", builder->ToString());
-      SPDLOG_DEBUG("Drone {} popping JSON: {}.", id, json_item.string);
       // Buffer the JSON.
       stats.status = builder->Buffer(json_item, lat_tracker);
       SHUTDOWN_ON_FAILURE();
 
       // Check if we need to flush the JSON buffer.
       if (builder->jsons_buffered() >= builder->json_buffer_threshold()) {
-        SPDLOG_DEBUG("Builder JSON buffer reached threshold.");
         // Add to stats
         stats.num_jsons += builder->jsons_buffered();
         stats.num_json_bytes += builder->bytes_buffered();
@@ -213,8 +207,6 @@ void Convert(size_t id,
 
       // Check if either of the threshold was reached.
       if ((builder->size() >= builder->batch_size_threshold())) {
-        SPDLOG_DEBUG("Size of batches has reached threshold. "
-                     "Current size: {} bytes", builder->size());
         // We reached the threshold, so in the next iteration, just send off the
         // RecordBatch.
         attempt_dequeue = false;
@@ -225,15 +217,8 @@ void Convert(size_t id,
       // is empty, this causes the latency to be low. When it is full, it still provides
       // good throughput.
 
-#ifndef NDEBUG
-      if ((builder->jsons_buffered() > 0) || (!builder->empty())) {
-        SPDLOG_DEBUG("Nothing left in queue.");
-      }
-#endif
-
       // If there is still something in the JSON buffer, flush it.
       if (builder->jsons_buffered() > 0) {
-        SPDLOG_DEBUG("Flushing JSON buffer.");
         // Add to stats
         stats.num_jsons += builder->jsons_buffered();
         stats.num_json_bytes += builder->bytes_buffered();
@@ -248,7 +233,6 @@ void Convert(size_t id,
 
       // There has to be at least one batch.
       if (!builder->empty()) {
-        SPDLOG_DEBUG("Flushing Batch buffer.");
         // Finish the builder, delivering an IPC item.
         ipc_construct_timer.Start();
         IpcQueueItem ipc_item;
@@ -258,8 +242,6 @@ void Convert(size_t id,
 
         // Enqueue the IPC item.
         out->enqueue(ipc_item);
-
-        SPDLOG_DEBUG("Drone {} enqueued IPC message.", id);
 
         // Attempt to dequeue again.
         attempt_dequeue = true;

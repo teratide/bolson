@@ -240,10 +240,6 @@ auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t,
       lat_tracker->Put(s, BOLSON_LAT_BUFFER_FLUSH, illex::Timer::now());
     }
 
-    SPDLOG_DEBUG("Flushing: {}",
-                 std::string(reinterpret_cast<const char *>(str_buffer->data()),
-                             str_buffer->size()));
-
     // Copy the JSON data onto the buffer.
     std::memcpy(this->input_raw, this->str_buffer->data(), this->str_buffer->size());
 

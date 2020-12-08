@@ -43,10 +43,6 @@ auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t,
       lat_tracker->Put(s, BOLSON_LAT_BUFFER_FLUSH, illex::Timer::now());
     }
 
-    SPDLOG_DEBUG("Flushing: {}",
-                 std::string(reinterpret_cast<const char *>(str_buffer->data()),
-                             str_buffer->size()));
-
     auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
     auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
                                              br,
