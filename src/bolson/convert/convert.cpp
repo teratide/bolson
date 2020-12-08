@@ -27,11 +27,11 @@ IPCBuilder::IPCBuilder(size_t json_threshold,
                        size_t batch_threshold,
                        size_t seq_buf_init_size,
                        size_t str_buf_init_size)
-    : json_buffer_threshold_(json_threshold), batch_buffer_threshold_(batch_threshold) {
+    : json_buffer_threshold_(json_threshold),
+      batch_buffer_threshold_(batch_threshold) {
   str_buffer = std::shared_ptr(std::move(arrow::AllocateResizableBuffer(0).ValueOrDie()));
 
   auto status = str_buffer->Reserve(str_buf_init_size);
-  
   // TODO: make a static function that returns status to construct ipc builder
   if (!status.ok()) {
     throw std::runtime_error(status.message());

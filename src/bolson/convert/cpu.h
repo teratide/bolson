@@ -54,19 +54,20 @@ class ArrowIPCBuilder : public IPCBuilder {
 /**
  * \brief Converts JSONs to Arrow RecordBatches, and batches to IPC messages.
  *
- * Multi-threaded.
+ * Multi-threaded by num_drones threads.
  *
  * \param in                    The input queue of JSONs
  * \param out                   The output queue for Arrow IPC messages.
  * \param shutdown              Signal to shut down this thread (typically used when there
  *                              will be no more new inputs).
  * \param num_drones            Number of conversion threads to spawn.
+ * \param parse_options         The JSON parsing options for Arrow.
+ * \param read_options          The JSON parsing read options for Arrow.
  * \param json_buffer_threshold Threshold for the JSON buffer. When buffer grows over this
  *                              size, it will be converted to a batch.
  * \param batch_size_threshold  Threshold batch size. If batch goes over this size, it
  *                              will be converted to an IPC message and queued.
- * \param parse_options         The JSON parsing options for Arrow.
- * \param read_options          The JSON parsing read options for Arrow.
+ * \param lat_tracker           The latency tracker to use to track latencies of specific JSONs.
  * \param stats                 Statistics for each conversion thread.
  */
 void ConvertWithCPU(illex::JSONQueue *in,

@@ -50,8 +50,16 @@ void ConvertBatteryWithOPAE(size_t json_threshold,
   std::promise<Stats> stats;
   auto future_stats = stats.get_future();
   std::unique_ptr<OPAEBatteryIPCBuilder> builder;
-  OPAEBatteryIPCBuilder::Make(&builder);
-  Convert(0, std::move(builder), in, out, lat_tracker, shutdown, std::move(stats));
+  auto status = OPAEBatteryIPCBuilder::Make(&builder);
+  if (!status.ok()) {
+    auto err_stats = Stats();
+    err_stats.status = status;
+    stats_promise.set_value({err_stats});
+    shutdown->store(true);
+    return;
+  } else {
+    Convert(0, std::move(builder), in, out, lat_tracker, shutdown, std::move(stats));
+  }
   std::vector<Stats> result = {future_stats.get()};
   stats_promise.set_value(result);
 }
@@ -68,9 +76,7 @@ static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
 
 static auto input_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = fletcher::WithMetaRequired(
-      *arrow::schema({arrow::field("input",
-                                   arrow::uint8(),
-                                   false)}),
+      *arrow::schema({arrow::field("input", arrow::uint8(), false)}),
       "input",
       fletcher::Mode::READ);
   return result;
@@ -90,6 +96,7 @@ static auto output_schema() -> std::shared_ptr<arrow::Schema> {
 }
 
 static auto GetHugePageBuffer(uint8_t **buffer, size_t size) -> Status {
+  // TODO: describe this magic
   void *addr = mmap(nullptr,
                     size,
                     (PROT_READ | PROT_WRITE),

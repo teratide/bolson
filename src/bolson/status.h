@@ -29,14 +29,14 @@ void()
 
 /// Error types.
 enum class Error {
-  GenericError,
-  CLIError,
-  PulsarError,
-  IllexError,
-  RapidJSONError,
-  ArrowError,
-  IOError,
-  FPGAError
+  GenericError,     ///< Uncategorized errors.
+  CLIError,         ///< Errors related to the command-line interface.
+  PulsarError,      ///< Errors related to Pulsar.
+  IllexError,       ///< Errors related to Illex.
+  RapidJSONError,   ///< Errors related to RapidJSON.
+  ArrowError,       ///< Errors related to Arrow.
+  IOError,          ///< Errors related to input/output.
+  FPGAError         ///< Errors related to FPGA impl.
 };
 
 using Status = putong::Status<Error>;

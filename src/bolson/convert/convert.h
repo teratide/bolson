@@ -35,17 +35,6 @@ namespace bolson::convert {
 /// Class to support incremental building up of a RecordBatch from JSONQueueItems.
 class IPCBuilder {
  public:
-  explicit IPCBuilder(size_t json_threshold,
-                      size_t batch_threshold,
-                      size_t seq_buf_init_size,
-                      size_t str_buf_init_size);
-
-  /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
-  [[nodiscard]] auto size() const -> size_t { return size_; }
-
-  /// \brief Return true if there are no batches in this builder.
-  [[nodiscard]] auto empty() const -> bool { return batches.empty(); }
-
   /// \brief Take multiple JSONQueueItems and convert them into an Arrow RecordBatch.
   auto Buffer(const illex::JSONQueueItem &item,
               illex::LatencyTracker *lat_tracker) -> Status;
@@ -54,22 +43,33 @@ class IPCBuilder {
   virtual auto FlushBuffered(putong::Timer<> *t,
                              illex::LatencyTracker *lat_tracker) -> Status = 0;
 
-  /// \brief Resets this builder, clearing contained batches. Can be reused afterwards.
+  /**
+   * \brief Reset this builder, clearing buffered JSONs and batches.
+   *
+   * The builder can be re-used afterwards.
+   */
   void Reset();
 
   /**
    * \brief Finish the builder, resulting in an IPC queue item.
-   * \param out The IpcQueueItem output.
-   * \return This resets the builder, and can be reused afterwards.
+   *
+   * This resets the builder, which can be reused afterwards.
+   *
+   * \param out         The IpcQueueItem output.
+   * \param lat_tracker   The latency tracker to use to track latencies of specific JSONs.
+   * \return Status::OK() if successful, some error otherwise.
    */
   auto Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -> Status;
 
-  /// \brief Return a string with the state of this builder.
-  auto ToString() -> std::string;
+  /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
+  [[nodiscard]] auto size() const -> size_t { return this->size_; }
+
+  /// \brief Return true if there are no batches in this builder.
+  [[nodiscard]] auto empty() const -> bool { return this->batches.empty(); }
 
   /// \brief Return the number of buffered JSONs.
   [[nodiscard]] inline auto jsons_buffered() const -> size_t {
-    return seq_builder->length();
+    return this->seq_builder->length();
   }
 
   /// \brief Return the number of buffered batches.
@@ -79,24 +79,37 @@ class IPCBuilder {
 
   /// \brief Access a specific batch.
   [[nodiscard]] inline auto GetBatch(size_t i) const -> std::shared_ptr<arrow::RecordBatch> {
-    return batches[i];
+    return this->batches[i];
   }
 
   /// \brief Return the number of buffered bytes.
   [[nodiscard]] inline auto bytes_buffered() const -> size_t {
-    return str_buffer->size();
+    return this->str_buffer->size();
   }
 
+  /// \brief Return the configured JSON buffering threshold.
   [[nodiscard]] inline auto json_buffer_threshold() const -> size_t {
-    return json_buffer_threshold_;
+    return this->json_buffer_threshold_;
   }
 
+  /// \brief Return the configured batch size threshold.
   [[nodiscard]] inline auto batch_size_threshold() const -> size_t {
-    return batch_buffer_threshold_;
+    return this->batch_buffer_threshold_;
   }
+
+  /// \brief Return a string with the state of this builder.
+  auto ToString() -> std::string;
 
  protected:
+  /// Constructor
+  explicit IPCBuilder(size_t json_threshold,
+                      size_t batch_threshold,
+                      size_t seq_buf_init_size,
+                      size_t str_buf_init_size);
+
+  /// Sequence numbers of JSONs that are in the JSON buffer.
   std::vector<illex::Seq> lat_tracked_seq_in_buffer;
+  /// Sequence numbers of JSONs that are in the Batches buffer.
   std::vector<illex::Seq> lat_tracked_seq_in_batches;
   /// A vector to hold batches that collapse into a single batch when finish is called.
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
@@ -114,18 +127,13 @@ class IPCBuilder {
 
 /**
  * \brief Pull JSONs from a queue and convert them to Arrow IPC messages.
- *
- * The Arrow IPC messages contain the JSONs parsed and deserialized as Arrow
- * RecordBatches.
- *
- * This function is meant to run multi-threaded.
- *
- * \param id            Thread id for this function.
- * \param builder       The Builder to use for conversion.
- * \param in            The input queue.
- * \param out           The output queue.
- * \param shutdown      Shutdown signal for this thread.
- * \param stats_promise Statistics output.
+ * \param id            The thread ID of this conversion thread.
+ * \param builder       The builder to use to construct IPC messages.
+ * \param in            The input queue containing the JSON items.
+ * \param out           The output queue containing the IPC messages.
+ * \param lat_tracker   The latency tracker to use to track latencies of specific JSONs.
+ * \param shutdown      Whether the shut this thread down.
+ * \param stats_promise Conversion statistics output.
  */
 void Convert(size_t id,
              std::unique_ptr<IPCBuilder> builder,

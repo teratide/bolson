@@ -95,12 +95,14 @@ auto SetupClientProducer(const std::string &url,
 
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
- * \param producer      The Pulsar producer to publish the message through.
- * \param buffer        The raw bytes buffer to publish.
- * \param size          The size of the buffer.
- * \param latency_timer A timer that, if supplied, is stopped by this function just
- *                      before sending the message.
- * \return              Status::OK() if successful, some error otherwise.
+ * \param producer    The Pulsar producer to publish the message through.
+ * \param buffer      The raw bytes buffer to publish.
+ * \param size        The size of the buffer.
+ * \param lat_tracker A latency tracker that can be used to track latency of JSONs.
+ *                    If this is not supplied, nothing is tracked.
+ * \param seq_nums    The sequence numbers to track the latency for. If lat_tracker is
+ *                    supplied, this must also be supplied.
+ * \return            Status::OK() if successful, some error otherwise.
  */
 auto Publish(pulsar::Producer *producer,
              const uint8_t *buffer,
@@ -114,8 +116,8 @@ auto Publish(pulsar::Producer *producer,
  * \param in            Incoming queue with IPC messages.
  * \param shutdown      If this is true, this thread will try to terminate.
  * \param count         The number of published messages.
- * \param latency_timer An optional latency timer that is stopped just before the first
- *                      Pulsar message is sent.
+ * \param lat_tracker   A latency tracker that can be used to track latency of JSONs.
+ *                      If this is not supplied, nothing is tracked.
  * \param stats         Statistics about this thread.
  */
 void PublishThread(PulsarContext pulsar,
