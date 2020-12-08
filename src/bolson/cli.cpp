@@ -155,18 +155,20 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
                                     "Produce Pulsar messages from a JSON TCP stream.");
   auto *port_opt = stream->add_option("-p,--port", stream_port, "Port.")
       ->default_val(illex::RAW_PORT);
-  // The below option needs to be removed because the sequence numbers are used for the
-  // latency timers:
-//  stream->add_option("--seq",
-//                     out->stream.seq,
-//                     "Starting sequence number, 64-bit unsigned integer.")
-//      ->default_val(0);
+  stream->add_option("--seq",
+                     out->stream.seq,
+                     "Starting sequence number, 64-bit unsigned integer.")
+      ->default_val(0);
   stream->add_option("--l-samples",
                      out->stream.latency.num_samples,
                      "Number of latency samples.")
-      ->default_val(1024);
+      ->default_val(1);
   stream->add_option("--l-interval", out->stream.latency.interval)
       ->default_val(1024);
+  stream->add_option("--l-out",
+                     out->stream.latency.file,
+                     "CSV file to dump latency measurements in. "
+                     "If not supplied, no information is dumped.");
   AddConvertOpts(stream, &out->stream.conversion, &out->stream.json_threshold);
   AddStatsOpts(stream, &csv);
   AddArrowOpts(stream, &schema_file);

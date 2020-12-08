@@ -262,7 +262,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
       } else {
         LogStreamStats(timers, client, conv_stats, pub_stats);
         opt.pulsar.Log();
-        LogLatency(lat_tracker);
+        BOLSON_ROE(LogLatencyCSV(opt.latency.file, lat_tracker));
       }
     }
   }

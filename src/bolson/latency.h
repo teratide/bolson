@@ -18,11 +18,12 @@
 #include <putong/timer.h>
 #include <illex/latency.h>
 
-namespace bolson {
+#include "bolson/status.h"
 
 // Wait time for queues.
 #define BOLSON_QUEUE_WAIT_US          1
 
+// todo: move this into something better and relate the strings outputted in the csv
 // Time points measured.
 #define BOLSON_LAT_TCP_RECV           0  // measured in illex.
 #define BOLSON_LAT_TCP_UNWRAP         1  // measured in illex.
@@ -37,13 +38,18 @@ namespace bolson {
 #define BOLSON_LAT_MESSAGE_SENT      10
 #define BOLSON_LAT_NUM_POINTS        11
 
+namespace bolson {
+
 struct LatencyOptions {
   /// Number of latency samples
   size_t num_samples = 1;
   /// Sequence number sample interval for latency samples.
   size_t interval = 1024;
+  /// File to dump output
+  std::string file;
 };
 
-void LogLatency(const illex::LatencyTracker &lat_tracker);
+auto LogLatencyCSV(const std::string &file,
+                   const illex::LatencyTracker &lat_tracker) -> Status;
 
 }

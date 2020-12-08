@@ -6,18 +6,20 @@ import math
 
 # Parse arguments
 parser = argparse.ArgumentParser(description='Plot queue latency.')
-parser.add_argument('csv', type=str, nargs=1)
+parser.add_argument('lat', type=str, nargs=1)
+parser.add_argument('log', type=str, nargs=1)
 parser.add_argument('pdf', type=str, nargs=1)
 parser.add_argument('title', type=str, nargs=1)
 parser.add_argument('--violin', action="store_true")
 args = parser.parse_args()
-csv = args.csv[0]
+csv = args.lat[0]
+log = args.log[0]
 pdf = args.pdf[0]
 title = args.title[0]
 violin = args.violin
 
 # Prepare latency data
-df = pd.read_csv(csv, index_col=0, skiprows=43)
+df = pd.read_csv(csv, index_col=0)
 # Number of sampled JSONs
 n = len(df.index)
 # Number of time points
@@ -29,7 +31,7 @@ for col in df.columns:
 
 
 def get_tp(which):
-    s_val = open(csv, "r").readlines()
+    s_val = open(log, "r").readlines()
     s_val = filter(lambda l: which in l, s_val)
     s_val = map(lambda s: float(s.split(':')[1].split(which)[0]), s_val)
     s_val = list(s_val)
