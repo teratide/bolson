@@ -21,6 +21,19 @@
 
 namespace bolson::convert {
 
+struct TimeStats {
+  /// Total time on raw JSON parsing.
+  double parse = 0.0;
+  /// Total time spent adding sequence numbers.
+  double seq = 0.0;
+  /// Total time spent on combining buffered batches.
+  double combine = 0.0;
+  /// Total time spent on serializing the RecordBatch.
+  double serialize = 0.0;
+  /// Total time spent in the conversion thread.
+  double thread = 0.0;
+};
+
 /// Statistics from conversion threads.
 struct Stats {
   /// Number of converted JSONs.
@@ -31,14 +44,8 @@ struct Stats {
   size_t num_ipc = 0;
   /// Number of bytes in the IPC messages.
   size_t total_ipc_bytes = 0;
-  /// Total time on JSON parsing only, without adding seq numbers.
-  double parse_time = 0.0;
-  /// Total time spent on conversion, including adding seq numbers.
-  double convert_time = 0.0;
-  /// Total time spent on IPC construction only.
-  double ipc_construct_time = 0.0;
-  /// Total time spent in this thread.
-  double thread_time = 0.0;
+  /// Total time of specific operations in the pipeline.
+  TimeStats t;
   /// Status about the conversion.
   Status status = Status::OK();
 
@@ -49,8 +56,9 @@ struct Stats {
 struct ConversionTimers {
   putong::Timer<> thread;
   putong::Timer<> parse;
-  putong::Timer<> convert;
-  putong::Timer<> construct;
+  putong::Timer<> seq;
+  putong::Timer<> combine;
+  putong::Timer<> serialize;
 };
 
 /**

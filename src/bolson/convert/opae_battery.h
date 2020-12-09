@@ -47,7 +47,8 @@ class OPAEBatteryIPCBuilder : public IPCBuilder {
                    size_t batch_size_threshold,
                    const OPAEBatteryOptions &opts = OPAEBatteryOptions()) -> Status;
 
-  auto FlushBuffered(putong::Timer<> *t,
+  auto FlushBuffered(putong::Timer<> *parse,
+                     putong::Timer<> *seq,
                      illex::LatencyTracker *lat_tracker) -> Status override;
  protected:
   explicit OPAEBatteryIPCBuilder(size_t json_buffer_threshold,

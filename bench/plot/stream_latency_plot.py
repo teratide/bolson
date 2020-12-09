@@ -42,15 +42,16 @@ s_val_mjs = get_tp('MJ/s')
 
 s_dsc = [
     "TCP client",
-    "JSON to Batch (w/o seq.)",
-    "JSON to Batch (w/  seq.)",
-    "IPC construct",
+    "JSON Parsing",
+    "Adding Seq. Nos.",
+    "Combing batches",
+    "Serializing",
     "Pulsar publish"
 ]
 
 # Plot settings
-plt.rcParams.update({"text.usetex": True})
-#plt.rcParams.update({"font.size": '12'})
+#plt.rcParams.update({"text.usetex": True})
+#plt.rcParams.update({"font.size": '15'})
 
 # Set up figure and axes
 cols = 3
@@ -86,6 +87,7 @@ a.set_yticks(ys)
 a.set_yticklabels(s_dsc)
 a.set_xscale('log')
 a.set_xlabel('Throughput (MJ/s)')
+a.invert_yaxis()
 
 # Finalize the figure and save
 fig.suptitle(title)

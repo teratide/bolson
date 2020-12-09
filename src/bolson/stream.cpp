@@ -52,29 +52,6 @@ struct StreamThreads {
   }
 };
 
-/// \brief Stream succinct CSV-like stats to some output stream.
-static void OutputCSVStats(const StreamTimers &timers,
-                           const illex::RawClient &client,
-                           const std::vector<Stats> &conv_stats,
-                           const PublishStats &pub_stats,
-                           std::ostream *output) {
-  auto all_conv_stats = AggrStats(conv_stats);
-  (*output) << client.received() << ",";
-  (*output) << client.bytes_received() << ",";
-  (*output) << timers.tcp.seconds() << ",";
-  (*output) << all_conv_stats.num_jsons << ",";
-  //(*output) << all_conv_stats.num_ipc << ","; // this one is redundant
-  (*output) << all_conv_stats.total_ipc_bytes << ",";
-  (*output)
-      << static_cast<double>(all_conv_stats.total_ipc_bytes) / all_conv_stats.num_jsons
-      << ",";
-  (*output) << all_conv_stats.convert_time / all_conv_stats.num_jsons << ",";
-  (*output) << all_conv_stats.thread_time / all_conv_stats.num_jsons << ",";
-  (*output) << pub_stats.num_ipc_published << ",";
-  (*output) << pub_stats.publish_time / pub_stats.num_ipc_published << ",";
-  (*output) << pub_stats.thread_time << ",";
-}
-
 /// \brief Log the statistics.
 static void LogStreamStats(const StreamTimers &timers,
                            const illex::RawClient &client,
@@ -258,7 +235,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Report some statistics.
     if (opt.statistics) {
       if (opt.succinct) {
-        OutputCSVStats(timers, client, conv_stats, pub_stats, &std::cout);
+        return Status(Error::GenericError, "Not implemented.");
       } else {
         LogStreamStats(timers, client, conv_stats, pub_stats);
         opt.pulsar.Log();

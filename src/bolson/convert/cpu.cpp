@@ -33,7 +33,8 @@ static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
   return seq_field;
 }
 
-auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t,
+auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *parse,
+                                    putong::Timer<> *seq,
                                     illex::LatencyTracker *lat_tracker) -> Status {
   // Check if there is anything to flush.
   if (str_buffer->size() > 0) {
@@ -43,24 +44,26 @@ auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t,
       lat_tracker->Put(s, BOLSON_LAT_BUFFER_FLUSH, illex::Timer::now());
     }
 
+    parse->Start();
     auto br = std::make_shared<arrow::io::BufferReader>(str_buffer);
     auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
                                              br,
                                              read_options,
                                              parse_options).ValueOrDie();
-    t->Start();
     auto table = tr->Read().ValueOrDie();
-    t->Stop();
+    parse->Stop();
 
     // Mark time point buffer is parsed
     for (const auto &s : this->lat_tracked_seq_in_buffer) {
       lat_tracker->Put(s, BOLSON_LAT_BUFFER_PARSED, illex::Timer::now());
     }
 
+    seq->Start(); // Measure throughput of adding sequence numbers.
     // Construct the column for the sequence number.
-    std::shared_ptr<arrow::Array> seq;
-    ARROW_ROE(seq_builder->Finish(&seq));
-    auto chunked_seq = std::make_shared<arrow::ChunkedArray>(seq);
+    // TODO: Arrows JSON parser outputs a Table that may be chunked.
+    std::shared_ptr<arrow::Array> seq_no;
+    ARROW_ROE(seq_builder->Finish(&seq_no));
+    auto chunked_seq = std::make_shared<arrow::ChunkedArray>(seq_no);
 
     // Add the column to the batch.
     auto tab_with_seq_result = table->AddColumn(0, SeqField(), chunked_seq);
@@ -70,6 +73,7 @@ auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *t,
     auto combined_table = table_with_seq->CombineChunks();
     auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
     auto combined_batch = table_reader.Next().ValueOrDie();
+    seq->Stop();
 
     this->size_ += GetBatchSize(combined_batch);
     this->batches.push_back(std::move(combined_batch));

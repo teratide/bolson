@@ -230,7 +230,8 @@ static auto CopyAndWrapOutput(int32_t num_rows,
   return Status::OK();
 }
 
-auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t,
+auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *parse,
+                                          putong::Timer<> *seq,
                                           illex::LatencyTracker *lat_tracker) -> Status {
   if (str_buffer->size() > 0) {
 
@@ -239,21 +240,14 @@ auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t,
       lat_tracker->Put(s, BOLSON_LAT_BUFFER_FLUSH, illex::Timer::now());
     }
 
+    parse->Start();
     // Copy the JSON data onto the buffer.
     std::memcpy(this->input_raw, this->str_buffer->data(), this->str_buffer->size());
-
     FLETCHER_ROE(this->platform->WriteMMIO(OPAE_BATTERY_INPUT_LASTIDX,
                                            static_cast<int32_t>(this->str_buffer->size())));
     FLETCHER_ROE(this->kernel->Reset());
-    t->Start();
     FLETCHER_ROE(this->kernel->Start());
     FLETCHER_ROE(this->kernel->PollUntilDone());
-    t->Stop();
-
-    // Mark time point buffer is parsed
-    for (const auto &s : this->lat_tracked_seq_in_buffer) {
-      lat_tracker->Put(s, BOLSON_LAT_BUFFER_PARSED, illex::Timer::now());
-    }
 
     dau_t result;
     FLETCHER_ROE(this->kernel->GetReturn(&result.lo, &result.hi));
@@ -265,24 +259,33 @@ auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *t,
                                  output_val_raw,
                                  output_schema(),
                                  &out_batch));
+    parse->Stop();
 
+    // Mark time point buffer is parsed
+    for (const auto &s : this->lat_tracked_seq_in_buffer) {
+      lat_tracker->Put(s, BOLSON_LAT_BUFFER_PARSED, illex::Timer::now());
+    }
+
+    // Add sequence numbers.
+    seq->Start();
     // Construct the column for the sequence number.
-    std::shared_ptr<arrow::Array> seq;
-    ARROW_ROE(seq_builder->Finish(&seq));
+    std::shared_ptr<arrow::Array> seq_no;
+    ARROW_ROE(seq_builder->Finish(&seq_no));
 
     // Add the column to the batch.
-    if (num_rows != seq->length()) {
+    if (num_rows != seq_no->length()) {
       return Status(Error::FPGAError,
                     "Number of rows in output batch " + std::to_string(num_rows) +
-                        "and sequence array {} " + std::to_string(seq->length())
+                        "and sequence array {} " + std::to_string(seq_no->length())
                         + " mismatch.");
     }
-    auto batch_with_seq_result = out_batch->AddColumn(0, SeqField(), seq);
+    auto batch_with_seq_result = out_batch->AddColumn(0, SeqField(), seq_no);
     ARROW_ROE(batch_with_seq_result.status());
     auto batch_with_seq = batch_with_seq_result.ValueOrDie();
 
     this->size_ += GetBatchSize(batch_with_seq);
     this->batches.push_back(std::move(batch_with_seq));
+    seq->Stop();
 
     // Mark time point sequence numbers are added.
     for (const auto &s : this->lat_tracked_seq_in_buffer) {

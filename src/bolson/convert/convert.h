@@ -39,8 +39,15 @@ class IPCBuilder {
   auto Buffer(const illex::JSONQueueItem &item,
               illex::LatencyTracker *lat_tracker) -> Status;
 
-  /// \brief Flush the buffered JSONs and convert them to a single RecordBatch.
-  virtual auto FlushBuffered(putong::Timer<> *t,
+  /**
+   * \brief Flush the buffered JSONs and convert them to a single RecordBatch.
+   * \param parse       Timer to measure parsing.
+   * \param seq         Timer to measure sequence number adding.
+   * \param lat_tracker The latency tracker to use to track latencies of specific JSONs.
+   * \return            Status::OK() if successful, some error otherwise.
+   */
+  virtual auto FlushBuffered(putong::Timer<> *parse,
+                             putong::Timer<> *seq,
                              illex::LatencyTracker *lat_tracker) -> Status = 0;
 
   /**
@@ -59,7 +66,10 @@ class IPCBuilder {
    * \param lat_tracker   The latency tracker to use to track latencies of specific JSONs.
    * \return Status::OK() if successful, some error otherwise.
    */
-  auto Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -> Status;
+  auto Finish(IpcQueueItem *out,
+              putong::Timer<> *comb,
+              putong::Timer<> *ipc,
+              illex::LatencyTracker *lat_tracker) -> Status;
 
   /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
   [[nodiscard]] auto size() const -> size_t { return this->size_; }

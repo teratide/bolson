@@ -81,11 +81,17 @@ void IPCBuilder::Reset() {
   this->size_ = 0;
 }
 
-auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -> Status {
+auto IPCBuilder::Finish(IpcQueueItem *out,
+                        putong::Timer<> *comb,
+                        putong::Timer<> *ipc,
+                        illex::LatencyTracker *lat_tracker) -> Status {
   // Set up a pointer for the combined batch.
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> combined_batch_r;
   std::shared_ptr<arrow::RecordBatch> combined_batch;
 
+  // Combine tables into one.
+  // TODO: It would be nice if we could serialize a Table into an IPC message directly.
+
+  comb->Start(); // Measure combination time.
   // Only wrap a table and combine chunks if there is more than one RecordBatch.
   if (this->batches.size() == 1) {
     combined_batch = batches[0];
@@ -97,24 +103,11 @@ auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -
     }
     auto combined_table = packed_table.ValueOrDie()->CombineChunks();
     if (!combined_table.ok()) {
-      // begin debug zooi
-      spdlog::info("Failed to combine {} batches.", this->batches.size());
-      spdlog::info("Contents:");
-      for (const auto &b : this->batches) {
-        spdlog::info("Batch offsets:");
-        auto la = std::static_pointer_cast<arrow::ListArray>(b->column(1));
-        std::stringstream s;
-        for (int i = 0; i < la->length(); i++) {
-          s << la->value_offset(i) << " / " << la->values()->length() << std::endl;
-        }
-        spdlog::info("{}", s.str());
-      }
-      //end debug zooi
       return Status(Error::ArrowError,
                     "Could not combine chunks: " + combined_table.status().message());
     }
     auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
-    combined_batch_r = table_reader.Next();
+    auto combined_batch_r = table_reader.Next();
     if (!combined_batch_r.ok()) {
       return Status(Error::ArrowError,
                     "Could not read first chunk with combined batch: "
@@ -122,13 +115,15 @@ auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -
     }
     combined_batch = combined_batch_r.ValueOrDie();
   }
+  comb->Stop();
 
   // Mark time point batches are combined.
   for (const auto &s : this->lat_tracked_seq_in_batches) {
     lat_tracker->Put(s, BOLSON_LAT_BATCH_COMBINED, illex::Timer::now());
   }
 
-  // Serialize combined batch
+  // Serialize combined batch.
+  ipc->Start(); // Measure serialize time.
   auto serialized = arrow::ipc::SerializeRecordBatch(*combined_batch,
                                                      arrow::ipc::IpcWriteOptions::Defaults());
   if (!serialized.ok()) {
@@ -140,6 +135,7 @@ auto IPCBuilder::Finish(IpcQueueItem *out, illex::LatencyTracker *lat_tracker) -
                                serialized.ValueOrDie(),
                                std::make_shared<std::vector<illex::Seq>>(
                                    lat_tracked_seq_in_batches)};
+  ipc->Stop();
 
   // Mark time point batch is serialized
   for (const auto &s : this->lat_tracked_seq_in_batches) {
@@ -161,8 +157,8 @@ auto IPCBuilder::ToString() -> std::string {
 
 #define SHUTDOWN_ON_FAILURE() \
 if (!stats.status.ok()) { \
-  thread_timer.Stop(); \
-  stats.thread_time = thread_timer.seconds(); \
+  t.thread.Stop(); \
+  stats.t.thread = t.thread.seconds(); \
   stats_promise.set_value(stats); \
   SPDLOG_DEBUG("Drone {} Terminating with errors.", id); \
   shutdown->store(true); \
@@ -176,12 +172,8 @@ void Convert(size_t id,
              illex::LatencyTracker *lat_tracker,
              std::atomic<bool> *shutdown,
              std::promise<Stats> &&stats_promise) {
-  // Prepare some timers
-  putong::Timer thread_timer(true);
-  putong::Timer parse_timer;
-  putong::Timer convert_timer;
-  putong::Timer ipc_construct_timer;
 
+  ConversionTimers t;
   SPDLOG_DEBUG("[conversion] [drone {}] Spawned.", id);
 
   // Prepare statistics
@@ -206,16 +198,15 @@ void Convert(size_t id,
 
       // Check if we need to flush the JSON buffer.
       if (builder->jsons_buffered() >= builder->json_buffer_threshold()) {
-        // Add to stats
+        // Add counts to stats.
         stats.num_jsons += builder->jsons_buffered();
         stats.num_json_bytes += builder->bytes_buffered();
-        convert_timer.Start();
         // Flush the buffer
-        stats.status = builder->FlushBuffered(&parse_timer, lat_tracker);
+        stats.status = builder->FlushBuffered(&t.parse, &t.seq, lat_tracker);
         SHUTDOWN_ON_FAILURE();
-        convert_timer.Stop();
-        stats.parse_time += parse_timer.seconds();
-        stats.convert_time += convert_timer.seconds();
+        // Add time to stats.
+        stats.t.parse += t.parse.seconds();
+        stats.t.seq += t.seq.seconds();
       }
 
       // Check if either of the threshold was reached.
@@ -232,26 +223,23 @@ void Convert(size_t id,
 
       // If there is still something in the JSON buffer, flush it.
       if (builder->jsons_buffered() > 0) {
-        // Add to stats
+        // Add counts to stats.
         stats.num_jsons += builder->jsons_buffered();
         stats.num_json_bytes += builder->bytes_buffered();
-        convert_timer.Start();
         // Flush the buffer
-        stats.status = builder->FlushBuffered(&parse_timer, lat_tracker);
+        stats.status = builder->FlushBuffered(&t.parse, &t.seq, lat_tracker);
         SHUTDOWN_ON_FAILURE();
-        convert_timer.Stop();
-        stats.parse_time += parse_timer.seconds();
-        stats.convert_time += convert_timer.seconds();
+        // Add time to stats.
+        stats.t.parse += t.parse.seconds();
+        stats.t.seq += t.seq.seconds();
       }
 
       // There has to be at least one batch.
       if (!builder->empty()) {
         // Finish the builder, delivering an IPC item.
-        ipc_construct_timer.Start();
         IpcQueueItem ipc_item;
-        stats.status = builder->Finish(&ipc_item, lat_tracker);
+        stats.status = builder->Finish(&ipc_item, &t.combine, &t.serialize, lat_tracker);
         SHUTDOWN_ON_FAILURE();
-        ipc_construct_timer.Stop();
 
         // Enqueue the IPC item.
         out->enqueue(ipc_item);
@@ -260,14 +248,15 @@ void Convert(size_t id,
         attempt_dequeue = true;
 
         // Update stats.
-        stats.ipc_construct_time += ipc_construct_timer.seconds();
+        stats.t.combine += t.combine.seconds();
+        stats.t.serialize += t.serialize.seconds();
         stats.total_ipc_bytes += ipc_item.ipc->size();
         stats.num_ipc++;
       }
     }
   }
-  thread_timer.Stop();
-  stats.thread_time = thread_timer.seconds();
+  t.thread.Stop();
+  stats.t.thread = t.thread.seconds();
   stats_promise.set_value(stats);
   SPDLOG_DEBUG("Drone {} Terminating.", id);
 }
