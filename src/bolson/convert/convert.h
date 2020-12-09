@@ -159,4 +159,7 @@ enum class Impl {
   OPAE_BATTERY  ///< An FPGA version for only one specific schema.
 };
 
+/// \brief Convert an implementation enum to a human-readable string.
+auto ToString(const Impl &impl) -> std::string;
+
 }

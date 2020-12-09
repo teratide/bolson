@@ -39,8 +39,8 @@ auto LogLatencyCSV(const std::string &file,
       << " 8. Publish queue,"
       << " 9. Pulsar message build,"
       << "10. Pulsar send(),"
-      << "11. TCP recv -> Pulsar send(),"
-      << "12. TCP recv -> Publish queue"
+      << "11. TCP recv to Pulsar send(),"
+      << "12. TCP recv to Publish queue"
       << std::endl;
 
     // Dump every sample

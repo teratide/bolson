@@ -239,6 +239,10 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
       } else {
         LogStreamStats(timers, client, conv_stats, pub_stats);
         opt.pulsar.Log();
+        spdlog::info("Implementation    : {}", ToString(opt.conversion));
+        spdlog::info("Conversion threads: {}", opt.num_threads);
+        // for clarity, but this may be more in the future:
+        spdlog::info("Publish threads   : {}", 1);
         BOLSON_ROE(LogLatencyCSV(opt.latency.file, lat_tracker));
       }
     }

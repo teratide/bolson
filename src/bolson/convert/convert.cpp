@@ -262,4 +262,12 @@ void Convert(size_t id,
 }
 #undef SHUTDOWN_ON_FAILURE
 
+auto ToString(const Impl &impl) -> std::string {
+  switch (impl) {
+    case Impl::CPU: return "CPU";
+    case Impl::OPAE_BATTERY: return "OPAE Battery";
+  }
+  throw std::runtime_error("Corrupt impl.");
+}
+
 }
