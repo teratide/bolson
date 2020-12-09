@@ -94,7 +94,10 @@ for im in range(0, m):
 
     # Generate strings with statistics
     bb = dict(fc='white', alpha=0.75, ec='white', lw=None)
-    sms = 'μ: {} σ: {}'.format(Quantity(y[im].mean(), scale), Quantity(y[im].std(), scale))
+    sms = 'μ: {} σ: {} min: {} max: {}'.format(Quantity(y[im].mean(), scale),
+                                               Quantity(y[im].std(), scale),
+                                               Quantity(y[im].min(), scale),
+                                               Quantity(y[im].max(), scale))
     pct = '50-th: {}, 95-th: {}, 99-th: {}'.format(Quantity(y[im].quantile(0.5), scale),
                                                    Quantity(y[im].quantile(0.95), scale),
                                                    Quantity(y[im].quantile(0.99), scale))
@@ -102,13 +105,14 @@ for im in range(0, m):
 
     if fpga:
         fbb = dict(fc='white', alpha=0.75, ec='white', lw=None)
-        fsms = 'μ: {} σ: {} min: {} max: {}'.format(Quantity(y[im].mean(), scale),
-                                                    Quantity(y[im].std(), scale),
+        fsms = 'μ: {} σ: {} min: {} max: {}'.format(Quantity(fy[im].mean(), scale),
+                                                    Quantity(fy[im].std(), scale),
                                                     Quantity(fy[im].min(), scale),
                                                     Quantity(fy[im].max(), scale))
-        fpct = '50-th: {}, 95-th: {}, 99-th: {}'.format(Quantity(y[im].quantile(0.5), scale),
-                                                        Quantity(y[im].quantile(0.95), scale),
-                                                        Quantity(y[im].quantile(0.99), scale))
+        fpct = '50-th: {}, 95-th: {}, 99-th: {}'.format(Quantity(fy[im].quantile(0.5), scale),
+                                                        Quantity(fy[im].quantile(0.95), scale),
+                                                        Quantity(fy[im].quantile(0.99), scale))
+        fmm = 'min-max: {} - {}'.format(Quantity(fy[im].min(), scale), Quantity(fy[im].max(), scale))
 
     if boxen:
         if fpga:
@@ -133,11 +137,11 @@ for im in range(0, m):
     yspace = a.get_ylim()[1] * (0.2 + 0.2 * int(boxen) + 0.3 * int(fpga))
     fs = 7
     a.set_ylim(a.get_ylim()[0] - yspace, a.get_ylim()[1] + yspace)
-    a.text(x=0.98, y=0.10, s=sms, transform=a.transAxes, ha='right', va='bottom', bbox=bb, fontsize=fs)
-    a.text(x=0.98, y=0.035, s=pct, transform=a.transAxes, ha='right', va='bottom', bbox=bb, fontsize=fs)
+    a.text(x=0.98, y=0.965, s=sms, transform=a.transAxes, ha='right', va='top', bbox=bb, fontsize=fs)
+    a.text(x=0.98, y=0.90, s=pct, transform=a.transAxes, ha='right', va='top', bbox=bb, fontsize=fs)
     if fpga:
-        a.text(x=0.98, y=0.965, s=fsms, transform=a.transAxes, ha='right', va='top', bbox=bb, fontsize=fs)
-        a.text(x=0.98, y=0.90, s=fpct, transform=a.transAxes, ha='right', va='top', bbox=bb, fontsize=fs)
+        a.text(x=0.98, y=0.10, s=fsms, transform=a.transAxes, ha='right', va='bottom', bbox=bb, fontsize=fs)
+        a.text(x=0.98, y=0.035, s=fpct, transform=a.transAxes, ha='right', va='bottom', bbox=bb, fontsize=fs)
 
     a.grid(which='both')
     xmax = a.get_xlim()[1]
