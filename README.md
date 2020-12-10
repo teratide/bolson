@@ -10,8 +10,6 @@ A JSON stream to Arrow IPC to Pulsar conversion and publish tool.
     - A C++17 compiler.
   * Dependencies:
     - [Arrow 1.0.1](https://github.com/apache/arrow)
-    - [zmqpp 4.1.2+](https://github.com/zeromq/zmqpp)
-    - [zmq 4.3.2+](https://github.com/zeromq/libzmq)
     - [pulsar 2.6.0](https://github.com/apache/pulsar)
 
 ## Build

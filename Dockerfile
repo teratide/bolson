@@ -6,8 +6,7 @@ RUN apt-get update && \
     apt-get install -y \
     curl cmake g++ make git \
     ca-certificates lsb-release wget gnupg \
-    uuid-dev libjson-c-dev libhwloc-dev libtbb-dev python-dev \
-    libzmqpp-dev
+    uuid-dev libjson-c-dev libhwloc-dev libtbb-dev python-dev
 
 ARG OPAE_REF=release/2.0.0
 RUN mkdir -p /opae-sdk/build && \

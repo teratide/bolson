@@ -28,8 +28,6 @@ jobs:
         sudo dpkg -i apache-pulsar-client.deb && \
         curl -L -O https://downloads.apache.org/pulsar/pulsar-$PULSAR_VERSION/DEB/apache-pulsar-client-dev.deb && \
         sudo dpkg -i apache-pulsar-client-dev.deb
-    - name: Install zeromq
-      run: sudo apt-get install -y libzmqpp-dev
     - name: CMake
       env:
         CC: gcc-9
