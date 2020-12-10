@@ -24,7 +24,7 @@
 #include "bolson/pulsar.h"
 #include "bolson/convert/cpu.h"
 #include "bolson/convert/opae_battery.h"
-#include "bolson/convert/convert.h"
+#include "bolson/convert/convert_queued.h"
 
 namespace bolson {
 
@@ -48,7 +48,7 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
   t->Start();
   switch (opt.conversion) {
     case convert::Impl::CPU: {
-      conversion_thread = std::thread(convert::ConvertWithCPU,
+      conversion_thread = std::thread(convert::ConvertFromQueueWithCPU,
                                       json_queue,
                                       ipc_queue,
                                       &shutdown,

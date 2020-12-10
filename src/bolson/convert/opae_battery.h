@@ -40,9 +40,9 @@ struct OPAEBatteryOptions {
 };
 
 /// Class to support incremental building up of a RecordBatch from JSONQueueItems.
-class OPAEBatteryIPCBuilder : public IPCBuilder {
+class QueuedOPAEBatteryIPCBuilder : public QueuedIPCBuilder {
  public:
-  static auto Make(std::unique_ptr<OPAEBatteryIPCBuilder> *out,
+  static auto Make(std::unique_ptr<QueuedOPAEBatteryIPCBuilder> *out,
                    size_t json_buffer_threshold,
                    size_t batch_size_threshold,
                    const OPAEBatteryOptions &opts = OPAEBatteryOptions()) -> Status;
@@ -51,15 +51,15 @@ class OPAEBatteryIPCBuilder : public IPCBuilder {
                      putong::Timer<> *seq,
                      illex::LatencyTracker *lat_tracker) -> Status override;
  protected:
-  explicit OPAEBatteryIPCBuilder(size_t json_buffer_threshold,
-                                 size_t batch_size_threshold,
-                                 std::string afu_id,
-                                 size_t seq_buf_init_size,
-                                 size_t str_buf_init_size)
-      : IPCBuilder(json_buffer_threshold,
-                   batch_size_threshold,
-                   seq_buf_init_size,
-                   str_buf_init_size),
+  explicit QueuedOPAEBatteryIPCBuilder(size_t json_buffer_threshold,
+                                       size_t batch_size_threshold,
+                                       std::string afu_id,
+                                       size_t seq_buf_init_size,
+                                       size_t str_buf_init_size)
+      : QueuedIPCBuilder(json_buffer_threshold,
+                         batch_size_threshold,
+                         seq_buf_init_size,
+                         str_buf_init_size),
         afu_id_(std::move(afu_id)) {}
  private:
   /// AFU ID

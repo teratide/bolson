@@ -68,7 +68,7 @@ void LogConvertStats(const Stats &stats, size_t num_threads) {
 
   // IPC stats
   auto ipc_bpj = static_cast<double>(stats.total_ipc_bytes) / stats.num_jsons;
-  auto ipc_bpi = stats.total_ipc_bytes / stats.num_ipc;
+  auto ipc_bpi = stats.num_ipc > 0 ? stats.total_ipc_bytes / stats.num_ipc : 0;
 
   spdlog::info("  Constructing IPC messages");
   spdlog::info("    IPC messages         : {}", stats.num_ipc);

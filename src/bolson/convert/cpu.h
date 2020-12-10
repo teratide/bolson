@@ -19,27 +19,27 @@
 
 #include <arrow/api.h>
 #include <arrow/json/api.h>
-#include <illex/queue.h>
 #include <blockingconcurrentqueue.h>
 
-#include "bolson/convert/convert.h"
+#include "bolson/convert/convert_queued.h"
+#include "bolson/convert/convert_buffered.h"
 #include "bolson/status.h"
 #include "bolson/stream.h"
 
 namespace bolson::convert {
 
-class ArrowIPCBuilder : public IPCBuilder {
+class QueuedArrowIPCBuilder : public QueuedIPCBuilder {
  public:
-  explicit ArrowIPCBuilder(arrow::json::ParseOptions parse_options,
-                           const arrow::json::ReadOptions &read_options,
-                           size_t json_threshold,
-                           size_t batch_threshold,
-                           size_t seq_buf_init_size = 1024 * 1024,
-                           size_t str_buf_init_size = 1024 * 1024 * 16)
-      : IPCBuilder(json_threshold,
-                   batch_threshold,
-                   seq_buf_init_size,
-                   str_buf_init_size),
+  explicit QueuedArrowIPCBuilder(arrow::json::ParseOptions parse_options,
+                                 const arrow::json::ReadOptions &read_options,
+                                 size_t json_threshold,
+                                 size_t batch_threshold,
+                                 size_t seq_buf_init_size = 1024 * 1024,
+                                 size_t str_buf_init_size = 1024 * 1024 * 16)
+      : QueuedIPCBuilder(json_threshold,
+                         batch_threshold,
+                         seq_buf_init_size,
+                         str_buf_init_size),
         parse_options(std::move(parse_options)), read_options(read_options) {}
 
   auto FlushBuffered(putong::Timer<> *parse,
@@ -71,15 +71,27 @@ class ArrowIPCBuilder : public IPCBuilder {
  * \param lat_tracker           The latency tracker to use to track latencies of specific JSONs.
  * \param stats                 Statistics for each conversion thread.
  */
-void ConvertWithCPU(illex::JSONQueue *in,
-                    IpcQueue *out,
-                    std::atomic<bool> *shutdown,
-                    size_t num_drones,
-                    const arrow::json::ParseOptions &parse_options,
-                    const arrow::json::ReadOptions &read_options,
-                    size_t json_buffer_threshold,
-                    size_t batch_size_threshold,
-                    illex::LatencyTracker *lat_tracker,
-                    std::promise<std::vector<convert::Stats>> &&stats);
+void ConvertFromQueueWithCPU(illex::JSONQueue *in,
+                             IpcQueue *out,
+                             std::atomic<bool> *shutdown,
+                             size_t num_drones,
+                             const arrow::json::ParseOptions &parse_options,
+                             const arrow::json::ReadOptions &read_options,
+                             size_t json_buffer_threshold,
+                             size_t batch_size_threshold,
+                             illex::LatencyTracker *lat_tracker,
+                             std::promise<std::vector<convert::Stats>> &&stats);
+
+void ConvertFromBuffersWithCPU(const std::vector<illex::RawJSONBuffer *> &buffers,
+                               const std::vector<std::mutex *> &mutexes,
+                               IpcQueue *out,
+                               std::atomic<bool> *shutdown,
+                               size_t num_drones,
+                               const arrow::json::ParseOptions &parse_options,
+                               const arrow::json::ReadOptions &read_options,
+                               size_t json_buffer_threshold,
+                               size_t batch_size_threshold,
+                               illex::LatencyTracker *lat_tracker,
+                               std::promise<std::vector<Stats>> &&stats);
 
 }

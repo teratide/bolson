@@ -87,7 +87,8 @@ add_compile_unit(
     src/bolson/bench.cpp
     src/bolson/latency.cpp
     src/bolson/convert/stats.cpp
-    src/bolson/convert/convert.cpp
+    src/bolson/convert/convert_queued.cpp
+    src/bolson/convert/convert_buffered.cpp
     src/bolson/convert/cpu.cpp
     src/bolson/convert/opae_battery.cpp
   DEPS

@@ -15,8 +15,9 @@
 #pragma once
 
 #include <arrow/api.h>
-#include <illex/queue.h>
 #include <illex/latency.h>
+#include <illex/client_queued.h>
+#include <illex/client_buffered.h>
 
 #include "bolson/log.h"
 #include "bolson/status.h"
@@ -33,7 +34,7 @@ void()
 namespace bolson::convert {
 
 /// Class to support incremental building up of a RecordBatch from JSONQueueItems.
-class IPCBuilder {
+class QueuedIPCBuilder {
  public:
   /// \brief Take multiple JSONQueueItems and convert them into an Arrow RecordBatch.
   auto Buffer(const illex::JSONQueueItem &item,
@@ -112,10 +113,10 @@ class IPCBuilder {
 
  protected:
   /// Constructor
-  explicit IPCBuilder(size_t json_threshold,
-                      size_t batch_threshold,
-                      size_t seq_buf_init_size,
-                      size_t str_buf_init_size);
+  explicit QueuedIPCBuilder(size_t json_threshold,
+                            size_t batch_threshold,
+                            size_t seq_buf_init_size,
+                            size_t str_buf_init_size);
 
   /// Sequence numbers of latency-tracked JSONs that are in the JSON buffer.
   std::vector<illex::Seq> lat_tracked_seq_in_buffer;
@@ -145,13 +146,13 @@ class IPCBuilder {
  * \param shutdown      Whether the shut this thread down.
  * \param stats_promise Conversion statistics output.
  */
-void Convert(size_t id,
-             std::unique_ptr<IPCBuilder> builder,
-             illex::JSONQueue *in,
-             IpcQueue *out,
-             illex::LatencyTracker *lat_tracker,
-             std::atomic<bool> *shutdown,
-             std::promise<Stats> &&stats_promise);
+void ConvertFromQueue(size_t id,
+                      std::unique_ptr<QueuedIPCBuilder> builder,
+                      illex::JSONQueue *in,
+                      IpcQueue *out,
+                      illex::LatencyTracker *lat_tracker,
+                      std::atomic<bool> *shutdown,
+                      std::promise<Stats> &&stats_promise);
 
 /// Implementations available to convert JSONs to IPC messages.
 enum class Impl {

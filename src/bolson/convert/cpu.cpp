@@ -18,7 +18,6 @@
 #include <arrow/io/api.h>
 #include <arrow/ipc/api.h>
 
-#include <illex/queue.h>
 #include <putong/putong.h>
 
 #include "bolson/convert/cpu.h"
@@ -33,9 +32,9 @@ static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
   return seq_field;
 }
 
-auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *parse,
-                                    putong::Timer<> *seq,
-                                    illex::LatencyTracker *lat_tracker) -> Status {
+auto QueuedArrowIPCBuilder::FlushBuffered(putong::Timer<> *parse,
+                                          putong::Timer<> *seq,
+                                          illex::LatencyTracker *lat_tracker) -> Status {
   // Check if there is anything to flush.
   if (str_buffer->size() > 0) {
 
@@ -90,16 +89,16 @@ auto ArrowIPCBuilder::FlushBuffered(putong::Timer<> *parse,
   return Status::OK();
 }
 
-void ConvertWithCPU(illex::JSONQueue *in,
-                    IpcQueue *out,
-                    std::atomic<bool> *shutdown,
-                    size_t num_drones,
-                    const arrow::json::ParseOptions &parse_options,
-                    const arrow::json::ReadOptions &read_options,
-                    size_t json_buffer_threshold,
-                    size_t batch_size_threshold,
-                    illex::LatencyTracker *lat_tracker,
-                    std::promise<std::vector<Stats>> &&stats) {
+void ConvertFromQueueWithCPU(illex::JSONQueue *in,
+                             IpcQueue *out,
+                             std::atomic<bool> *shutdown,
+                             size_t num_drones,
+                             const arrow::json::ParseOptions &parse_options,
+                             const arrow::json::ReadOptions &read_options,
+                             size_t json_buffer_threshold,
+                             size_t batch_size_threshold,
+                             illex::LatencyTracker *lat_tracker,
+                             std::promise<std::vector<Stats>> &&stats) {
   // Reserve some space for the thread handles and futures.
   std::vector<std::thread> threads;
   std::vector<std::future<Stats>> thread_stats_futures;
@@ -116,14 +115,68 @@ void ConvertWithCPU(illex::JSONQueue *in,
     std::promise<Stats> thread_stats_promise;
     thread_stats_futures.push_back(thread_stats_promise.get_future());
     // Create builders based on Arrow's CPU implementation.
-    auto builder = std::make_unique<ArrowIPCBuilder>(parse_options,
-                                                     read_options,
-                                                     json_buffer_threshold,
-                                                     batch_size_threshold);
-    threads.emplace_back(Convert,
+    auto builder = std::make_unique<QueuedArrowIPCBuilder>(parse_options,
+                                                           read_options,
+                                                           json_buffer_threshold,
+                                                           batch_size_threshold);
+    threads.emplace_back(ConvertFromQueue,
                          thread_id,
                          std::move(builder),
                          in,
+                         out,
+                         lat_tracker,
+                         shutdown,
+                         std::move(thread_stats_promise));
+  }
+
+  // Wait for the drones to get shut down by the caller of this function.
+  // Also gather the statistics and see if there was any error.
+  for (size_t t = 0; t < num_drones; t++) {
+    if (threads[t].joinable()) {
+      threads[t].join();
+      threads_stats[t] = thread_stats_futures[t].get();
+      if (!threads_stats[t].status.ok()) {
+        // If a thread returned some error status, shut everything down without waiting
+        // for the caller to do so.
+        shutdown->store(true);
+      }
+    }
+  }
+
+  stats.set_value(threads_stats);
+}
+
+void ConvertFromBuffersWithCPU(const std::vector<illex::RawJSONBuffer *> &buffers,
+                               const std::vector<std::mutex *> &mutexes,
+                               IpcQueue *out,
+                               std::atomic<bool> *shutdown,
+                               size_t num_drones,
+                               const arrow::json::ParseOptions &parse_options,
+                               const arrow::json::ReadOptions &read_options,
+                               size_t json_buffer_threshold,
+                               size_t batch_size_threshold,
+                               illex::LatencyTracker *lat_tracker,
+                               std::promise<std::vector<Stats>> &&stats) {
+  std::vector<std::thread> threads;
+  std::vector<std::future<Stats>> thread_stats_futures;
+  std::vector<Stats> threads_stats(num_drones);
+  threads.reserve(num_drones);
+  thread_stats_futures.reserve(num_drones);
+
+  // Start the conversion threads.
+  for (int thread_id = 0; thread_id < num_drones; thread_id++) {
+    // Prepare the future/promise.
+    std::promise<Stats> thread_stats_promise;
+    thread_stats_futures.push_back(thread_stats_promise.get_future());
+    // Create builders based on Arrow's CPU implementation.
+    auto builder = std::make_unique<QueuedArrowIPCBuilder>(parse_options,
+                                                           read_options,
+                                                           json_buffer_threshold,
+                                                           batch_size_threshold);
+    threads.emplace_back(ConvertFromBuffers,
+                         thread_id,
+                         buffers,
+                         mutexes,
                          out,
                          lat_tracker,
                          shutdown,

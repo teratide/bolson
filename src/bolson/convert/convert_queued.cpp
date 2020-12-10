@@ -19,14 +19,14 @@
 
 #include "bolson/log.h"
 #include "bolson/latency.h"
-#include "bolson/convert/convert.h"
+#include "bolson/convert/convert_queued.h"
 
 namespace bolson::convert {
 
-IPCBuilder::IPCBuilder(size_t json_threshold,
-                       size_t batch_threshold,
-                       size_t seq_buf_init_size,
-                       size_t str_buf_init_size)
+QueuedIPCBuilder::QueuedIPCBuilder(size_t json_threshold,
+                                   size_t batch_threshold,
+                                   size_t seq_buf_init_size,
+                                   size_t str_buf_init_size)
     : json_buffer_threshold_(json_threshold),
       batch_buffer_threshold_(batch_threshold) {
   str_buffer = std::shared_ptr(std::move(arrow::AllocateResizableBuffer(0).ValueOrDie()));
@@ -47,8 +47,8 @@ IPCBuilder::IPCBuilder(size_t json_threshold,
       std::move(std::unique_ptr<arrow::UInt64Builder>(dynamic_cast<arrow::UInt64Builder *>(sb.release())));
 }
 
-auto IPCBuilder::Buffer(const illex::JSONQueueItem &item,
-                        illex::LatencyTracker *lat_tracker) -> Status {
+auto QueuedIPCBuilder::Buffer(const illex::JSONQueueItem &item,
+                              illex::LatencyTracker *lat_tracker) -> Status {
   // Keep track of which items are buffered that we also want to track latency for.
   // Anything that is buffered is also batched, so we push it to both buffers.
   if (lat_tracker->Put(item.seq, BOLSON_LAT_BUFFER_ENTRY, illex::Timer::now())) {
@@ -74,17 +74,17 @@ auto IPCBuilder::Buffer(const illex::JSONQueueItem &item,
   return Status::OK();
 }
 
-void IPCBuilder::Reset() {
+void QueuedIPCBuilder::Reset() {
   this->lat_tracked_seq_in_batches.clear();
   this->lat_tracked_seq_in_buffer.clear();
   this->batches.clear();
   this->size_ = 0;
 }
 
-auto IPCBuilder::Finish(IpcQueueItem *out,
-                        putong::Timer<> *comb,
-                        putong::Timer<> *ipc,
-                        illex::LatencyTracker *lat_tracker) -> Status {
+auto QueuedIPCBuilder::Finish(IpcQueueItem *out,
+                              putong::Timer<> *comb,
+                              putong::Timer<> *ipc,
+                              illex::LatencyTracker *lat_tracker) -> Status {
   // Set up a pointer for the combined batch.
   std::shared_ptr<arrow::RecordBatch> combined_batch;
 
@@ -148,7 +148,7 @@ auto IPCBuilder::Finish(IpcQueueItem *out,
   return Status::OK();
 }
 
-auto IPCBuilder::ToString() -> std::string {
+auto QueuedIPCBuilder::ToString() -> std::string {
   std::stringstream o;
   o << "Batches: " << this->batches.size() << " | " << this->size() << " B, ";
   o << "JSONs: " << this->jsons_buffered() << " | " << this->str_buffer->size() << " B";
@@ -165,13 +165,13 @@ if (!stats.status.ok()) { \
   return; \
 } void()
 
-void Convert(size_t id,
-             std::unique_ptr<IPCBuilder> builder,
-             illex::JSONQueue *in,
-             IpcQueue *out,
-             illex::LatencyTracker *lat_tracker,
-             std::atomic<bool> *shutdown,
-             std::promise<Stats> &&stats_promise) {
+void ConvertFromQueue(size_t id,
+                      std::unique_ptr<QueuedIPCBuilder> builder,
+                      illex::JSONQueue *in,
+                      IpcQueue *out,
+                      illex::LatencyTracker *lat_tracker,
+                      std::atomic<bool> *shutdown,
+                      std::promise<Stats> &&stats_promise) {
 
   ConversionTimers t;
   SPDLOG_DEBUG("[conversion] [drone {}] Spawned.", id);

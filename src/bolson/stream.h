@@ -23,7 +23,7 @@
 
 #include "bolson/pulsar.h"
 #include "bolson/latency.h"
-#include "bolson/convert/convert.h"
+#include "bolson/convert/convert_queued.h"
 
 namespace bolson {
 
@@ -66,5 +66,7 @@ struct StreamOptions {
  * \return Status::OK() if successful, error otherwise.
  */
 auto ProduceFromStream(const StreamOptions &opt) -> Status;
+
+auto ProduceFromStreamMultiBuffered(const StreamOptions &opt) -> Status;
 
 }  // namespace bolson

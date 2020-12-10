@@ -23,9 +23,7 @@
 #include <fletcher/platform.h>
 #include <fletcher/kernel.h>
 
-#include <illex/queue.h>
-
-#include "bolson/convert/convert.h"
+#include "bolson/convert/convert_queued.h"
 #include "bolson/convert/opae_battery.h"
 #include "bolson/utils.h"
 
@@ -49,8 +47,8 @@ void ConvertBatteryWithOPAE(size_t json_threshold,
                             std::promise<std::vector<Stats>> &&stats_promise) {
   std::promise<Stats> stats;
   auto future_stats = stats.get_future();
-  std::unique_ptr<OPAEBatteryIPCBuilder> builder;
-  auto status = OPAEBatteryIPCBuilder::Make(&builder, json_threshold, batch_threshold);
+  std::unique_ptr<QueuedOPAEBatteryIPCBuilder> builder;
+  auto status = QueuedOPAEBatteryIPCBuilder::Make(&builder, json_threshold, batch_threshold);
   if (!status.ok()) {
     auto err_stats = Stats();
     err_stats.status = status;
@@ -58,7 +56,13 @@ void ConvertBatteryWithOPAE(size_t json_threshold,
     shutdown->store(true);
     return;
   } else {
-    Convert(0, std::move(builder), in, out, lat_tracker, shutdown, std::move(stats));
+    ConvertFromQueue(0,
+                     std::move(builder),
+                     in,
+                     out,
+                     lat_tracker,
+                     shutdown,
+                     std::move(stats));
   }
   std::vector<Stats> result = {future_stats.get()};
   stats_promise.set_value(result);
@@ -144,17 +148,17 @@ static auto PrepareOutputBatch(std::shared_ptr<arrow::RecordBatch> *out,
   return Status::OK();
 }
 
-auto OPAEBatteryIPCBuilder::Make(std::unique_ptr<OPAEBatteryIPCBuilder> *out,
-                                 size_t json_buffer_threshold,
-                                 size_t batch_size_threshold,
-                                 const OPAEBatteryOptions &opts) -> Status {
+auto QueuedOPAEBatteryIPCBuilder::Make(std::unique_ptr<QueuedOPAEBatteryIPCBuilder> *out,
+                                       size_t json_buffer_threshold,
+                                       size_t batch_size_threshold,
+                                       const OPAEBatteryOptions &opts) -> Status {
 
-  auto result = std::unique_ptr<OPAEBatteryIPCBuilder>(
-      new OPAEBatteryIPCBuilder(json_buffer_threshold,
-                                batch_size_threshold,
-                                opts.afu_id,
-                                opts.seq_buffer_init_size,
-                                opts.str_buffer_init_size)
+  auto result = std::unique_ptr<QueuedOPAEBatteryIPCBuilder>(
+      new QueuedOPAEBatteryIPCBuilder(json_buffer_threshold,
+                                      batch_size_threshold,
+                                      opts.afu_id,
+                                      opts.seq_buffer_init_size,
+                                      opts.str_buffer_init_size)
   );
 
   // Prepare input and output batch.
@@ -230,9 +234,9 @@ static auto CopyAndWrapOutput(int32_t num_rows,
   return Status::OK();
 }
 
-auto OPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *parse,
-                                          putong::Timer<> *seq,
-                                          illex::LatencyTracker *lat_tracker) -> Status {
+auto QueuedOPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *parse,
+                                                putong::Timer<> *seq,
+                                                illex::LatencyTracker *lat_tracker) -> Status {
   if (str_buffer->size() > 0) {
 
     // Mark time point buffer is flushed into the parser

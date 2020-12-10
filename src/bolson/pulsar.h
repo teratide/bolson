@@ -21,8 +21,8 @@
 #include <pulsar/Producer.h>
 #include <putong/timer.h>
 #include <blockingconcurrentqueue.h>
-#include <illex/queue.h>
 #include <illex/latency.h>
+#include <illex/protocol.h>
 
 #include "bolson/log.h"
 #include "bolson/status.h"

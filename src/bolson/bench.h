@@ -21,7 +21,7 @@
 
 #include "bolson/pulsar.h"
 #include "bolson/status.h"
-#include "bolson/convert/convert.h"
+#include "bolson/convert/convert_queued.h"
 
 namespace bolson {
 
