@@ -4,7 +4,7 @@ project(bolson VERSION 0.0.1 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 find_package(Arrow 1.0 CONFIG REQUIRED)
-find_library(pulsar 2.6.0 REQUIRED NAMES libpulsar.dylib)
+find_library(pulsar 2.6.0 REQUIRED)
 
 include(FetchContent)
 
