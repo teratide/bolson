@@ -5,8 +5,6 @@ project(bolson VERSION 0.0.1 LANGUAGES CXX)
 find_package(Threads REQUIRED)
 find_package(Arrow 1.0 CONFIG REQUIRED)
 find_library(pulsar 2.6.0 REQUIRED NAMES libpulsar.dylib)
-find_library(zmqpp REQUIRED)
-find_library(zmq REQUIRED)
 
 include(FetchContent)
 
@@ -64,7 +62,7 @@ FetchContent_MakeAvailable(putong)
 # illex
 FetchContent_Declare(illex
   GIT_REPOSITORY  https://github.com/teratide/illex
-  GIT_TAG         latency-experiment
+  GIT_TAG         master
 )
 FetchContent_MakeAvailable(illex)
 
@@ -96,8 +94,6 @@ add_compile_unit(
     arrow_shared
     CLI11::CLI11
     pulsar
-    zmqpp
-    zmq
     spdlog::spdlog
     Threads::Threads
     illex::static

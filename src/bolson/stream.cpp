@@ -16,7 +16,6 @@
 #include <thread>
 #include <memory>
 #include <illex/raw_client.h>
-#include <illex/zmq_client.h>
 #include <putong/timer.h>
 
 #include "bolson/latency.h"
@@ -109,9 +108,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
   // Timers for throughput
   StreamTimers timers;
   // Check which protocol to use.
-  if (std::holds_alternative<illex::ZMQProtocol>(opt.protocol)) {
-    return Status(Error::GenericError, "Not implemented.");
-  } else {
+  if (std::holds_alternative<illex::RawProtocol>(opt.protocol)) {
     timers.init.Start();
     // Set up Pulsar client and producer.
     PulsarContext pulsar;
@@ -246,6 +243,8 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
         BOLSON_ROE(LogLatencyCSV(opt.latency.file, lat_tracker));
       }
     }
+  } else {
+    return Status(Error::GenericError, "Not implemented.");
   }
 
   return Status::OK();

@@ -14,7 +14,6 @@
 
 #include <iostream>
 #include <CLI/CLI.hpp>
-#include <illex/zmq_protocol.h>
 
 #include "bolson/pulsar.h"
 #include "bolson/file.h"
