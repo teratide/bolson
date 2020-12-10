@@ -262,7 +262,7 @@ auto ToPointers(std::vector<T> *vec) -> std::vector<T *> {
 }
 
 auto ProduceFromStreamMultiBuffered(const StreamOptions &opt) -> Status {
-  constexpr size_t num_buffers = 2;
+  const size_t num_buffers = opt.num_threads;
   illex::LatencyTracker lat_tracker
       (opt.latency.num_samples, BOLSON_LAT_NUM_POINTS, opt.latency.interval);
   // Timers for throughput

@@ -81,10 +81,10 @@ void QueuedIPCBuilder::Reset() {
   this->size_ = 0;
 }
 
-auto QueuedIPCBuilder::Finish(IpcQueueItem *out,
-                              putong::Timer<> *comb,
-                              putong::Timer<> *ipc,
-                              illex::LatencyTracker *lat_tracker) -> Status {
+auto QueuedIPCBuilder::Flush(IpcQueueItem *out,
+                             putong::Timer<> *comb,
+                             putong::Timer<> *ipc,
+                             illex::LatencyTracker *lat_tracker) -> Status {
   // Set up a pointer for the combined batch.
   std::shared_ptr<arrow::RecordBatch> combined_batch;
 
@@ -238,7 +238,7 @@ void ConvertFromQueue(size_t id,
       if (!builder->empty()) {
         // Finish the builder, delivering an IPC item.
         IpcQueueItem ipc_item;
-        stats.status = builder->Finish(&ipc_item, &t.combine, &t.serialize, lat_tracker);
+        stats.status = builder->Flush(&ipc_item, &t.combine, &t.serialize, lat_tracker);
         SHUTDOWN_ON_FAILURE();
 
         // Enqueue the IPC item.

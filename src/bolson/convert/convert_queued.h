@@ -24,13 +24,6 @@
 #include "bolson/pulsar.h"
 #include "bolson/convert/stats.h"
 
-/// Convert Arrow status and return on error.
-#define ARROW_ROE(s) {                                                  \
-  const auto& status = s;                                               \
-  if (!status.ok()) return Status(Error::ArrowError, status.ToString());\
-}                                                                       \
-void()
-
 namespace bolson::convert {
 
 /// Class to support incremental building up of a RecordBatch from JSONQueueItems.
@@ -67,10 +60,10 @@ class QueuedIPCBuilder {
    * \param lat_tracker   The latency tracker to use to track latencies of specific JSONs.
    * \return Status::OK() if successful, some error otherwise.
    */
-  auto Finish(IpcQueueItem *out,
-              putong::Timer<> *comb,
-              putong::Timer<> *ipc,
-              illex::LatencyTracker *lat_tracker) -> Status;
+  auto Flush(IpcQueueItem *out,
+             putong::Timer<> *comb,
+             putong::Timer<> *ipc,
+             illex::LatencyTracker *lat_tracker) -> Status;
 
   /// \brief Return the size of the buffers kept by all RecordBatches in this builder.
   [[nodiscard]] auto size() const -> size_t { return this->size_; }

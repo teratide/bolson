@@ -20,13 +20,6 @@
 
 namespace bolson {
 
-/// Return on error status.
-#define BOLSON_ROE(s) {            \
-  auto status = s;                 \
-  if (!status.ok()) return status; \
-}                                  \
-void()
-
 /// Error types.
 enum class Error {
   GenericError,     ///< Uncategorized errors.
@@ -40,5 +33,19 @@ enum class Error {
 };
 
 using Status = putong::Status<Error>;
+
+/// Return on error status.
+#define BOLSON_ROE(s) {                \
+  auto __status = (s);                 \
+  if (!__status.ok()) return __status; \
+}                                      \
+void()
+
+/// Convert Arrow status and return on error.
+#define ARROW_ROE(s) {                                                       \
+  auto __status = (s);                                                       \
+  if (!__status.ok()) return Status(Error::ArrowError, __status.ToString()); \
+}                                                                            \
+void()
 
 }

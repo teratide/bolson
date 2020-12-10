@@ -82,6 +82,25 @@ void ConvertFromQueueWithCPU(illex::JSONQueue *in,
                              illex::LatencyTracker *lat_tracker,
                              std::promise<std::vector<convert::Stats>> &&stats);
 
+class ArrowBufferedIPCBuilder : public BufferedIPCBuilder {
+ public:
+  explicit ArrowBufferedIPCBuilder(arrow::json::ParseOptions parse_options,
+                                   const arrow::json::ReadOptions &read_options,
+                                   size_t batch_threshold,
+                                   size_t seq_buf_init_size = 1024 * 1024)
+      : BufferedIPCBuilder(batch_threshold, seq_buf_init_size),
+        parse_options(std::move(parse_options)), read_options(read_options) {}
+
+  auto ConvertBuffer(illex::RawJSONBuffer *in,
+                     putong::Timer<> *parse,
+                     illex::LatencyTracker *lat_tracker) -> Status override;
+ private:
+  /// Arrow JSON parser parse options.
+  arrow::json::ParseOptions parse_options;
+  /// Arrow JSON parser read options.
+  arrow::json::ReadOptions read_options;
+};
+
 void ConvertFromBuffersWithCPU(const std::vector<illex::RawJSONBuffer *> &buffers,
                                const std::vector<std::mutex *> &mutexes,
                                IpcQueue *out,

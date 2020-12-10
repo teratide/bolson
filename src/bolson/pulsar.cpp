@@ -58,7 +58,7 @@ auto Publish(pulsar::Producer *producer,
     }
   }
 
-  CHECK_PULSAR(producer->send(msg));
+  //CHECK_PULSAR(producer->send(msg));
 
   if (lat_tracker != nullptr) {
     for (const auto &s : *seq_nums) {

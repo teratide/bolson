@@ -20,6 +20,7 @@
 
 #include <putong/putong.h>
 
+#include "bolson/convert/convert_buffered.h"
 #include "bolson/convert/cpu.h"
 #include "bolson/log.h"
 #include "bolson/utils.h"
@@ -169,12 +170,13 @@ void ConvertFromBuffersWithCPU(const std::vector<illex::RawJSONBuffer *> &buffer
     std::promise<Stats> thread_stats_promise;
     thread_stats_futures.push_back(thread_stats_promise.get_future());
     // Create builders based on Arrow's CPU implementation.
-    auto builder = std::make_unique<QueuedArrowIPCBuilder>(parse_options,
-                                                           read_options,
-                                                           json_buffer_threshold,
-                                                           batch_size_threshold);
+    auto builder = std::make_unique<ArrowBufferedIPCBuilder>(parse_options,
+                                                             read_options,
+                                                             batch_size_threshold);
+
     threads.emplace_back(ConvertFromBuffers,
                          thread_id,
+                         std::move(builder),
                          buffers,
                          mutexes,
                          out,
@@ -198,6 +200,69 @@ void ConvertFromBuffersWithCPU(const std::vector<illex::RawJSONBuffer *> &buffer
   }
 
   stats.set_value(threads_stats);
+}
+
+auto ArrowBufferedIPCBuilder::ConvertBuffer(illex::RawJSONBuffer *in,
+                                            putong::Timer<> *parse,
+                                            illex::LatencyTracker *lat_tracker) -> Status {
+  // Mark time point buffered JSONs start parsing.
+  // Also remember seq. no's tracked in this builder.
+  for (auto s : in->seq_tracked()) {
+    lat_tracker->Put(s, BOLSON_LAT_BUFFER_FLUSH, illex::Timer::now());
+    this->lat_tracked_seq_in_batches.push_back(s);
+  }
+
+  // Measure parsing time for throughput numbers.
+  parse->Start();
+  auto buffer = arrow::Buffer::Wrap(in->data(), in->size());
+  auto br = std::make_shared<arrow::io::BufferReader>(buffer);
+  auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
+                                           br,
+                                           read_options,
+                                           parse_options);
+  if (!tr.ok()) {
+    return Status(Error::ArrowError, tr.status().message());
+  }
+  auto table = tr.ValueOrDie()->Read();
+  if (!table.ok()) {
+    return Status(Error::ArrowError, table.status().message());
+  }
+  // Combine potential chunks in this table and read the first batch.
+  auto combined_table = table.ValueOrDie()->CombineChunks();
+  if (!combined_table.ok()) {
+    return Status(Error::ArrowError, combined_table.status().message());
+  }
+  auto table_reader = arrow::TableBatchReader(*combined_table.ValueOrDie());
+  auto combined_batch = table_reader.Next();
+  if (!combined_batch.ok()) {
+    return Status(Error::ArrowError, combined_batch.status().message());
+  }
+
+  auto final_batch = combined_batch.ValueOrDie();
+  parse->Stop();
+
+  // Append sequence numbers.
+  // Make some room and use faster impl to append.
+  auto status = seq_builder->Resize(seq_builder->length() + in->num_jsons());
+  if (!status.ok()) {
+    return Status(Error::ArrowError, "Couldn't resize seq builder: " + status.message());
+  }
+  for (uint64_t s = in->first(); s <= in->last(); s++) {
+    seq_builder->UnsafeAppend(s);
+  }
+
+  this->size_ += GetBatchSize(final_batch);
+  this->batches.push_back(std::move(final_batch));
+
+  // Reset the buffer so it can be reused.
+  in->Reset();
+
+  // Mark time point buffer is parsed
+  for (auto s : in->seq_tracked()) {
+    lat_tracker->Put(s, BOLSON_LAT_BUFFER_PARSED, illex::Timer::now());
+  }
+
+  return Status::OK();
 }
 
 }
