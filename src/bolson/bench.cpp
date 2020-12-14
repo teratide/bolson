@@ -20,6 +20,7 @@
 #include <illex/arrow.h>
 
 #include "bolson/bench.h"
+#include "bolson/utils.h"
 #include "bolson/status.h"
 #include "bolson/pulsar.h"
 #include "bolson/convert/cpu.h"
@@ -33,9 +34,10 @@ auto BenchClient(const ClientBenchOptions &opt) -> Status {
 }
 
 auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
+                             const std::vector<illex::RawJSONBuffer *> &buffers,
+                             const std::vector<std::mutex *> &mutexes,
                              putong::Timer<> *t,
                              size_t *ipc_size,
-                             illex::JSONQueue *json_queue,
                              IpcQueue *ipc_queue) -> Status {
   illex::LatencyTracker lat_tracker(1, BOLSON_LAT_NUM_POINTS, opt.num_jsons);
   std::promise<std::vector<convert::Stats>> promise_stats;
@@ -48,14 +50,14 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
   t->Start();
   switch (opt.conversion) {
     case convert::Impl::CPU: {
-      conversion_thread = std::thread(convert::ConvertFromQueueWithCPU,
-                                      json_queue,
+      conversion_thread = std::thread(convert::ConvertFromBuffersWithCPU,
+                                      buffers,
+                                      mutexes,
                                       ipc_queue,
                                       &shutdown,
                                       opt.num_threads,
                                       opt.parse_opts,
                                       opt.read_opts,
-                                      opt.json_threshold,
                                       opt.batch_threshold,
                                       &lat_tracker,
                                       std::move(promise_stats));
@@ -63,15 +65,7 @@ auto BenchConvertMultiThread(const ConvertBenchOptions &opt,
       break;
     }
     case convert::Impl::OPAE_BATTERY: {
-      conversion_thread = std::thread(convert::ConvertBatteryWithOPAE,
-                                      opt.json_threshold,
-                                      opt.batch_threshold,
-                                      json_queue,
-                                      ipc_queue,
-                                      &lat_tracker,
-                                      &shutdown,
-                                      std::move(promise_stats));
-      break;
+      return Status(Error::GenericError, "Not implemented.");
     }
   }
 
@@ -138,7 +132,9 @@ auto BenchQueue(const QueueBenchOptions &opt) -> Status {
 
 static auto GenerateJSONs(putong::Timer<> *g,
                           const ConvertBenchOptions &opt,
-                          std::vector<illex::JSONQueueItem> *items) -> size_t {
+                          std::vector<illex::JSONQueueItem> *items) -> std::pair<size_t,
+                                                                                 size_t> {
+  size_t largest = 0;
   // Generate a message with tweets in JSON format.
   auto gen = illex::FromArrowSchema(*opt.schema, opt.generate);
 
@@ -148,12 +144,13 @@ static auto GenerateJSONs(putong::Timer<> *g,
   size_t raw_chars = 0;
   for (size_t i = 0; i < opt.num_jsons; i++) {
     auto json = gen.GetString();
+    if (json.size() > largest) { largest = json.size(); }
     raw_chars += json.size();
     items->push_back(illex::JSONQueueItem{i, json});
   }
   g->Stop();
 
-  return raw_chars;
+  return {raw_chars, largest};
 }
 
 static auto QueueJSONs(putong::Timer<> *q,
@@ -167,6 +164,38 @@ static auto QueueJSONs(putong::Timer<> *q,
   q->Stop();
 }
 
+static auto PrepareBuffers(size_t num_buffers,
+                           size_t largest_json,
+                           const std::vector<illex::JSONQueueItem> &jsons)
+-> std::vector<illex::RawJSONBuffer> {
+  std::vector<illex::RawJSONBuffer> buffers;
+  auto items_per_thread = jsons.size() / num_buffers;
+  auto items_leftover = jsons.size() % num_buffers;
+  auto buf_cap = (jsons.size() * largest_json) / num_buffers + largest_json;
+  size_t item = 0;
+  for (size_t b = 0; b < num_buffers; b++) {
+    auto *raw = static_cast<std::byte *>(std::calloc(buf_cap, sizeof(std::byte)));
+    illex::RawJSONBuffer buf;
+    illex::RawJSONBuffer::Create(raw, buf_cap, &buf);
+
+    // Fill the buffer.
+    auto this_thread_items = items_per_thread + (b == 0 ? items_leftover : 0);
+    auto first = item;
+    for (size_t j = 0; j < this_thread_items; j++) {
+      std::memcpy(raw, jsons[item].string.data(), jsons[item].string.length());
+      raw += jsons[item].string.length();
+      *raw = static_cast<std::byte>('\n');
+      raw++;
+      item++;
+    }
+    buf.SetSize(raw - buf.data());
+    buf.SetRange({first, item - 1});
+
+    buffers.push_back(buf);
+  }
+  return buffers;
+}
+
 auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   putong::Timer<> g, q, c, m;
 
@@ -178,38 +207,32 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   }
   // Generate JSONs
   std::vector<illex::JSONQueueItem> items;
-  auto raw_json_bytes = GenerateJSONs(&g, opt, &items);
+  auto sl = GenerateJSONs(&g, opt, &items);
 
-  // Queue JSONs
-  illex::JSONQueue json_queue;
-  QueueJSONs(&q, items, &json_queue);
-  auto json_queue_size = raw_json_bytes + sizeof(illex::JSONQueueItem) * opt.num_jsons;
+  // Prepare buffers and mutexes for each thread.
+  auto buffers = PrepareBuffers(opt.num_threads, sl.second, items);
+  std::vector<std::mutex> mutexes(opt.num_threads);
 
   // Measure time to convert JSONs and fill the IPC queue.
   IpcQueue ipc_queue;
   size_t ipc_size = 0;
 
-  BOLSON_ROE(BenchConvertMultiThread(opt, &c, &ipc_size, &json_queue, &ipc_queue));
+  BOLSON_ROE(BenchConvertMultiThread(opt,
+                                     ToPointers(&buffers),
+                                     ToPointers(&mutexes),
+                                     &c,
+                                     &ipc_size,
+                                     &ipc_queue));
 
   // Print all statistics:
   if (!opt.csv) {
     spdlog::info("Generated JSONs bytes          : {} MiB",
-                 static_cast<double>(raw_json_bytes) / (1024 * 1024));
+                 static_cast<double>(sl.first) / (1024 * 1024));
     spdlog::info("Generate time                  : {} s", g.seconds());
     spdlog::info("Generate throughput            : {} MB/s",
-                 static_cast<double>(raw_json_bytes) / g.seconds() * 1E-6);
+                 static_cast<double>(sl.first) / g.seconds() * 1E-6);
   } else {
-    std::cout << raw_json_bytes << "," << g.seconds() << ",";
-  }
-
-  if (!opt.csv) {
-    spdlog::info("JSON Queue bytes               : {} MiB",
-                 static_cast<double>(json_queue_size) / (1024 * 1024));
-    spdlog::info("JSON Queue fill time           : {} s", q.seconds());
-    spdlog::info("JSON Queue fill throughput     : {} MB/s",
-                 static_cast<double>(json_queue_size) / q.seconds() * 1E-6);
-  } else {
-    std::cout << json_queue_size << "," << q.seconds();
+    std::cout << sl.first << "," << g.seconds() << ",";
   }
 
   if (!opt.csv) {
@@ -219,18 +242,6 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
                  opt.num_jsons / c.seconds() * 1E-6);
   } else {
     std::cout << c.seconds() << ",";
-  }
-
-  if (!opt.csv) {
-    spdlog::info("IPC bytes                      : {} MiB",
-                 static_cast<double>(ipc_size) / (1024 * 1024));
-    spdlog::info("IPC Convert time               : {} s", c.seconds());
-    spdlog::info("IPC Convert throughput (in)    : {} MB/s",
-                 static_cast<double>(json_queue_size) / c.seconds() * 1E-6);
-    spdlog::info("IPC Convert throughput (out)   : {} MB/s",
-                 static_cast<double>(ipc_size) / c.seconds() * 1E-6);
-  } else {
-    std::cout << ipc_size << "," << c.seconds() << "," << opt.num_threads << std::endl;
   }
 
   return Status::OK();

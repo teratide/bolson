@@ -154,7 +154,6 @@ void ConvertFromBuffersWithCPU(const std::vector<illex::RawJSONBuffer *> &buffer
                                size_t num_drones,
                                const arrow::json::ParseOptions &parse_options,
                                const arrow::json::ReadOptions &read_options,
-                               size_t json_buffer_threshold,
                                size_t batch_size_threshold,
                                illex::LatencyTracker *lat_tracker,
                                std::promise<std::vector<Stats>> &&stats) {
@@ -202,18 +201,7 @@ void ConvertFromBuffersWithCPU(const std::vector<illex::RawJSONBuffer *> &buffer
   stats.set_value(threads_stats);
 }
 
-auto ArrowBufferedIPCBuilder::ConvertBuffer(illex::RawJSONBuffer *in,
-                                            putong::Timer<> *parse,
-                                            illex::LatencyTracker *lat_tracker) -> Status {
-  // Mark time point buffered JSONs start parsing.
-  // Also remember seq. no's tracked in this builder.
-  for (auto s : in->seq_tracked()) {
-    lat_tracker->Put(s, BOLSON_LAT_BUFFER_FLUSH, illex::Timer::now());
-    this->lat_tracked_seq_in_batches.push_back(s);
-  }
-
-  // Measure parsing time for throughput numbers.
-  parse->Start();
+auto ArrowBufferedIPCBuilder::ConvertBuffer(illex::RawJSONBuffer *in) -> Status {
   auto buffer = arrow::Buffer::Wrap(in->data(), in->size());
   auto br = std::make_shared<arrow::io::BufferReader>(buffer);
   auto tr = arrow::json::TableReader::Make(arrow::default_memory_pool(),
@@ -239,7 +227,6 @@ auto ArrowBufferedIPCBuilder::ConvertBuffer(illex::RawJSONBuffer *in,
   }
 
   auto final_batch = combined_batch.ValueOrDie();
-  parse->Stop();
 
   // Append sequence numbers.
   // Make some room and use faster impl to append.
@@ -247,7 +234,7 @@ auto ArrowBufferedIPCBuilder::ConvertBuffer(illex::RawJSONBuffer *in,
   if (!status.ok()) {
     return Status(Error::ArrowError, "Couldn't resize seq builder: " + status.message());
   }
-  for (uint64_t s = in->first(); s <= in->last(); s++) {
+  for (uint64_t s = in->range().first; s <= in->range().last; s++) {
     seq_builder->UnsafeAppend(s);
   }
 
@@ -256,11 +243,6 @@ auto ArrowBufferedIPCBuilder::ConvertBuffer(illex::RawJSONBuffer *in,
 
   // Reset the buffer so it can be reused.
   in->Reset();
-
-  // Mark time point buffer is parsed
-  for (auto s : in->seq_tracked()) {
-    lat_tracker->Put(s, BOLSON_LAT_BUFFER_PARSED, illex::Timer::now());
-  }
 
   return Status::OK();
 }

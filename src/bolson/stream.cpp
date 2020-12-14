@@ -22,6 +22,7 @@
 #include "bolson/status.h"
 #include "bolson/stream.h"
 #include "bolson/pulsar.h"
+#include "bolson/utils.h"
 #include "bolson/convert/convert_queued.h"
 #include "bolson/convert/cpu.h"
 #include "bolson/convert/opae_battery.h"
@@ -251,16 +252,6 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
   return Status::OK();
 }
 
-template<typename T>
-auto ToPointers(std::vector<T> *vec) -> std::vector<T *> {
-  std::vector<T *> result;
-  result.reserve(vec->size());
-  for (size_t i = 0; i < vec->size(); i++) {
-    result.push_back(&vec->at(i));
-  }
-  return result;
-}
-
 auto ProduceFromStreamMultiBuffered(const StreamOptions &opt) -> Status {
   const size_t num_buffers = opt.num_threads;
   illex::LatencyTracker lat_tracker
@@ -312,7 +303,6 @@ auto ProduceFromStreamMultiBuffered(const StreamOptions &opt) -> Status {
                                           opt.num_threads,
                                           opt.parse,
                                           opt.read,
-                                          opt.json_threshold,
                                           opt.batch_threshold,
                                           &lat_tracker,
                                           std::move(conv_stats_promise));

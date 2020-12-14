@@ -91,9 +91,7 @@ class ArrowBufferedIPCBuilder : public BufferedIPCBuilder {
       : BufferedIPCBuilder(batch_threshold, seq_buf_init_size),
         parse_options(std::move(parse_options)), read_options(read_options) {}
 
-  auto ConvertBuffer(illex::RawJSONBuffer *in,
-                     putong::Timer<> *parse,
-                     illex::LatencyTracker *lat_tracker) -> Status override;
+  auto ConvertBuffer(illex::RawJSONBuffer *in) -> Status override;
  private:
   /// Arrow JSON parser parse options.
   arrow::json::ParseOptions parse_options;
@@ -108,7 +106,6 @@ void ConvertFromBuffersWithCPU(const std::vector<illex::RawJSONBuffer *> &buffer
                                size_t num_drones,
                                const arrow::json::ParseOptions &parse_options,
                                const arrow::json::ReadOptions &read_options,
-                               size_t json_buffer_threshold,
                                size_t batch_size_threshold,
                                illex::LatencyTracker *lat_tracker,
                                std::promise<std::vector<Stats>> &&stats);

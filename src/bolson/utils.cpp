@@ -64,7 +64,9 @@ void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct) 
   }
 }
 
-auto LoadFile(const std::string &file_name, size_t num_bytes, std::vector<char> *dest) -> Status {
+auto LoadFile(const std::string &file_name,
+              size_t num_bytes,
+              std::vector<char> *dest) -> Status {
   std::ifstream ifs(file_name, std::ios::binary);
   dest->reserve(num_bytes + 1);
   if (!ifs.read(dest->data(), num_bytes)) {
@@ -74,7 +76,8 @@ auto LoadFile(const std::string &file_name, size_t num_bytes, std::vector<char> 
   return Status::OK();
 }
 
-auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> arrow::Result<std::shared_ptr<arrow::Buffer>> {
+auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> arrow::Result<
+    std::shared_ptr<arrow::Buffer>> {
   auto buffer = arrow::io::BufferOutputStream::Create(GetBatchSize(batch));
   if (!buffer.ok()) return arrow::Result<std::shared_ptr<arrow::Buffer>>(buffer.status());
 
@@ -90,7 +93,8 @@ auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> 
   return buffer.ValueOrDie()->Finish();
 }
 
-auto ConvertParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer) -> std::string {
+auto ConvertParserError(const rapidjson::Document &doc,
+                        const std::vector<char> &file_buffer) -> std::string {
   std::stringstream ss;
   auto code = doc.GetParseError();
   auto offset = doc.GetErrorOffset();
@@ -99,7 +103,8 @@ auto ConvertParserError(const rapidjson::Document &doc, const std::vector<char> 
   ss << "  Character: " << file_buffer[offset] << " / 0x"
      << std::hex << static_cast<uint8_t>(file_buffer[offset]) << std::endl;
   ss << "  Around: "
-     << std::string_view(&file_buffer[offset < 40UL ? 0 : offset - 40], std::min(40UL, file_buffer.size()))
+     << std::string_view(&file_buffer[offset < 40UL ? 0 : offset - 40],
+                         std::min(40UL, file_buffer.size()))
      << std::endl;
   return ss.str();
 }

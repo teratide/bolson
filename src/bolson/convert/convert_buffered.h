@@ -28,9 +28,7 @@ namespace bolson::convert {
 
 class BufferedIPCBuilder {
  public:
-  virtual auto ConvertBuffer(illex::RawJSONBuffer *in,
-                             putong::Timer<> *parse,
-                             illex::LatencyTracker *lat_tracker) -> Status = 0;
+  virtual auto ConvertBuffer(illex::RawJSONBuffer *in) -> Status = 0;
 
   auto Flush(IpcQueueItem *out,
              putong::Timer<> *comb,

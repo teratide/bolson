@@ -42,7 +42,8 @@ auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData> &array_data) -> in
 auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch> &batch) -> int64_t;
 
 /// \brief Write an Arrow RecordBatch into a file as an Arrow IPC message.
-auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> arrow::Result<std::shared_ptr<arrow::Buffer>>;
+auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> arrow::Result<
+    std::shared_ptr<arrow::Buffer>>;
 
 /// \brief Report some gigabytes per second.
 void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct = false);
@@ -54,13 +55,32 @@ void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct =
  * \param[out] dest         The destination buffer.
  * \return The buffer, will be size num_bytes + 1 to accommodate the terminator character.
  */
-auto LoadFile(const std::string &file_name, size_t num_bytes, std::vector<char>* dest) -> Status;
+auto LoadFile(const std::string &file_name,
+              size_t num_bytes,
+              std::vector<char> *dest) -> Status;
 
 /**
  * \brief Convert a RapidJSON parsing error to a more readible format.
  * \param doc The document that has a presumed error.
  * \param file_buffer The buffer from which the document was attempted to be parsed.
  */
-auto ConvertParserError(const rapidjson::Document &doc, const std::vector<char> &file_buffer) -> std::string;
+auto ConvertParserError(const rapidjson::Document &doc,
+                        const std::vector<char> &file_buffer) -> std::string;
+
+/**
+ * \brief Convert a vector of T to a vector with pointers to each T.
+ * \tparam T    The type of the items in the vector.
+ * \param vec   The vector.
+ * \return A vector with pointers to the items of vec.
+ */
+template<typename T>
+auto ToPointers(std::vector<T> *vec) -> std::vector<T *> {
+  std::vector<T *> result;
+  result.reserve(vec->size());
+  for (size_t i = 0; i < vec->size(); i++) {
+    result.push_back(&vec->at(i));
+  }
+  return result;
+}
 
 }  // namespace bolson

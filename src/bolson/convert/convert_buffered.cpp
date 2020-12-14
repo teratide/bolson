@@ -74,16 +74,18 @@ void ConvertFromBuffers(size_t id,
 
   while (!shutdown->load()) {
     if (try_buffers) {
-      illex::RawJSONBuffer *buf;
-      size_t lock_idx;
+      illex::RawJSONBuffer *buf = nullptr;
+      size_t lock_idx = 0;
       if (TryGetFilledBuffer(buffers, mutexes, &buf, &lock_idx)) {
-//        SPDLOG_DEBUG("Attempting to convert buffer: {}",
-//                     std::string_view((char *) buf->data(), buf->size()));
+        //SPDLOG_DEBUG("Attempting to convert buffer: {}",
+        //             std::string_view((char *) buf->data(), buf->size()));
         // Add sizes stats before buffer is converted and reset.
         stats.num_jsons += buf->num_jsons();
         stats.num_json_bytes += buf->size();
         // Convert the buffer.
-        stats.status = builder->ConvertBuffer(buf, &t.parse, lat_tracker);
+        t.parse.Start();
+        stats.status = builder->ConvertBuffer(buf);
+        t.parse.Stop();
         // Add parse time to stats.
         stats.t.parse += t.parse.seconds();
 
