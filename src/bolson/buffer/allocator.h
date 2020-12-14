@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
 #include "bolson/status.h"
-#include "bolson/parse/parser.h"
 
-namespace bolson::parse {
+namespace bolson::buffer {
 
-auto ToString(const Impl &impl) -> std::string {
-  switch (impl) {
-    case Impl::ARROW: return "Arrow (CPU)";
-    case Impl::OPAE_BATTERY: return "OPAE Battery (FPGA)";
-  }
-  throw std::runtime_error("Corrupt impl.");
-}
+class Allocator {
+ public:
+  virtual auto Allocate(size_t size, std::byte **out) -> Status;
+  virtual auto Free(std::byte *buffer) -> Status;
+};
 
 }

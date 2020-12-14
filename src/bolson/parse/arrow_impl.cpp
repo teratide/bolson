@@ -21,7 +21,7 @@
 
 namespace bolson::parse {
 
-auto ArrowBufferParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
+auto ArrowParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
   auto buffer = arrow::Buffer::Wrap(in->data(), in->size());
   auto br = std::make_shared<arrow::io::BufferReader>(buffer);
   auto tr_make_result = arrow::json::TableReader::Make(arrow::default_memory_pool(),

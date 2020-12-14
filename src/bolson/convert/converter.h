@@ -14,6 +14,7 @@
 
 #include <type_traits>
 
+#include "bolson/buffer/allocator.h"
 #include "bolson/parse/parser.h"
 #include "bolson/convert/resizer.h"
 #include "bolson/convert/serializer.h"
@@ -23,10 +24,13 @@ namespace bolson::convert {
 
 struct Converter {
 
+  // TODO: hide this constructor because it can fail
   explicit Converter(IpcQueue *output_queue,
+                     buffer::Allocator *allocator,
                      size_t num_buffers = 1,
                      size_t num_threads = 1)
       : output_queue_(output_queue),
+        allocator_(allocator),
         num_buffers_(num_buffers),
         num_threads_(num_threads),
         mutexes(std::vector<std::mutex>(num_buffers)),
@@ -39,35 +43,14 @@ struct Converter {
    * \param buffer_capacity The capacity of the buffers to allocate.
    * \return A new ConvertContext.
    */
-  template<typename T>
-  auto AllocateBuffers(size_t capacity) -> Status {
-    static_assert(std::is_base_of<parse::Parser, T>::value);
-
-    // Allocate buffers.
-    for (size_t b = 0; b < num_buffers_; b++) {
-      std::byte *raw = nullptr;
-      BOLSON_ROE(T::AllocateBuffer(capacity, &raw));
-      illex::RawJSONBuffer buf;
-      illex::RawJSONBuffer::Create(raw, capacity, &buf);
-      buffers.push_back(buf);
-    }
-
-    return Status::OK();
-  }
-
-  template<typename T>
-  auto FreeBuffers() -> Status {
-    static_assert(std::is_base_of<parse::Parser, T>::value);
-    for (size_t b = 0; b < num_buffers_; b++) {
-      BOLSON_ROE(T::FreeBuffer(buffers[b].mutable_data()));
-    }
-    return Status::OK();
-  }
+  auto AllocateBuffers(size_t capacity) -> Status;
+  auto FreeBuffers() -> Status;
 
   void Start(std::atomic<bool> *shutdown);
   auto Stop() -> Status;
 
   IpcQueue *output_queue_ = nullptr;
+  buffer::Allocator *allocator_ = nullptr;
   size_t num_threads_ = 1;
   size_t num_buffers_ = 1;
   std::atomic<bool> *shutdown = nullptr;

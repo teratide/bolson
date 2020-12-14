@@ -17,25 +17,49 @@
 #include <memory>
 #include <utility>
 
-#include <fletcher/fletcher.h>
-#include <fletcher/context.h>
-#include <fletcher/platform.h>
-#include <fletcher/kernel.h>
+#include <arrow/api.h>
+#include <fletcher/api.h>
 
+#include "bolson/buffer/opae_allocator.h"
 #include "bolson/stream.h"
 
-#define FPGA_PLATFORM "opae"
 #define OPAE_BATTERY_AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5eed"
 
 namespace bolson::parse {
 
-struct OPAEBatteryOptions {
+struct OpaeBatteryOptions {
   std::string afu_id = OPAE_BATTERY_AFU_ID;
-  size_t seq_buffer_init_size = 1024;
-  size_t str_buffer_init_size = 16 * 1024 * 1024;
-  size_t input_capacity = 1000 * 1024 * 1024;
   size_t output_capacity_off = 1000 * 1024 * 1024;
   size_t output_capacity_val = 1000 * 1024 * 1024;
+};
+
+class OpaeBatteryParser : public Parser {
+ public:
+  static auto Make(const OpaeBatteryOptions &opts,
+                   std::shared_ptr<OpaeBatteryParser> *out) -> Status;
+  auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status override;
+ private:
+  OpaeBatteryParser(const OpaeBatteryOptions &opts) : opts_(opts) {}
+
+  bool first = true;
+
+  OpaeBatteryOptions opts_;
+
+  buffer::OpaeAllocator allocator;
+
+  std::shared_ptr<arrow::RecordBatch> batch_in = nullptr;
+  std::shared_ptr<arrow::RecordBatch> batch_out = nullptr;
+  std::byte *out_offsets = nullptr;
+  std::byte *out_values = nullptr;
+
+  std::shared_ptr<fletcher::Platform> platform = nullptr;
+  std::shared_ptr<fletcher::Context> context = nullptr;
+  std::shared_ptr<fletcher::Kernel> kernel = nullptr;
+
+  auto PrepareOutputBatch(size_t offsets_capacity,
+                          size_t values_capacity) -> Status;
+  auto PrepareInputBatch(const uint8_t *buffer_raw, size_t size) -> Status;
+
 };
 
 }

@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bolson/status.h"
-#include "bolson/parse/parser.h"
+#pragma once
 
-namespace bolson::parse {
+#include <unordered_map>
 
-auto ToString(const Impl &impl) -> std::string {
-  switch (impl) {
-    case Impl::ARROW: return "Arrow (CPU)";
-    case Impl::OPAE_BATTERY: return "OPAE Battery (FPGA)";
-  }
-  throw std::runtime_error("Corrupt impl.");
-}
+#include "bolson/buffer/allocator.h"
+
+namespace bolson::buffer {
+
+class OpaeAllocator : public Allocator {
+ public:
+  auto Allocate(size_t size, std::byte **out) -> Status override;
+  auto Free(std::byte *buffer) -> Status override;
+ private:
+  std::unordered_map<void *, size_t> allocations;
+};
 
 }

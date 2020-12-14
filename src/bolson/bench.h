@@ -106,12 +106,6 @@ auto BenchClient(const ClientBenchOptions &opt) -> Status;
 
 auto BenchPulsar(const PulsarBenchOptions &opt) -> Status;
 
-auto GenerateJSONs(size_t num_jsons,
-                   const arrow::Schema &schema,
-                   const illex::GenerateOptions &gen_opts,
-                   std::vector<illex::JSONQueueItem> *items)
--> std::pair<size_t, size_t>;
-
 auto BenchConvert(const ConvertBenchOptions &opt) -> Status;
 
 }

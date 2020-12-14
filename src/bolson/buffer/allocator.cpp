@@ -12,17 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+
 #include "bolson/status.h"
-#include "bolson/parse/parser.h"
+#include "allocator.h"
 
-namespace bolson::parse {
+namespace bolson::buffer {
 
-auto ToString(const Impl &impl) -> std::string {
-  switch (impl) {
-    case Impl::ARROW: return "Arrow (CPU)";
-    case Impl::OPAE_BATTERY: return "OPAE Battery (FPGA)";
+auto Allocator::Allocate(size_t size, std::byte **out) -> Status {
+  *out = static_cast<std::byte *>(malloc(size));
+  if (*out == nullptr) {
+    return Status(Error::GenericError,
+                  "Unable to allocate " + std::to_string(size) + " bytes.");
   }
-  throw std::runtime_error("Corrupt impl.");
+  return Status::OK();
+}
+
+auto Allocator::Free(std::byte *buffer) -> Status {
+  free(buffer);
+  return Status::OK();
 }
 
 }

@@ -29,7 +29,7 @@ enum class Error {
   RapidJSONError,   ///< Errors related to RapidJSON.
   ArrowError,       ///< Errors related to Arrow.
   IOError,          ///< Errors related to input/output.
-  FPGAError         ///< Errors related to FPGA impl.
+  OpaeError         ///< Errors related to FPGA impl.
 };
 
 using Status = putong::Status<Error>;

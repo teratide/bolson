@@ -15,6 +15,7 @@
 #include <utility>
 #include <sys/mman.h>
 
+#include <arrow/api.h>
 #include <arrow/ipc/api.h>
 #include <putong/timer.h>
 
@@ -27,26 +28,25 @@
 #include "bolson/parse/opae_battery_impl.h"
 #include "bolson/utils.h"
 
-#define OPAE_BATTERY_INPUT_LASTIDX 5
+#define OPAE_BATTERY_REG_INPUT_FIRSTIDX      4
+#define OPAE_BATTERY_REG_INPUT_LASTIDX       5
+#define OPAE_BATTERY_REG_OUTPUT_FIRSTIDX     6
+#define OPAE_BATTERY_REG_OUTPUT_LASTIDX      7
+#define OPAE_BATTERY_REG_INPUT_VALUES_LO     8
+#define OPAE_BATTERY_REG_INPUT_VALUES_HI     9
+#define OPAE_BATTERY_REG_OUTPUT_OFFSETS_LO  10
+#define OPAE_BATTERY_REG_OUTPUT_OFFSETS_HI  11
+#define OPAE_BATTERY_REG_OUTPUT_VALUES_LO   12
+#define OPAE_BATTERY_REG_OUTPUT_VALUES_HI   13
 
 /// Return Bolson error status when Fletcher error status is supplied.
-#define FLETCHER_ROE(s) {                                                             \
-  auto _status = s;                                                                   \
-  if (!_status.ok()) return Status(Error::FPGAError, "Fletcher: " + _status.message); \
-}                                                                                     \
+#define FLETCHER_ROE(s) {                                                               \
+  auto __status = (s);                                                                  \
+  if (!__status.ok()) return Status(Error::OpaeError, "Fletcher: " + __status.message); \
+}                                                                                       \
 void()
 
 namespace bolson::parse {
-
-// Because the input is a plain buffer but managed by Fletcher, we create some helper
-// functions that make an Arrow RecordBatch out of it with a column of uint8 primitives.
-// This is required to be able to pass it to Fletcher.
-
-// Sequence number field.
-static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
-  static auto seq_field = arrow::field("seq", arrow::uint64(), false);
-  return seq_field;
-}
 
 static auto input_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = fletcher::WithMetaRequired(
@@ -69,43 +69,21 @@ static auto output_schema() -> std::shared_ptr<arrow::Schema> {
   return result;
 }
 
-static auto GetHugePageBuffer(uint8_t **buffer, size_t size) -> Status {
-  // TODO: describe this magic
-  void *addr = mmap(nullptr,
-                    size,
-                    (PROT_READ | PROT_WRITE),
-                    (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | (30u << 26)),
-                    -1,
-                    0);
-  if (addr == MAP_FAILED) {
-    return Status(Error::FPGAError, "Unable to allocate huge page buffer.");
-  }
-  memset(addr, 0, size);
-  *buffer = (uint8_t *) addr;
-  return Status::OK();
-}
-
-static auto PrepareInputBatch(std::shared_ptr<arrow::RecordBatch> *out,
-                              uint8_t **buffer_raw,
-                              size_t size) -> Status {
-  BOLSON_ROE(GetHugePageBuffer(buffer_raw, size));
-  auto buf = arrow::Buffer::Wrap(*buffer_raw, size);
+auto OpaeBatteryParser::PrepareInputBatch(const uint8_t *buffer_raw,
+                                          size_t size) -> Status {
+  auto buf = arrow::Buffer::Wrap(buffer_raw, size);
   auto arr = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), size, buf);
-  *out = arrow::RecordBatch::Make(input_schema(), size, {arr});
+  batch_in = arrow::RecordBatch::Make(input_schema(), size, {arr});
   return Status::OK();
 }
 
-static auto PrepareOutputBatch(std::shared_ptr<arrow::RecordBatch> *out,
-                               uint8_t **output_off_raw,
-                               uint8_t **output_val_raw,
-                               size_t offsets_size,
-                               size_t values_size) -> Status {
+auto OpaeBatteryParser::PrepareOutputBatch(size_t offsets_capacity,
+                                           size_t values_capacity) -> Status {
+  BOLSON_ROE(allocator.Allocate(offsets_capacity, &out_offsets));
+  BOLSON_ROE(allocator.Allocate(values_capacity, &out_values));
 
-  BOLSON_ROE(GetHugePageBuffer(output_off_raw, offsets_size));
-  BOLSON_ROE(GetHugePageBuffer(output_val_raw, values_size));
-
-  auto offset_buffer = arrow::Buffer::Wrap(*output_off_raw, offsets_size);
-  auto values_buffer = arrow::Buffer::Wrap(*output_val_raw, values_size);
+  auto offset_buffer = arrow::Buffer::Wrap(out_offsets, offsets_capacity);
+  auto values_buffer = arrow::Buffer::Wrap(out_values, values_capacity);
   auto values_array =
       std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, values_buffer);
   auto list_array = std::make_shared<arrow::ListArray>(output_type(),
@@ -113,7 +91,24 @@ static auto PrepareOutputBatch(std::shared_ptr<arrow::RecordBatch> *out,
                                                        offset_buffer,
                                                        values_array);
   std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
-  *out = arrow::RecordBatch::Make(output_schema(), 0, arrays);
+  batch_out = arrow::RecordBatch::Make(output_schema(), 0, arrays);
+
+  return Status::OK();
+}
+
+auto OpaeBatteryParser::Make(const OpaeBatteryOptions &opts,
+                             std::shared_ptr<OpaeBatteryParser> *out) -> Status {
+  auto result = std::shared_ptr<OpaeBatteryParser>(new OpaeBatteryParser(opts));
+
+  result->PrepareOutputBatch(opts.output_capacity_off, opts.output_capacity_val);
+
+  FLETCHER_ROE(fletcher::Platform::Make("opae", &result->platform, false));
+  char *afu_id = result->opts_.afu_id.data();
+  result->platform->init_data = &afu_id;
+  FLETCHER_ROE(result->platform->Init());
+  FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));
+
+  *out = std::move(result);
 
   return Status::OK();
 }
@@ -155,6 +150,57 @@ static auto CopyAndWrapOutput(int32_t num_rows,
   } catch (std::exception &e) {
     return Status(Error::ArrowError, e.what());
   }
+
+  return Status::OK();
+}
+
+auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
+  ParsedBuffer result;
+  if (first) {
+    // If this is the first batch we parse, send all metadata to the FPGA.
+
+    // Prepare the input batch for the first time.
+    BOLSON_ROE(PrepareInputBatch(reinterpret_cast<const uint8_t *>(in->data()),
+                                 in->size()));
+    // Queue batches.
+    FLETCHER_ROE(context->QueueRecordBatch(batch_in));
+    FLETCHER_ROE(context->QueueRecordBatch(batch_out));
+    // Enable context.
+    FLETCHER_ROE(context->Enable());
+    // Construct kernel handler.
+    kernel = std::make_shared<fletcher::Kernel>(context);
+    // Write metadata.
+    FLETCHER_ROE(kernel->WriteMetaData());
+  } else {
+    // Otherwise, we don't need to construct all abstractions again.
+
+    // Write input buffer address and last index, so the FPGA kernel knows from which
+    // buffer to process and how many bytes.
+    dau_t input_addr;
+    input_addr.full = reinterpret_cast<da_t>(in->data());
+    auto input_size = static_cast<int32_t>(in->size());
+    FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_LASTIDX, input_size));
+    FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_VALUES_LO, input_addr.lo));
+    FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_VALUES_HI, input_addr.hi));
+  }
+
+  // Reset the kernel, start it, and poll until completion.
+  FLETCHER_ROE(kernel->Reset());
+  FLETCHER_ROE(kernel->Start());
+  FLETCHER_ROE(kernel->PollUntilDone());
+
+  // Obtain the result.
+  dau_t num_rows;
+  FLETCHER_ROE(kernel->GetReturn(&num_rows.lo, &num_rows.hi));
+
+  std::shared_ptr<arrow::RecordBatch> out_batch;
+  BOLSON_ROE(CopyAndWrapOutput(num_rows.full,
+                               reinterpret_cast<uint8_t *>(out_offsets),
+                               reinterpret_cast<uint8_t *>(out_values),
+                               output_schema(),
+                               &result.batch));
+
+  result.parsed_bytes = in->size();
 
   return Status::OK();
 }

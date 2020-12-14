@@ -35,10 +35,6 @@ struct ParsedBuffer {
 
 class Parser {
  public:
-  static auto AllocateBuffer(size_t size, std::byte **out) -> Status;
-
-  static auto FreeBuffer(std::byte *buffer) -> Status;
-
   virtual auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status = 0;
 };
 

@@ -24,15 +24,34 @@
 #include "bolson/utils.h"
 #include "bolson/status.h"
 #include "bolson/pulsar.h"
+#include "bolson/buffer/allocator.h"
+#include "bolson/buffer/opae_allocator.h"
 #include "bolson/parse/parser.h"
+#include "bolson/parse/opae_battery_impl.h"
 #include "bolson/parse/arrow_impl.h"
 #include "bolson/convert/converter.h"
 #include "bolson/convert/stats.h"
 
 namespace bolson {
 
-auto BenchClient(const ClientBenchOptions &opt) -> Status {
-  return Status(Error::GenericError, "Not yet implemented.");
+static auto GenerateJSONs(size_t num_jsons,
+                          const arrow::Schema &schema,
+                          const illex::GenerateOptions &gen_opts,
+                          std::vector<illex::JSONQueueItem> *items)
+-> std::pair<size_t, size_t> {
+  size_t largest = 0;
+  // Generate a message with tweets in JSON format.
+  auto gen = illex::FromArrowSchema(schema, gen_opts);
+  // Generate the JSONs.
+  items->reserve(num_jsons);
+  size_t raw_chars = 0;
+  for (size_t i = 0; i < num_jsons; i++) {
+    auto json = gen.GetString();
+    if (json.size() > largest) { largest = json.size(); }
+    raw_chars += json.size();
+    items->push_back(illex::JSONQueueItem{i, json});
+  }
+  return {raw_chars, largest};
 }
 
 /**
@@ -80,36 +99,56 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   t_gen.Start();
   auto bytes_largest = GenerateJSONs(opt.num_jsons, *opt.schema, opt.generate, &items);
   auto gen_bytes = bytes_largest.first;
-  auto largest = bytes_largest.second;
+  auto max_json = bytes_largest.second + 1; // + 1 for newline.
   t_gen.Stop();
 
   t_init.Start();
-  // Set up the Converter.
+
+  // Set up output queue.
   IpcQueue ipc_queue;
   IpcQueueItem ipc_item;
-  convert::Converter converter(&ipc_queue, opt.num_threads, opt.num_threads);
-  // Calculate generous buffer size, +1 for newline
-  auto buf_size =
-      opt.num_threads * (largest + 1) + (opt.num_jsons * largest) / opt.num_threads;
 
-  // Select which parser to use.
+  // Select allocator.
+  std::shared_ptr<buffer::Allocator> allocator;
+  switch (opt.conversion) {
+    case parse::Impl::ARROW:allocator = std::make_shared<buffer::Allocator>();
+      break;
+    case parse::Impl::OPAE_BATTERY:allocator = std::make_shared<buffer::OpaeAllocator>();
+      break;
+  }
+
+  // Set up the Converter.
+  auto converter = convert::Converter(&ipc_queue,
+                                      allocator.get(),
+                                      opt.num_threads,
+                                      opt.num_threads);
+
+  // Set up the parsers.
   switch (opt.conversion) {
     case parse::Impl::ARROW: {
-      BOLSON_ROE(converter.AllocateBuffers<parse::ArrowBufferParser>(buf_size));
       for (size_t t = 0; t < opt.num_threads; t++) {
-        auto parser = std::make_shared<parse::ArrowBufferParser>(opt.parse_opts,
-                                                                 opt.read_opts);
+        auto parser = std::make_shared<parse::ArrowParser>(opt.parse_opts,
+                                                           opt.read_opts);
         converter.parsers.push_back(parser);
-
       }
       break;
     }
     case parse::Impl::OPAE_BATTERY: {
-      return Status(Error::GenericError, "Not implemented.");
+      if (opt.num_threads > 1) {
+        return Status(Error::OpaeError,
+                      "OpaeBattery does not support multi-threaded conversion.");
+      }
+      std::shared_ptr<parse::OpaeBatteryParser> parser;
+      BOLSON_ROE(parse::OpaeBatteryParser::Make(parse::OpaeBatteryOptions(), &parser));
+      converter.parsers.push_back(parser);
     }
   }
 
-  // Fill buffers.
+  // Allocate and fill buffers.
+  // Calculate generous buffer size, +1 for newline
+  auto buf_size =
+      opt.num_threads * max_json + (opt.num_jsons * max_json) / opt.num_threads;
+  converter.AllocateBuffers(buf_size);
   FillBuffers(ToPointers(converter.buffers), items);
 
   // Lock all buffers.
@@ -154,7 +193,7 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
 
   // Free buffers.
   switch (opt.conversion) {
-    case parse::Impl::ARROW: BOLSON_ROE(converter.FreeBuffers<parse::ArrowBufferParser>());
+    case parse::Impl::ARROW: BOLSON_ROE(converter.FreeBuffers());
       break;
     default:return Status(Error::GenericError, "Not implemented.");
   }
@@ -178,11 +217,9 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   spdlog::info("  Throughput (out)  : {} MB/s", ipc_MB / t_conv.seconds());
   spdlog::info("  Throughput        : {} MJ/s", json_M / t_conv.seconds());
 
-  spdlog::info("Thread details:");
-  for (int t = 0; t < opt.num_threads; t++) {
-    spdlog::info("  Thread {}", t);
-    spdlog::info("    Bytes parsed  : {}", converter.stats[t].num_json_bytes);
-  }
+  auto a = convert::AggrStats(converter.stats);
+  spdlog::info("Details:");
+  LogConvertStats(a, opt.num_threads);
 
   return Status::OK();
 }
@@ -231,26 +268,6 @@ auto BenchQueue(const QueueBenchOptions &opt) -> Status {
   return Status::OK();
 }
 
-auto GenerateJSONs(size_t num_jsons,
-                   const arrow::Schema &schema,
-                   const illex::GenerateOptions &gen_opts,
-                   std::vector<illex::JSONQueueItem> *items)
--> std::pair<size_t, size_t> {
-  size_t largest = 0;
-  // Generate a message with tweets in JSON format.
-  auto gen = illex::FromArrowSchema(schema, gen_opts);
-  // Generate the JSONs.
-  items->reserve(num_jsons);
-  size_t raw_chars = 0;
-  for (size_t i = 0; i < num_jsons; i++) {
-    auto json = gen.GetString();
-    if (json.size() > largest) { largest = json.size(); }
-    raw_chars += json.size();
-    items->push_back(illex::JSONQueueItem{i, json});
-  }
-  return {raw_chars, largest};
-}
-
 auto BenchPulsar(const PulsarBenchOptions &opt) -> Status {
   if (!opt.csv) {
     spdlog::info("Sending {} Pulsar messages of size {} B to topic {}",
@@ -291,6 +308,10 @@ auto BenchPulsar(const PulsarBenchOptions &opt) -> Status {
   }
 
   return Status::OK();
+}
+
+auto BenchClient(const ClientBenchOptions &opt) -> Status {
+  return Status(Error::GenericError, "Not yet implemented.");
 }
 
 auto RunBench(const BenchOptions &opt) -> Status {

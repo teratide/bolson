@@ -62,7 +62,7 @@ FetchContent_MakeAvailable(putong)
 # illex
 FetchContent_Declare(illex
   GIT_REPOSITORY  https://github.com/teratide/illex
-  GIT_TAG         master
+  GIT_TAG         multibuffer
 )
 FetchContent_MakeAvailable(illex)
 
@@ -86,11 +86,15 @@ add_compile_unit(
     src/bolson/stream.cpp
     src/bolson/bench.cpp
     src/bolson/latency.cpp
+    src/bolson/buffer/allocator.cpp
+    src/bolson/buffer/opae_allocator.cpp
+    src/bolson/parse/parser.cpp
+    src/bolson/parse/arrow_impl.cpp
+    src/bolson/parse/opae_battery_impl.cpp
     src/bolson/convert/stats.cpp
-    src/bolson/convert/convert_queued.cpp
-    src/bolson/convert/convert_buffered.cpp
-    src/bolson/convert/cpu.cpp
-    src/bolson/convert/opae_battery.cpp
+    src/bolson/convert/resizer.cpp
+    src/bolson/convert/serializer.cpp
+    src/bolson/convert/converter.cpp
   DEPS
     arrow_shared
     CLI11::CLI11

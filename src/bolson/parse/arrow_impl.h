@@ -27,10 +27,10 @@
 
 namespace bolson::parse {
 
-class ArrowBufferParser : public Parser {
+class ArrowParser : public Parser {
  public:
-  explicit ArrowBufferParser(arrow::json::ParseOptions parse_options,
-                             const arrow::json::ReadOptions &read_options)
+  explicit ArrowParser(arrow::json::ParseOptions parse_options,
+                       const arrow::json::ReadOptions &read_options)
       : parse_options(std::move(parse_options)), read_options(read_options) {}
 
   auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status override;

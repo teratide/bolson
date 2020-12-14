@@ -184,4 +184,24 @@ auto Converter::Stop() -> Status {
   return Status::OK();
 }
 
+auto Converter::AllocateBuffers(size_t capacity) -> Status {
+  // Allocate buffers.
+  for (size_t b = 0; b < num_buffers_; b++) {
+    std::byte *raw = nullptr;
+    BOLSON_ROE(allocator_->Allocate(capacity, &raw));
+    illex::RawJSONBuffer buf;
+    illex::RawJSONBuffer::Create(raw, capacity, &buf);
+    buffers.push_back(buf);
+  }
+
+  return Status::OK();
+}
+
+auto Converter::FreeBuffers() -> Status {
+  for (size_t b = 0; b < num_buffers_; b++) {
+    BOLSON_ROE(allocator_->Free(buffers[b].mutable_data()));
+  }
+  return Status::OK();
+}
+
 }
