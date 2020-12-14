@@ -33,7 +33,7 @@ arrow::Status WrapBattery(
   int32_t num_offsets = num_rows + 1;
 
   // Obtain the last value in the offsets buffer to know how many values there are.
-  int32_t num_values = reinterpret_cast<int32_t *>(offsets)[num_offsets];
+  int32_t num_values = reinterpret_cast<int32_t *>(offsets)[num_rows];
 
   size_t num_offset_bytes = num_offsets * sizeof(int32_t);
   size_t num_values_bytes = num_values * sizeof(uint64_t);
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
   status = context->QueueRecordBatch(input_batch_1);
   status = context->QueueRecordBatch(input_batch_2);
   status = context->QueueRecordBatch(output_batch_1);
-  status = context->QueueRecordBatch(output_batch_1);
+  status = context->QueueRecordBatch(output_batch_2);
   status = context->Enable();
   fletcher::Kernel kernel(context);
   status = kernel.Start();
@@ -119,21 +119,14 @@ int main(int argc, char **argv)
   uint32_t return_value_0;
   uint32_t return_value_1;
   status = kernel.GetReturn(&return_value_0, &return_value_1);
-
-  // uint64_t num_rows = ((uint64_t)return_value_1 << 32) | return_value_0;
   std::cout << "1 - Number of records parsed: " << return_value_0 << std::endl;
   std::cout << "2 - Number of records parsed: " << return_value_1 << std::endl;
 
-  // arrow::Status arrow_status;
-  // arrow_status = WrapBattery(num_rows, offset_data, value_data, schema, &output_batch);
-  // if (!arrow_status.ok())
-  // {
-  //   std::cerr << "Could not create output recordbatch." << std::endl;
-  //   std::cerr << arrow_status.ToString() << std::endl;
-  //   return -1;
-  // }
-
-  // std::cout << output_batch->ToString() << std::endl;
+  arrow::Status arrow_status;
+  arrow_status = WrapBattery(return_value_0, offset_data, value_data, output_schema_1, &output_batch_1);
+  std::cout << output_batch_1->ToString() << std::endl;
+  arrow_status = WrapBattery(return_value_1, offset_data_2, value_data_2, output_schema_2, &output_batch_2);
+  std::cout << output_batch_2->ToString() << std::endl;
 
   return 0;
 }
