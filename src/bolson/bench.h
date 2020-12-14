@@ -21,7 +21,8 @@
 
 #include "bolson/pulsar.h"
 #include "bolson/status.h"
-#include "bolson/convert/convert_queued.h"
+#include "bolson/utils.h"
+#include "bolson/parse/parser.h"
 
 namespace bolson {
 
@@ -45,7 +46,7 @@ struct ConvertBenchOptions {
   size_t json_threshold = 1024;
   size_t batch_threshold = (5 * 1024 * 1024) - (32 * 1024);
   size_t num_threads = 1;
-  convert::Impl conversion = convert::Impl::CPU;
+  parse::Impl conversion = parse::Impl::ARROW;
 };
 
 /// Options for Pulsar interface benchmark.
@@ -102,7 +103,15 @@ struct BenchOptions {
 auto RunBench(const BenchOptions &opt) -> Status;
 
 auto BenchClient(const ClientBenchOptions &opt) -> Status;
-auto BenchConvert(const ConvertBenchOptions &opt) -> Status;
+
 auto BenchPulsar(const PulsarBenchOptions &opt) -> Status;
+
+auto GenerateJSONs(size_t num_jsons,
+                   const arrow::Schema &schema,
+                   const illex::GenerateOptions &gen_opts,
+                   std::vector<illex::JSONQueueItem> *items)
+-> std::pair<size_t, size_t>;
+
+auto BenchConvert(const ConvertBenchOptions &opt) -> Status;
 
 }

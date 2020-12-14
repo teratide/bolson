@@ -23,8 +23,8 @@
 #include <fletcher/platform.h>
 #include <fletcher/kernel.h>
 
-#include "bolson/convert/convert_queued.h"
-#include "bolson/convert/opae_battery.h"
+#include "bolson/parse/parser.h"
+#include "bolson/parse/opae_battery_impl.h"
 #include "bolson/utils.h"
 
 #define OPAE_BATTERY_INPUT_LASTIDX 5
@@ -36,37 +36,7 @@
 }                                                                                     \
 void()
 
-namespace bolson::convert {
-
-void ConvertBatteryWithOPAE(size_t json_threshold,
-                            size_t batch_threshold,
-                            illex::JSONQueue *in,
-                            IpcQueue *out,
-                            illex::LatencyTracker *lat_tracker,
-                            std::atomic<bool> *shutdown,
-                            std::promise<std::vector<Stats>> &&stats_promise) {
-  std::promise<Stats> stats;
-  auto future_stats = stats.get_future();
-  std::unique_ptr<QueuedOPAEBatteryIPCBuilder> builder;
-  auto status = QueuedOPAEBatteryIPCBuilder::Make(&builder, json_threshold, batch_threshold);
-  if (!status.ok()) {
-    auto err_stats = Stats();
-    err_stats.status = status;
-    stats_promise.set_value({err_stats});
-    shutdown->store(true);
-    return;
-  } else {
-    ConvertFromQueue(0,
-                     std::move(builder),
-                     in,
-                     out,
-                     lat_tracker,
-                     shutdown,
-                     std::move(stats));
-  }
-  std::vector<Stats> result = {future_stats.get()};
-  stats_promise.set_value(result);
-}
+namespace bolson::parse {
 
 // Because the input is a plain buffer but managed by Fletcher, we create some helper
 // functions that make an Arrow RecordBatch out of it with a column of uint8 primitives.
@@ -148,51 +118,6 @@ static auto PrepareOutputBatch(std::shared_ptr<arrow::RecordBatch> *out,
   return Status::OK();
 }
 
-auto QueuedOPAEBatteryIPCBuilder::Make(std::unique_ptr<QueuedOPAEBatteryIPCBuilder> *out,
-                                       size_t json_buffer_threshold,
-                                       size_t batch_size_threshold,
-                                       const OPAEBatteryOptions &opts) -> Status {
-
-  auto result = std::unique_ptr<QueuedOPAEBatteryIPCBuilder>(
-      new QueuedOPAEBatteryIPCBuilder(json_buffer_threshold,
-                                      batch_size_threshold,
-                                      opts.afu_id,
-                                      opts.seq_buffer_init_size,
-                                      opts.str_buffer_init_size)
-  );
-
-  // Prepare input and output batch.
-  BOLSON_ROE(PrepareInputBatch(&result->input, &result->input_raw, opts.input_capacity));
-  BOLSON_ROE(PrepareOutputBatch(&result->output,
-                                &result->output_off_raw,
-                                &result->output_val_raw,
-                                opts.output_capacity_off,
-                                opts.output_capacity_val));
-
-  FLETCHER_ROE(fletcher::Platform::Make(FPGA_PLATFORM, &result->platform, false));
-
-  char *fu_id = result->afu_id_.data();
-  result->platform->init_data = &fu_id;
-  FLETCHER_ROE(result->platform->Init());
-
-  FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));
-
-  // Queue batches.
-  FLETCHER_ROE(result->context->QueueRecordBatch(result->input));
-  FLETCHER_ROE(result->context->QueueRecordBatch(result->output));
-
-  // Enable context.
-  FLETCHER_ROE(result->context->Enable());
-
-  // Construct kernel handler.
-  result->kernel = std::make_shared<fletcher::Kernel>(result->context);
-  FLETCHER_ROE(result->kernel->WriteMetaData());
-
-  *out = std::move(result);
-
-  return Status::OK();
-}
-
 static auto CopyAndWrapOutput(int32_t num_rows,
                               uint8_t *offsets,
                               uint8_t *values,
@@ -229,75 +154,6 @@ static auto CopyAndWrapOutput(int32_t num_rows,
     *out = arrow::RecordBatch::Make(std::move(schema), num_rows, arrays);
   } catch (std::exception &e) {
     return Status(Error::ArrowError, e.what());
-  }
-
-  return Status::OK();
-}
-
-auto QueuedOPAEBatteryIPCBuilder::FlushBuffered(putong::Timer<> *parse,
-                                                putong::Timer<> *seq,
-                                                illex::LatencyTracker *lat_tracker) -> Status {
-  if (str_buffer->size() > 0) {
-
-    // Mark time point buffer is flushed into the parser
-    for (const auto &s : this->lat_tracked_seq_in_buffer) {
-      lat_tracker->Put(s, BOLSON_LAT_BUFFER_FLUSH, illex::Timer::now());
-    }
-
-    parse->Start();
-    // Copy the JSON data onto the buffer.
-    std::memcpy(this->input_raw, this->str_buffer->data(), this->str_buffer->size());
-    FLETCHER_ROE(this->platform->WriteMMIO(OPAE_BATTERY_INPUT_LASTIDX,
-                                           static_cast<int32_t>(this->str_buffer->size())));
-    FLETCHER_ROE(this->kernel->Reset());
-    FLETCHER_ROE(this->kernel->Start());
-    FLETCHER_ROE(this->kernel->PollUntilDone());
-
-    dau_t result;
-    FLETCHER_ROE(this->kernel->GetReturn(&result.lo, &result.hi));
-    uint64_t num_rows = result.full;
-
-    std::shared_ptr<arrow::RecordBatch> out_batch;
-    BOLSON_ROE(CopyAndWrapOutput(num_rows,
-                                 output_off_raw,
-                                 output_val_raw,
-                                 output_schema(),
-                                 &out_batch));
-    parse->Stop();
-
-    // Mark time point buffer is parsed
-    for (const auto &s : this->lat_tracked_seq_in_buffer) {
-      lat_tracker->Put(s, BOLSON_LAT_BUFFER_PARSED, illex::Timer::now());
-    }
-
-    // Add sequence numbers.
-    seq->Start();
-    // Construct the column for the sequence number.
-    std::shared_ptr<arrow::Array> seq_no;
-    ARROW_ROE(seq_builder->Finish(&seq_no));
-
-    // Add the column to the batch.
-    if (num_rows != seq_no->length()) {
-      return Status(Error::FPGAError,
-                    "Number of rows in output batch " + std::to_string(num_rows) +
-                        "and sequence array {} " + std::to_string(seq_no->length())
-                        + " mismatch.");
-    }
-    auto batch_with_seq_result = out_batch->AddColumn(0, SeqField(), seq_no);
-    ARROW_ROE(batch_with_seq_result.status());
-    auto batch_with_seq = batch_with_seq_result.ValueOrDie();
-
-    this->size_ += GetBatchSize(batch_with_seq);
-    this->batches.push_back(std::move(batch_with_seq));
-    seq->Stop();
-
-    // Mark time point sequence numbers are added.
-    for (const auto &s : this->lat_tracked_seq_in_buffer) {
-      lat_tracker->Put(s, BOLSON_LAT_BATCH_CONSTRUCTED, illex::Timer::now());
-    }
-
-    this->lat_tracked_seq_in_buffer.clear();
-    ARROW_ROE(this->str_buffer->Resize(0));
   }
 
   return Status::OK();

@@ -22,12 +22,10 @@
 namespace bolson::convert {
 
 struct TimeStats {
-  /// Total time on raw JSON parsing.
+  /// Total time spent on parsing JSONs to Arrow RecordBatch.
   double parse = 0.0;
-  /// Total time spent adding sequence numbers.
-  double seq = 0.0;
-  /// Total time spent on combining buffered batches.
-  double combine = 0.0;
+  /// Total time spent on resizing parsed batches to fit in a message.
+  double resize = 0.0;
   /// Total time spent on serializing the RecordBatch.
   double serialize = 0.0;
   /// Total time spent in the conversion thread.
@@ -56,8 +54,7 @@ struct Stats {
 struct ConversionTimers {
   putong::Timer<> thread;
   putong::Timer<> parse;
-  putong::Timer<> seq;
-  putong::Timer<> combine;
+  putong::Timer<> resize;
   putong::Timer<> serialize;
 };
 

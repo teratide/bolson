@@ -23,7 +23,7 @@
 
 #include "bolson/pulsar.h"
 #include "bolson/latency.h"
-#include "bolson/convert/convert_queued.h"
+#include "bolson/parse/parser.h"
 
 namespace bolson {
 
@@ -54,8 +54,8 @@ struct StreamOptions {
   bool statistics = true;
   /// Whether to produce succinct statistics.
   bool succinct = false;
-  /// The converter implementation to use.
-  convert::Impl conversion;
+  /// The parser implementation to use.
+  parse::Impl conversion;
   /// Options related to tracking latency.
   LatencyOptions latency;
 };

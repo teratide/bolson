@@ -74,11 +74,11 @@ auto ConvertParserError(const rapidjson::Document &doc,
  * \return A vector with pointers to the items of vec.
  */
 template<typename T>
-auto ToPointers(std::vector<T> *vec) -> std::vector<T *> {
+auto ToPointers(std::vector<T> &vec) -> std::vector<T *> {
   std::vector<T *> result;
-  result.reserve(vec->size());
-  for (size_t i = 0; i < vec->size(); i++) {
-    result.push_back(&vec->at(i));
+  result.reserve(vec.size());
+  for (size_t i = 0; i < vec.size(); i++) {
+    result.push_back(&vec[i]);
   }
   return result;
 }

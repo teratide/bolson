@@ -23,6 +23,7 @@
 #include "bolson/cli.h"
 #include "bolson/status.h"
 #include "bolson/stream.h"
+#include "bolson/parse/parser.h"
 
 namespace bolson {
 
@@ -91,13 +92,13 @@ static auto CalcThreshold(size_t max_size,
   return Status::OK();
 }
 
-static void AddConvertOpts(CLI::App *sub, convert::Impl *impl, size_t *json_thresh) {
-  std::map<std::string, convert::Impl> conversion_map{{"cpu", convert::Impl::CPU},
-                                                      {"opae-battery",
-                                                       convert::Impl::OPAE_BATTERY}};
-  sub->add_option("--conversion", *impl, "Converter implementation.")
+static void AddConvertOpts(CLI::App *sub, parse::Impl *impl, size_t *json_thresh) {
+  std::map<std::string, parse::Impl> conversion_map{{"arrow", parse::Impl::ARROW},
+                                                    {"opae-battery",
+                                                     parse::Impl::OPAE_BATTERY}};
+  sub->add_option("-p,--parser", *impl, "Parser implementation.")
       ->transform(CLI::CheckedTransformer(conversion_map, CLI::ignore_case))
-      ->default_val(convert::Impl::CPU);
+      ->default_val(parse::Impl::ARROW);
   sub->add_option("--json-buffer-threshold",
                   *json_thresh,
                   "Number of JSONs to buffer before converting.")
@@ -153,7 +154,7 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   // 'stream' subcommand:
   auto *stream = app.add_subcommand("stream",
                                     "Produce Pulsar messages from a JSON TCP stream.");
-  auto *port_opt = stream->add_option("-p,--port", stream_port, "Port.")
+  auto *port_opt = stream->add_option("--port", stream_port, "Port.")
       ->default_val(illex::RAW_PORT);
   stream->add_option("--seq",
                      out->stream.seq,
