@@ -222,60 +222,59 @@ begin
   -----------------------------------------------------------------------------
   -- Fletcher generated wrapper
   -----------------------------------------------------------------------------
-  battery_status_Mantle_inst : battery_status_Mantle
-  generic map(
-    BUS_ADDR_WIDTH     => BUS_ADDR_WIDTH,
-    BUS_DATA_WIDTH     => BUS_DATA_WIDTH,
-    BUS_BURST_STEP_LEN => BUS_BURST_STEP_LEN,
-    BUS_BURST_MAX_LEN  => BUS_ADDR_WIDTH,
-    BUS_LEN_WIDTH      => BUS_LEN_WIDTH,
-    INDEX_WIDTH        => INDEX_WIDTH,
-    TAG_WIDTH          => TAG_WIDTH
-  )
-  port map(
-    kcd_clk                   => kcd_clk,
-    kcd_reset                 => kcd_reset,
-    bcd_clk                   => bcd_clk,
-    bcd_reset                 => bcd_reset,
-    ext_platform_complete_req => ext_platform_complete_req,
-    ext_platform_complete_ack => ext_platform_complete_ack,
+  battery_status_2_Mantle_inst : entity work.battery_status_2_Mantle
+    generic map(
+      BUS_ADDR_WIDTH     => BUS_ADDR_WIDTH,
+      BUS_DATA_WIDTH     => BUS_DATA_WIDTH,
+      BUS_BURST_STEP_LEN => BUS_BURST_STEP_LEN,
+      BUS_BURST_MAX_LEN  => BUS_ADDR_WIDTH,
+      BUS_LEN_WIDTH      => BUS_LEN_WIDTH,
+      INDEX_WIDTH        => INDEX_WIDTH,
+      TAG_WIDTH          => TAG_WIDTH
+    )
+    port map(
+      kcd_clk                   => kcd_clk,
+      kcd_reset                 => kcd_reset,
+      bcd_clk                   => bcd_clk,
+      bcd_reset                 => bcd_reset,
+      ext_platform_complete_req => ext_platform_complete_req,
+      ext_platform_complete_ack => ext_platform_complete_ack,
 
-    rd_mst_rreq_valid         => rd_mst_rreq_valid,
-    rd_mst_rreq_ready         => rd_mst_rreq_ready,
-    rd_mst_rreq_addr          => rd_mst_rreq_addr,
-    rd_mst_rreq_len           => rd_mst_rreq_len,
-    rd_mst_rdat_valid         => rd_mst_rdat_valid,
-    rd_mst_rdat_ready         => rd_mst_rdat_ready,
-    rd_mst_rdat_data          => rd_mst_rdat_data,
-    rd_mst_rdat_last          => rd_mst_rdat_last,
-    wr_mst_wreq_valid         => wr_mst_wreq_valid,
-    wr_mst_wreq_ready         => wr_mst_wreq_ready,
-    wr_mst_wreq_addr          => wr_mst_wreq_addr,
-    wr_mst_wreq_len           => wr_mst_wreq_len,
-    wr_mst_wdat_valid         => wr_mst_wdat_valid,
-    wr_mst_wdat_ready         => wr_mst_wdat_ready,
-    wr_mst_wdat_data          => wr_mst_wdat_data,
-    wr_mst_wdat_strobe        => wr_mst_wdat_strobe,
-    wr_mst_wdat_last          => wr_mst_wdat_last,
-    mmio_awvalid              => s_axi_awvalid,
-    mmio_awready              => s_axi_awready,
-    mmio_awaddr               => s_axi_awaddr,
-    mmio_wvalid               => s_axi_wvalid,
-    mmio_wready               => s_axi_wready,
-    mmio_wdata                => s_axi_wdata,
-    mmio_wstrb                => s_axi_wstrb,
-    mmio_bvalid               => s_axi_bvalid,
-    mmio_bready               => s_axi_bready,
-    mmio_bresp                => s_axi_bresp,
-    mmio_arvalid              => s_axi_arvalid,
-    mmio_arready              => s_axi_arready,
-    mmio_araddr               => s_axi_araddr,
-    mmio_rvalid               => s_axi_rvalid,
-    mmio_rready               => s_axi_rready,
-    mmio_rdata                => s_axi_rdata,
-    mmio_rresp                => s_axi_rresp
-  );
-
+      rd_mst_rreq_valid         => rd_mst_rreq_valid,
+      rd_mst_rreq_ready         => rd_mst_rreq_ready,
+      rd_mst_rreq_addr          => rd_mst_rreq_addr,
+      rd_mst_rreq_len           => rd_mst_rreq_len,
+      rd_mst_rdat_valid         => rd_mst_rdat_valid,
+      rd_mst_rdat_ready         => rd_mst_rdat_ready,
+      rd_mst_rdat_data          => rd_mst_rdat_data,
+      rd_mst_rdat_last          => rd_mst_rdat_last,
+      wr_mst_wreq_valid         => wr_mst_wreq_valid,
+      wr_mst_wreq_ready         => wr_mst_wreq_ready,
+      wr_mst_wreq_addr          => wr_mst_wreq_addr,
+      wr_mst_wreq_len           => wr_mst_wreq_len,
+      wr_mst_wdat_valid         => wr_mst_wdat_valid,
+      wr_mst_wdat_ready         => wr_mst_wdat_ready,
+      wr_mst_wdat_data          => wr_mst_wdat_data,
+      wr_mst_wdat_strobe        => wr_mst_wdat_strobe,
+      wr_mst_wdat_last          => wr_mst_wdat_last,
+      mmio_awvalid              => s_axi_awvalid,
+      mmio_awready              => s_axi_awready,
+      mmio_awaddr               => s_axi_awaddr,
+      mmio_wvalid               => s_axi_wvalid,
+      mmio_wready               => s_axi_wready,
+      mmio_wdata                => s_axi_wdata,
+      mmio_wstrb                => s_axi_wstrb,
+      mmio_bvalid               => s_axi_bvalid,
+      mmio_bready               => s_axi_bready,
+      mmio_bresp                => s_axi_bresp,
+      mmio_arvalid              => s_axi_arvalid,
+      mmio_arready              => s_axi_arready,
+      mmio_araddr               => s_axi_araddr,
+      mmio_rvalid               => s_axi_rvalid,
+      mmio_rready               => s_axi_rready,
+      mmio_rdata                => s_axi_rdata,
+      mmio_rresp                => s_axi_rresp
+    );
   -----------------------------------------------------------------------------
   -- AXI read converter
   -----------------------------------------------------------------------------

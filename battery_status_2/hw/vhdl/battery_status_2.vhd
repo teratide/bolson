@@ -22,98 +22,140 @@ library work;
 use work.battery_status_pkg.all;
 use work.Stream_pkg.all;
 
-entity battery_status is
+entity battery_status_2 is
   generic (
     INDEX_WIDTH : integer := 32;
     TAG_WIDTH   : integer := 1
   );
   port (
-    kcd_clk                     : in std_logic;
-    kcd_reset                   : in std_logic;
-    input_input_valid           : in std_logic;
-    input_input_ready           : out std_logic;
-    input_input_dvalid          : in std_logic;
-    input_input_last            : in std_logic;
-    input_input                 : in std_logic_vector(63 downto 0);
-    input_input_count           : in std_logic_vector(3 downto 0);
-    input_input_unl_valid       : in std_logic;
-    input_input_unl_ready       : out std_logic;
-    input_input_unl_tag         : in std_logic_vector(TAG_WIDTH - 1 downto 0);
-    input_input_cmd_valid       : out std_logic;
-    input_input_cmd_ready       : in std_logic;
-    input_input_cmd_firstIdx    : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
-    input_input_cmd_lastIdx     : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
-    input_input_cmd_tag         : out std_logic_vector(TAG_WIDTH - 1 downto 0);
-    output_voltage_valid        : out std_logic;
-    output_voltage_ready        : in std_logic;
-    output_voltage_dvalid       : out std_logic;
-    output_voltage_last         : out std_logic;
-    output_voltage_length       : out std_logic_vector(31 downto 0);
-    output_voltage_count        : out std_logic_vector(0 downto 0);
-    output_voltage_item_valid   : out std_logic;
-    output_voltage_item_ready   : in std_logic;
-    output_voltage_item_dvalid  : out std_logic;
-    output_voltage_item_last    : out std_logic;
-    output_voltage_item         : out std_logic_vector(63 downto 0);
-    output_voltage_item_count   : out std_logic_vector(0 downto 0);
-    output_voltage_unl_valid    : in std_logic;
-    output_voltage_unl_ready    : out std_logic;
-    output_voltage_unl_tag      : in std_logic_vector(TAG_WIDTH - 1 downto 0);
-    output_voltage_cmd_valid    : out std_logic;
-    output_voltage_cmd_ready    : in std_logic;
-    output_voltage_cmd_firstIdx : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
-    output_voltage_cmd_lastIdx  : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
-    output_voltage_cmd_tag      : out std_logic_vector(TAG_WIDTH - 1 downto 0);
-    start                       : in std_logic;
-    stop                        : in std_logic;
-    reset                       : in std_logic;
-    idle                        : out std_logic;
-    busy                        : out std_logic;
-    done                        : out std_logic;
-    result                      : out std_logic_vector(63 downto 0);
-    input_firstidx              : in std_logic_vector(31 downto 0);
-    input_lastidx               : in std_logic_vector(31 downto 0);
-    output_firstidx             : in std_logic_vector(31 downto 0);
-    output_lastidx              : in std_logic_vector(31 downto 0);
-    ext_platform_complete_req   : out std_logic;
-    ext_platform_complete_ack   : in std_logic
+    kcd_clk                       : in std_logic;
+    kcd_reset                     : in std_logic;
+    input_1_input_valid           : in std_logic;
+    input_1_input_ready           : out std_logic;
+    input_1_input_dvalid          : in std_logic;
+    input_1_input_last            : in std_logic;
+    input_1_input                 : in std_logic_vector(63 downto 0);
+    input_1_input_count           : in std_logic_vector(3 downto 0);
+    input_1_input_unl_valid       : in std_logic;
+    input_1_input_unl_ready       : out std_logic;
+    input_1_input_unl_tag         : in std_logic_vector(TAG_WIDTH - 1 downto 0);
+    input_1_input_cmd_valid       : out std_logic;
+    input_1_input_cmd_ready       : in std_logic;
+    input_1_input_cmd_firstIdx    : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
+    input_1_input_cmd_lastIdx     : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
+    input_1_input_cmd_tag         : out std_logic_vector(TAG_WIDTH - 1 downto 0);
+    input_2_input_valid           : in std_logic;
+    input_2_input_ready           : out std_logic;
+    input_2_input_dvalid          : in std_logic;
+    input_2_input_last            : in std_logic;
+    input_2_input                 : in std_logic_vector(63 downto 0);
+    input_2_input_count           : in std_logic_vector(3 downto 0);
+    input_2_input_unl_valid       : in std_logic;
+    input_2_input_unl_ready       : out std_logic;
+    input_2_input_unl_tag         : in std_logic_vector(TAG_WIDTH - 1 downto 0);
+    input_2_input_cmd_valid       : out std_logic;
+    input_2_input_cmd_ready       : in std_logic;
+    input_2_input_cmd_firstIdx    : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
+    input_2_input_cmd_lastIdx     : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
+    input_2_input_cmd_tag         : out std_logic_vector(TAG_WIDTH - 1 downto 0);
+    output_1_voltage_valid        : out std_logic;
+    output_1_voltage_ready        : in std_logic;
+    output_1_voltage_dvalid       : out std_logic;
+    output_1_voltage_last         : out std_logic;
+    output_1_voltage_length       : out std_logic_vector(31 downto 0);
+    output_1_voltage_count        : out std_logic_vector(0 downto 0);
+    output_1_voltage_item_valid   : out std_logic;
+    output_1_voltage_item_ready   : in std_logic;
+    output_1_voltage_item_dvalid  : out std_logic;
+    output_1_voltage_item_last    : out std_logic;
+    output_1_voltage_item         : out std_logic_vector(63 downto 0);
+    output_1_voltage_item_count   : out std_logic_vector(0 downto 0);
+    output_1_voltage_unl_valid    : in std_logic;
+    output_1_voltage_unl_ready    : out std_logic;
+    output_1_voltage_unl_tag      : in std_logic_vector(TAG_WIDTH - 1 downto 0);
+    output_1_voltage_cmd_valid    : out std_logic;
+    output_1_voltage_cmd_ready    : in std_logic;
+    output_1_voltage_cmd_firstIdx : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
+    output_1_voltage_cmd_lastIdx  : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
+    output_1_voltage_cmd_tag      : out std_logic_vector(TAG_WIDTH - 1 downto 0);
+    output_2_voltage_valid        : out std_logic;
+    output_2_voltage_ready        : in std_logic;
+    output_2_voltage_dvalid       : out std_logic;
+    output_2_voltage_last         : out std_logic;
+    output_2_voltage_length       : out std_logic_vector(31 downto 0);
+    output_2_voltage_count        : out std_logic_vector(0 downto 0);
+    output_2_voltage_item_valid   : out std_logic;
+    output_2_voltage_item_ready   : in std_logic;
+    output_2_voltage_item_dvalid  : out std_logic;
+    output_2_voltage_item_last    : out std_logic;
+    output_2_voltage_item         : out std_logic_vector(63 downto 0);
+    output_2_voltage_item_count   : out std_logic_vector(0 downto 0);
+    output_2_voltage_unl_valid    : in std_logic;
+    output_2_voltage_unl_ready    : out std_logic;
+    output_2_voltage_unl_tag      : in std_logic_vector(TAG_WIDTH - 1 downto 0);
+    output_2_voltage_cmd_valid    : out std_logic;
+    output_2_voltage_cmd_ready    : in std_logic;
+    output_2_voltage_cmd_firstIdx : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
+    output_2_voltage_cmd_lastIdx  : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
+    output_2_voltage_cmd_tag      : out std_logic_vector(TAG_WIDTH - 1 downto 0);
+    start                         : in std_logic;
+    stop                          : in std_logic;
+    reset                         : in std_logic;
+    idle                          : out std_logic;
+    busy                          : out std_logic;
+    done                          : out std_logic;
+    result                        : out std_logic_vector(63 downto 0);
+    input_1_firstidx              : in std_logic_vector(31 downto 0);
+    input_1_lastidx               : in std_logic_vector(31 downto 0);
+    input_2_firstidx              : in std_logic_vector(31 downto 0);
+    input_2_lastidx               : in std_logic_vector(31 downto 0);
+    output_1_firstidx             : in std_logic_vector(31 downto 0);
+    output_1_lastidx              : in std_logic_vector(31 downto 0);
+    output_2_firstidx             : in std_logic_vector(31 downto 0);
+    output_2_lastidx              : in std_logic_vector(31 downto 0);
+    ext_platform_complete_req     : out std_logic;
+    ext_platform_complete_ack     : in std_logic
   );
 end entity;
 
-architecture Implementation of battery_status is
+architecture Implementation of battery_status_2 is
 
   -- elements per cycle of input stream
   -- matches the value set in the schema (generate.py)
   constant EPC : natural := 8;
 
   type state_t is (
-    STATE_IDLE,         -- idle
-    STATE_REQ_READ,     -- send read request
-    STATE_REQ_WRITE,    -- send write request
-    STATE_UNLOCK_READ,  -- unlock read
-    STATE_UNLOCK_WRITE, -- unlock write
-    STATE_FENCE,        -- write fence
-    STATE_DONE          -- done
+    STATE_IDLE,           -- idle
+    STATE_REQ_READ_1,     -- send read request
+    STATE_REQ_WRITE_1,    -- send write request
+    STATE_REQ_READ_2,     -- send read request
+    STATE_REQ_WRITE_2,    -- send write request
+    STATE_UNLOCK_READ_1,  -- unlock read
+    STATE_UNLOCK_READ_2,  -- unlock read
+    STATE_UNLOCK_WRITE_1, -- unlock write
+    STATE_UNLOCK_WRITE_2, -- unlock write
+    STATE_FENCE,          -- write fence
+    STATE_DONE            -- done
   );
 
   -- state signals
-  signal state, state_next     : state_t;
+  signal state, state_next                                : state_t;
 
   -- parser output signals
-  signal json_out_valid        : std_logic;
-  signal json_out_ready        : std_logic;
-  signal json_out_data         : std_logic_vector(63 downto 0);
-  signal json_out_last         : std_logic_vector(2 downto 0);
-  signal json_out_strb         : std_logic;
+  signal json_out_valid_1, json_out_valid_2               : std_logic;
+  signal json_out_ready_1, json_out_ready_2               : std_logic;
+  signal json_out_data_1, json_out_data_2                 : std_logic_vector(63 downto 0);
+  signal json_out_last_1, json_out_last_2                 : std_logic_vector(2 downto 0);
+  signal json_out_strb_1, json_out_strb_2                 : std_logic;
 
-  signal int_input_input_ready : std_logic;
+  signal int_input_input_ready_1, int_input_input_ready_2 : std_logic;
 
-  signal strb                  : std_logic_vector(EPC - 1 downto 0);
-  signal int_in_last           : std_logic_vector(2 * EPC - 1 downto 0);
+  signal strb_1, strb_2                                   : std_logic_vector(EPC - 1 downto 0);
+  signal int_in_last_1, int_in_last_2                     : std_logic_vector(2 * EPC - 1 downto 0);
 
-  signal cmd_complete          : std_logic;
+  signal cmd_complete_1, cmd_complete_2                   : std_logic;
 
-  signal record_counter        : unsigned(63 downto 0);
+  signal record_counter_1, record_counter_2               : unsigned(31 downto 0);
 
 begin
 
@@ -121,55 +163,81 @@ begin
     is
   begin
     if rising_edge(kcd_clk) then
-      if json_out_ready = '1' and json_out_valid = '1' and json_out_last(1) = '1' then
-        record_counter <= record_counter + 1;
+      if json_out_ready_1 = '1' and json_out_valid_1 = '1' and json_out_last_1(1) = '1' then
+        record_counter_1 <= record_counter_1 + 1;
+      end if;
+      if json_out_ready_2 = '1' and json_out_valid_2 = '1' and json_out_last_2(1) = '1' then
+        record_counter_2 <= record_counter_2 + 1;
       end if;
       if kcd_reset = '1' or reset = '1' then
-        record_counter <= (others => '0');
+        record_counter_1 <= (others => '0');
+        record_counter_2 <= (others => '0');
       end if;
     end if;
   end process;
 
-  result <= std_logic_vector(record_counter);
+  result <= std_logic_vector(record_counter_2) & std_logic_vector(record_counter_1);
 
   comb : process (
     start,
     reset,
     state,
-    input_firstidx,
-    input_lastidx,
-    output_firstidx,
-    output_lastidx,
-    int_input_input_ready,
-    input_input_cmd_ready,
-    output_voltage_cmd_ready,
-    input_input_unl_valid,
-    output_voltage_unl_valid,
+    input_1_firstidx,
+    input_1_lastidx,
+    output_1_firstidx,
+    output_1_lastidx,
+    int_input_input_ready_1,
+    input_1_input_cmd_ready,
+    output_1_voltage_cmd_ready,
+    input_1_input_unl_valid,
+    output_1_voltage_unl_valid,
+    input_2_firstidx,
+    input_2_lastidx,
+    output_2_firstidx,
+    output_2_lastidx,
+    int_input_input_ready_2,
+    input_2_input_cmd_ready,
+    output_2_voltage_cmd_ready,
+    input_2_input_unl_valid,
+    output_2_voltage_unl_valid,
     ext_platform_complete_ack
     ) is
   begin
 
     -- read request defaults
-    input_input_cmd_valid       <= '0';
-    input_input_cmd_firstIdx    <= input_firstidx;
-    input_input_cmd_lastIdx     <= input_lastidx;
-    input_input_cmd_tag         <= (others => '0');
-    input_input_unl_ready       <= '0';
+    input_1_input_cmd_valid       <= '0';
+    input_1_input_cmd_firstIdx    <= input_1_firstidx;
+    input_1_input_cmd_lastIdx     <= input_1_lastidx;
+    input_1_input_cmd_tag         <= (others => '0');
+    input_1_input_unl_ready       <= '0';
+
+    input_2_input_cmd_valid       <= '0';
+    input_2_input_cmd_firstIdx    <= input_2_firstidx;
+    input_2_input_cmd_lastIdx     <= input_2_lastidx;
+    input_2_input_cmd_tag         <= (others => '0');
+    input_2_input_unl_ready       <= '0';
 
     -- write request defaults
-    output_voltage_cmd_valid    <= '0';
-    output_voltage_cmd_firstIdx <= output_firstidx;
-    output_voltage_cmd_lastIdx  <= output_lastidx;
-    output_voltage_cmd_tag      <= (others => '0');
-    output_voltage_unl_ready    <= '0';
+    output_1_voltage_cmd_valid    <= '0';
+    output_1_voltage_cmd_firstIdx <= output_1_firstidx;
+    output_1_voltage_cmd_lastIdx  <= output_1_lastidx;
+    output_1_voltage_cmd_tag      <= (others => '0');
+    output_1_voltage_unl_ready    <= '0';
+
+    output_2_voltage_cmd_valid    <= '0';
+    output_2_voltage_cmd_firstIdx <= output_2_firstidx;
+    output_2_voltage_cmd_lastIdx  <= output_2_lastidx;
+    output_2_voltage_cmd_tag      <= (others => '0');
+    output_2_voltage_unl_ready    <= '0';
 
     -- next state is the same if not changed
-    state_next                  <= state;
+    state_next                    <= state;
 
     -- internal signal
-    input_input_ready           <= int_input_input_ready;
+    input_1_input_ready           <= int_input_input_ready_1;
+    input_2_input_ready           <= int_input_input_ready_2;
 
-    ext_platform_complete_req   <= '0';
+    ext_platform_complete_req     <= '0';
 
     case state is
 
@@ -180,55 +248,106 @@ begin
         idle <= '1';
 
         if start = '1' then
-          state_next <= STATE_REQ_READ;
+          state_next <= STATE_REQ_READ_1;
         end if;
 
         -- send read request
-      when STATE_REQ_READ =>
-        done                  <= '0';
-        busy                  <= '1';
-        idle                  <= '0';
+      when STATE_REQ_READ_1 =>
+        done                    <= '0';
+        busy                    <= '1';
+        idle                    <= '0';
 
-        input_input_cmd_valid <= '1';
+        input_1_input_cmd_valid <= '1';
 
         -- handshake
-        if input_input_cmd_ready = '1' then
-          state_next <= STATE_REQ_WRITE;
+        if input_1_input_cmd_ready = '1' then
+          state_next <= STATE_REQ_READ_2;
+        end if;
+
+        -- send read request
+      when STATE_REQ_READ_2 =>
+        done                    <= '0';
+        busy                    <= '1';
+        idle                    <= '0';
+
+        input_2_input_cmd_valid <= '1';
+
+        -- handshake
+        if input_2_input_cmd_ready = '1' then
+          state_next <= STATE_REQ_WRITE_1;
         end if;
 
         -- send write request
-      when STATE_REQ_WRITE =>
-        done                     <= '0';
-        busy                     <= '1';
-        idle                     <= '0';
+      when STATE_REQ_WRITE_1 =>
+        done                       <= '0';
+        busy                       <= '1';
+        idle                       <= '0';
 
-        output_voltage_cmd_valid <= '1';
+        output_1_voltage_cmd_valid <= '1';
 
         -- handshake
-        if output_voltage_cmd_ready = '1' then
-          state_next <= STATE_UNLOCK_READ;
+        if output_1_voltage_cmd_ready = '1' then
+          state_next <= STATE_REQ_WRITE_2;
+          -- state_next <= STATE_UNLOCK_READ;
+        end if;
+
+        -- send write request
+      when STATE_REQ_WRITE_2 =>
+        done                       <= '0';
+        busy                       <= '1';
+        idle                       <= '0';
+
+        output_2_voltage_cmd_valid <= '1';
+
+        -- handshake
+        if output_2_voltage_cmd_ready = '1' then
+          state_next <= STATE_UNLOCK_READ_1;
         end if;
 
         -- unlock read
-      when STATE_UNLOCK_READ =>
+      when STATE_UNLOCK_READ_1 =>
         done <= '0';
         busy <= '1';
         idle <= '0';
 
-        if input_input_unl_valid = '1' then
-          input_input_unl_ready <= '1';
-          state_next            <= STATE_UNLOCK_WRITE;
+        if input_1_input_unl_valid = '1' then
+          input_1_input_unl_ready <= '1';
+          state_next              <= STATE_UNLOCK_READ_2;
+          -- state_next            <= STATE_UNLOCK_WRITE;
+        end if;
+
+        -- unlock read
+      when STATE_UNLOCK_READ_2 =>
+        done <= '0';
+        busy <= '1';
+        idle <= '0';
+
+        if input_2_input_unl_valid = '1' then
+          input_2_input_unl_ready <= '1';
+          state_next              <= STATE_UNLOCK_WRITE_1;
         end if;
 
         -- unlock write
-      when STATE_UNLOCK_WRITE =>
+      when STATE_UNLOCK_WRITE_1 =>
         done <= '0';
         busy <= '1';
         idle <= '0';
 
-        if output_voltage_unl_valid = '1' then
-          output_voltage_unl_ready <= '1';
-          state_next               <= STATE_FENCE;
+        if output_1_voltage_unl_valid = '1' then
+          output_1_voltage_unl_ready <= '1';
+          state_next                 <= STATE_UNLOCK_WRITE_2;
+          -- state_next               <= STATE_FENCE;
+        end if;
+
+        -- unlock write
+      when STATE_UNLOCK_WRITE_2 =>
+        done <= '0';
+        busy <= '1';
+        idle <= '0';
+
+        if output_2_voltage_unl_valid = '1' then
+          output_2_voltage_unl_ready <= '1';
+          state_next                 <= STATE_FENCE;
         end if;
 
       when STATE_FENCE =>
@@ -267,26 +386,38 @@ begin
     end if;
   end process;
 
-  tydi_strb : process (input_input_dvalid, input_input_count)
+  tydi_strb : process (input_1_input_dvalid, input_1_input_count, input_2_input_dvalid, input_2_input_count)
   begin
-    strb <= (others => '0');
-    for i in strb'range loop
-      if unsigned(input_input_count) = 0 or i < unsigned(input_input_count) then
-        strb(i) <= input_input_dvalid;
+    strb_1 <= (others => '0');
+    strb_2 <= (others => '0');
+    for i in strb_1'range loop
+      if unsigned(input_1_input_count) = 0 or i < unsigned(input_1_input_count) then
+        strb_1(i) <= input_1_input_dvalid;
+      end if;
+    end loop;
+    for i in strb_2'range loop
+      if unsigned(input_2_input_count) = 0 or i < unsigned(input_2_input_count) then
+        strb_2(i) <= input_2_input_dvalid;
       end if;
     end loop;
   end process;
 
-  int_in_last_proc : process (input_input_last)
+  int_in_last_proc : process (input_1_input_last, input_2_input_last)
   begin
-    int_in_last              <= (others => '0');
+    int_in_last_1              <= (others => '0');
     -- all records are currently sent in one transfer, so there's no difference
     -- between the two dimensions going into the parser.
-    int_in_last(EPC * 2 - 2) <= input_input_last;
-    int_in_last(EPC * 2 - 1) <= input_input_last;
+    int_in_last_1(EPC * 2 - 2) <= input_1_input_last;
+    int_in_last_1(EPC * 2 - 1) <= input_1_input_last;
+
+    int_in_last_2              <= (others => '0');
+    -- all records are currently sent in one transfer, so there's no difference
+    -- between the two dimensions going into the parser.
+    int_in_last_2(EPC * 2 - 2) <= input_2_input_last;
+    int_in_last_2(EPC * 2 - 1) <= input_2_input_last;
   end process;
 
-  battery_status_parser : BattSchemaParser
+  battery_status_parser_1 : BattSchemaParser
   generic map(
     EPC                   => EPC,
     INT_WIDTH             => 64,
@@ -296,20 +427,45 @@ begin
   port map(
     clk       => kcd_clk,
     reset     => kcd_reset,
-    in_valid  => input_input_valid,
-    in_ready  => int_input_input_ready,
-    in_data   => input_input,
-    in_last   => int_in_last,
+    in_valid  => input_1_input_valid,
+    in_ready  => int_input_input_ready_1,
+    in_data   => input_1_input,
+    in_last   => int_in_last_1,
     in_stai => (others => '0'),
     in_endi => (others => '1'),
-    in_strb   => strb,
+    in_strb   => strb_1,
     end_req   => '0',  -- not implemented
     end_ack   => open, -- not implemented
-    out_valid => json_out_valid,
-    out_ready => json_out_ready,
-    out_data  => json_out_data,
-    out_last  => json_out_last,
-    out_strb  => json_out_strb
+    out_valid => json_out_valid_1,
+    out_ready => json_out_ready_1,
+    out_data  => json_out_data_1,
+    out_last  => json_out_last_1,
+    out_strb  => json_out_strb_1
+  );
+  battery_status_parser_2 : BattSchemaParser
+  generic map(
+    EPC                   => EPC,
+    INT_WIDTH             => 64,
+    INT_P_PIPELINE_STAGES => 4,
+    END_REQ_EN            => false
+  )
+  port map(
+    clk       => kcd_clk,
+    reset     => kcd_reset,
+    in_valid  => input_2_input_valid,
+    in_ready  => int_input_input_ready_2,
+    in_data   => input_2_input,
+    in_last   => int_in_last_2,
+    in_stai => (others => '0'),
+    in_endi => (others => '1'),
+    in_strb   => strb_2,
+    end_req   => '0',  -- not implemented
+    end_ack   => open, -- not implemented
+    out_valid => json_out_valid_2,
+    out_ready => json_out_ready_2,
+    out_data  => json_out_data_2,
+    out_last  => json_out_last_2,
+    out_strb  => json_out_strb_2
   );
 
   convert_proc : process (kcd_clk) is
@@ -322,7 +478,7 @@ begin
       end_of_object : std_logic;
       end_of_query  : std_logic;
     end record;
-    variable i : input_holding_reg_type;
+    variable i1, i2 : input_holding_reg_type;
 
     type count_output_holding_reg_type is record
       valid  : std_logic;
@@ -330,7 +486,7 @@ begin
       data   : std_logic_vector(31 downto 0);
       last   : std_logic;
     end record;
-    variable oc : count_output_holding_reg_type;
+    variable oc1, oc2 : count_output_holding_reg_type;
 
     type element_output_holding_reg_type is record
       valid  : std_logic;
@@ -338,99 +494,183 @@ begin
       data   : std_logic_vector(63 downto 0);
       last   : std_logic;
     end record;
-    variable oe    : element_output_holding_reg_type;
+    variable oe1, oe2       : element_output_holding_reg_type;
 
     -- Current element count for length stream.
-    variable count : unsigned(31 downto 0) := (others => '0');
+    variable count1, count2 : unsigned(31 downto 0) := (others => '0');
 
   begin
+
     if rising_edge(kcd_clk) then
-      cmd_complete <= '0';
+      cmd_complete_1 <= '0';
+      cmd_complete_2 <= '0';
 
-      if i.valid = '0' then
-        i.valid         := json_out_valid;
-        i.dvalid        := json_out_strb;
-        i.data          := json_out_data;
-        i.end_of_array  := json_out_last(0);
-        i.end_of_object := json_out_last(1);
-        i.end_of_query  := json_out_last(2);
+      if i1.valid = '0' then
+        i1.valid         := json_out_valid_1;
+        i1.dvalid        := json_out_strb_1;
+        i1.data          := json_out_data_1;
+        i1.end_of_array  := json_out_last_1(0);
+        i1.end_of_object := json_out_last_1(1);
+        i1.end_of_query  := json_out_last_1(2);
       end if;
 
-      if output_voltage_ready = '1' then
-        oc.valid := '0';
+      if i2.valid = '0' then
+        i2.valid         := json_out_valid_2;
+        i2.dvalid        := json_out_strb_2;
+        i2.data          := json_out_data_2;
+        i2.end_of_array  := json_out_last_2(0);
+        i2.end_of_object := json_out_last_2(1);
+        i2.end_of_query  := json_out_last_2(2);
       end if;
 
-      if output_voltage_item_ready = '1' then
-        oe.valid := '0';
+      if output_1_voltage_ready = '1' then
+        oc1.valid := '0';
+      end if;
+      if output_2_voltage_ready = '1' then
+        oc2.valid := '0';
       end if;
 
-      if i.valid = '1' and oc.valid = '0' and oe.valid = '0' then
-        oe.dvalid := '0';
-        oe.last   := '0';
-        oc.dvalid := '0';
-        oc.last   := '0';
+      if output_1_voltage_item_ready = '1' then
+        oe1.valid := '0';
+      end if;
+      if output_2_voltage_item_ready = '1' then
+        oe2.valid := '0';
+      end if;
+
+      if i1.valid = '1' and oc1.valid = '0' and oe1.valid = '0' then
+        oe1.dvalid := '0';
+        oe1.last   := '0';
+        oc1.dvalid := '0';
+        oc1.last   := '0';
 
         -- If the data is valid, forward it and increment the element counter.
-        if i.dvalid = '1' then
+        if i1.dvalid = '1' then
           -- oe.valid  := '1';
-          oe.dvalid := '1';
-          oe.data   := i.data;
-          count     := count + 1;
+          oe1.dvalid := '1';
+          oe1.data   := i1.data;
+          count1     := count1 + 1;
         end if;
 
         -- If this is the end of the current JSON object, send last to the
         -- element stream and send the element count to the length stream.
         -- We could also use end_of_array here; for valid JSON these should be
         -- equivalent.
-        if i.end_of_object = '1' then
+        if i1.end_of_object = '1' then
           -- oc.valid  := '1';
-          oc.dvalid := '1';
-          oc.data   := std_logic_vector(count);
-          count     := (others => '0');
+          oc1.dvalid := '1';
+          oc1.data   := std_logic_vector(count1);
+          count1     := (others => '0');
         end if;
 
         -- If this is the end of the current command, send last to the length
         -- stream, and send a strobe to the state machine that indicates
         -- completion.
-        if i.end_of_query = '1' then
+        if i1.end_of_query = '1' then
           -- oe.valid := '1';
-          oe.last := '1';
+          oe1.last := '1';
           -- oc.valid := '1';
-          oc.last := '1';
-          cmd_complete <= '1';
+          oc1.last := '1';
+          cmd_complete_1 <= '0';
         end if;
 
-        oe.valid := i.dvalid or i.end_of_query;
-        oc.valid := i.end_of_object or i.end_of_query;
+        oe1.valid := i1.dvalid or i1.end_of_query;
+        oc1.valid := i1.end_of_object or i1.end_of_query;
 
         -- clear holding register
-        i.valid  := '0';
+        i1.valid  := '0';
 
       end if;
 
       if kcd_reset = '1' then
-        i.valid  := '0';
-        oc.valid := '0';
-        oe.valid := '0';
-        count    := (others => '0');
-        cmd_complete <= '0';
+        i1.valid  := '0';
+        oc1.valid := '0';
+        oe1.valid := '0';
+        count1    := (others => '0');
+        cmd_complete_1 <= '0';
       end if;
 
-      json_out_ready             <= not i.valid;
+      json_out_ready_1             <= not i1.valid;
 
-      output_voltage_valid       <= oc.valid;
-      output_voltage_dvalid      <= oc.dvalid;
-      output_voltage_last        <= oc.last;
-      output_voltage_length      <= oc.data;
-      output_voltage_count       <= "1";
+      output_1_voltage_valid       <= oc1.valid;
+      output_1_voltage_dvalid      <= oc1.dvalid;
+      output_1_voltage_last        <= oc1.last;
+      output_1_voltage_length      <= oc1.data;
+      output_1_voltage_count       <= "1";
 
-      output_voltage_item_valid  <= oe.valid;
-      output_voltage_item_dvalid <= oe.dvalid;
-      output_voltage_item_last   <= oe.last;
-      output_voltage_item        <= oe.data;
-      output_voltage_item_count  <= "1";
+      output_1_voltage_item_valid  <= oe1.valid;
+      output_1_voltage_item_dvalid <= oe1.dvalid;
+      output_1_voltage_item_last   <= oe1.last;
+      output_1_voltage_item        <= oe1.data;
+      output_1_voltage_item_count  <= "1";
+
+      if i2.valid = '1' and oc2.valid = '0' and oe2.valid = '0' then
+        oe2.dvalid := '0';
+        oe2.last   := '0';
+        oc2.dvalid := '0';
+        oc2.last   := '0';
+
+        -- If the data is valid, forward it and increment the element counter.
+        if i2.dvalid = '1' then
+          -- oe.valid  := '1';
+          oe2.dvalid := '1';
+          oe2.data   := i2.data;
+          count2     := count2 + 1;
+        end if;
+
+        -- If this is the end of the current JSON object, send last to the
+        -- element stream and send the element count to the length stream.
+        -- We could also use end_of_array here; for valid JSON these should be
+        -- equivalent.
+        if i2.end_of_object = '1' then
+          -- oc.valid  := '1';
+          oc2.dvalid := '1';
+          oc2.data   := std_logic_vector(count2);
+          count2     := (others => '0');
+        end if;
+
+        -- If this is the end of the current command, send last to the length
+        -- stream, and send a strobe to the state machine that indicates
+        -- completion.
+        if i2.end_of_query = '1' then
+          -- oe.valid := '1';
+          oe2.last := '1';
+          -- oc.valid := '1';
+          oc2.last := '1';
+          cmd_complete_2 <= '0';
+        end if;
+
+        oe2.valid := i2.dvalid or i2.end_of_query;
+        oc2.valid := i2.end_of_object or i2.end_of_query;
+
+        -- clear holding register
+        i2.valid  := '0';
+
+      end if;
+
+      if kcd_reset = '1' then
+        i2.valid  := '0';
+        oc2.valid := '0';
+        oe2.valid := '0';
+        count2    := (others => '0');
+        cmd_complete_2 <= '0';
+      end if;
+
+      json_out_ready_2             <= not i2.valid;
+
+      output_2_voltage_valid       <= oc2.valid;
+      output_2_voltage_dvalid      <= oc2.dvalid;
+      output_2_voltage_last        <= oc2.last;
+      output_2_voltage_length      <= oc2.data;
+      output_2_voltage_count       <= "1";
+
+      output_2_voltage_item_valid  <= oe2.valid;
+      output_2_voltage_item_dvalid <= oe2.dvalid;
+      output_2_voltage_item_last   <= oe2.last;
+      output_2_voltage_item        <= oe2.data;
+      output_2_voltage_item_count  <= "1";
 
     end if;
+
   end process;
 
 end architecture;

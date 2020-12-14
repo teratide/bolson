@@ -30,7 +30,8 @@ ${FLETCHER_HARDWARE_DIR}/arrays/ArrayWriterListPrim.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayWriterLevel.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayWriterArb.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayWriter.vhd
-vhdl/battery_status_output.gen.vhd
+vhdl/battery_status_2_output_1.gen.vhd
+vhdl/battery_status_2_output_2.gen.vhd
 ${FLETCHER_HARDWARE_DIR}/vhlib/stream/StreamArb.vhd
 ${FLETCHER_HARDWARE_DIR}/interconnect/BusReadArbiterVec.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderStruct.vhd
@@ -61,7 +62,8 @@ ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderList.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderLevel.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReaderArb.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayReader.vhd
-vhdl/battery_status_input.gen.vhd
+vhdl/battery_status_2_input_1.gen.vhd
+vhdl/battery_status_2_input_2.gen.vhd
 ${FLETCHER_HARDWARE_DIR}/arrays/ArrayCmdCtrlMerger.vhd
 vhdl/vhdmmio_pkg.gen.vhd
 vhdl/mmio_pkg.gen.vhd
@@ -73,8 +75,8 @@ vhdl/mmio.gen.vhd
 ../../battery_status/hw/vhdl/tydi-json/test/schemas/battery_status/battery_status_pkg.vhd
 ../../battery_status/hw/vhdl/tydi-json/test/schemas/battery_status/BattSchemaParser.vhd
 vhdl/battery_status_2.vhd
-vhdl/battery_status_Nucleus.gen.vhd
-vhdl/battery_status_Mantle.gen.vhd
+vhdl/battery_status_2_Nucleus.gen.vhd
+vhdl/battery_status_2_Mantle.gen.vhd
 ${FLETCHER_HARDWARE_DIR}/axi/Axi_pkg.vhd
 vhdl/AxiTop.vhd
 
