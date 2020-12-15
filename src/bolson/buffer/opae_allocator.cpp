@@ -15,11 +15,20 @@
 #include <sys/mman.h>
 #include <cstring>
 
+#include "bolson/log.h"
 #include "bolson/buffer/opae_allocator.h"
 
 namespace bolson::buffer {
 
+size_t g_opae_buffercap = 1000 * 1024 * 1024;
+
 auto OpaeAllocator::Allocate(size_t size, std::byte **out) -> Status {
+  spdlog::warn("You want to opae allocate {} bytes, but you're getting {}.",
+               size,
+               g_opae_buffercap);
+
+  size = g_opae_buffercap;
+
   // TODO(mbrobbel): explain this
   void *addr = mmap(nullptr,
                     size,

@@ -20,6 +20,9 @@
 
 namespace bolson::buffer {
 
+/// A work-around for limitations to the OPAE platform.
+extern size_t g_opae_buffercap;
+
 class OpaeAllocator : public Allocator {
  public:
   auto Allocate(size_t size, std::byte **out) -> Status override;

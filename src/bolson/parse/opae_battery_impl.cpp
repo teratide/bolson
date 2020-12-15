@@ -156,8 +156,10 @@ static auto CopyAndWrapOutput(int32_t num_rows,
 auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
   ParsedBuffer result;
   // Prepare the input batch.
+  // Because of limitations to the opae stuff, we need to pretend this input batch
+  // is buffer::g_opae_buffercap in size for now.
   BOLSON_ROE(PrepareInputBatch(reinterpret_cast<const uint8_t *>(in->data()),
-                               in->capacity()));
+                               buffer::g_opae_buffercap));
   // Create a context.
   FLETCHER_ROE(fletcher::Context::Make(&context, platform));
   // Queue batches.
@@ -170,6 +172,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> St
   // Write metadata.
   FLETCHER_ROE(kernel->WriteMetaData());
 
+  // rewrite the input last index because of opae limitations.
   FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_LASTIDX, in->size()));
 
   // Reset the kernel, start it, and poll until completion.

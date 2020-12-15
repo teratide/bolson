@@ -162,7 +162,13 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
 
     // Allocate buffers
     // Calculate generous buffer size, +1 for newline
-    converter.AllocateBuffers(opt.tcp_buffer_size);
+    auto buf_cap = opt.tcp_buffer_capacity;
+    // Temporary work-around for opae
+    if (opt.converter.implementation == parse::Impl::OPAE_BATTERY) {
+      buf_cap = buffer::g_opae_buffercap;
+    }
+
+    converter.AllocateBuffers(buf_cap);
 
     // Set up Resizers and Serializers.
     for (size_t t = 0; t < opt.converter.num_threads; t++) {

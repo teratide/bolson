@@ -147,8 +147,14 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
 
   // Allocate and fill buffers.
   // Calculate generous buffer size, +1 for newline
-  auto buf_size = num_buffers * max_json + (opt.num_jsons * max_json) / num_buffers;
-  converter.AllocateBuffers(buf_size);
+  auto buf_cap = num_buffers * max_json + (opt.num_jsons * max_json) / num_buffers;
+
+  // Temporary work-around for opae
+  if (opt.converter.implementation == parse::Impl::OPAE_BATTERY) {
+    buf_cap = buffer::g_opae_buffercap;
+  }
+
+  converter.AllocateBuffers(buf_cap);
   FillBuffers(ToPointers(converter.buffers), items);
 
   // Lock all buffers.
