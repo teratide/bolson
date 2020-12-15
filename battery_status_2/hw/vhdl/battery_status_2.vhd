@@ -266,8 +266,6 @@ begin
         busy                    <= '1';
         idle                    <= '0';
 
-        result                  <= (0 => '1', others => '0');
-
         input_1_input_cmd_valid <= '1';
 
         -- handshake
@@ -280,8 +278,6 @@ begin
         done                    <= '0';
         busy                    <= '1';
         idle                    <= '0';
-
-        result                  <= (1 => '1', others => '0');
 
         input_2_input_cmd_valid <= '1';
 
@@ -296,8 +292,6 @@ begin
         busy                       <= '1';
         idle                       <= '0';
 
-        result                     <= (2 => '1', others => '0');
-
         output_1_voltage_cmd_valid <= '1';
 
         -- handshake
@@ -311,8 +305,6 @@ begin
         done                       <= '0';
         busy                       <= '1';
         idle                       <= '0';
-
-        result                     <= (3 => '1', others => '0');
 
         output_2_voltage_cmd_valid <= '1';
 
@@ -371,8 +363,6 @@ begin
         done                      <= '0';
         busy                      <= '1';
         idle                      <= '0';
-
-        result                    <= (8 => '1', others => '0');
 
         ext_platform_complete_req <= '1';
         if ext_platform_complete_ack = '1' then
