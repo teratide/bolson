@@ -155,28 +155,37 @@ architecture Implementation of battery_status_2 is
 
   signal cmd_complete_1, cmd_complete_2                   : std_logic;
 
-  -- signal record_counter_1, record_counter_2               : unsigned(31 downto 0);
+  signal record_counter_1, record_counter_2               : unsigned(31 downto 0);
 
 begin
 
-  -- counter : process (kcd_clk)
-  --   is
-  -- begin
-  --   if rising_edge(kcd_clk) then
-  --     if json_out_ready_1 = '1' and json_out_valid_1 = '1' and json_out_last_1(1) = '1' then
-  --       record_counter_1 <= record_counter_1 + 1;
-  --     end if;
-  --     if json_out_ready_2 = '1' and json_out_valid_2 = '1' and json_out_last_2(1) = '1' then
-  --       record_counter_2 <= record_counter_2 + 1;
-  --     end if;
-  --     if kcd_reset = '1' or reset = '1' then
-  --       record_counter_1 <= (others => '0');
-  --       record_counter_2 <= (others => '0');
-  --     end if;
-  --   end if;
-  -- end process;
+  counter_1 : process (kcd_clk)
+    is
+  begin
+    if rising_edge(kcd_clk) then
+      if json_out_ready_1 = '1' and json_out_valid_1 = '1' and json_out_last_1(1) = '1' then
+        record_counter_1 <= record_counter_1 + 1;
+      end if;
+      if kcd_reset = '1' or reset = '1' then
+        record_counter_1 <= (others => '0');
+      end if;
+    end if;
+  end process;
 
-  -- result <= std_logic_vector(record_counter_2) & std_logic_vector(record_counter_1);
+  counter_2 : process (kcd_clk)
+    is
+  begin
+    if rising_edge(kcd_clk) then
+      if json_out_ready_2 = '1' and json_out_valid_2 = '1' and json_out_last_2(1) = '1' then
+        record_counter_2 <= record_counter_2 + 1;
+      end if;
+      if kcd_reset = '1' or reset = '1' then
+        record_counter_2 <= (others => '0');
+      end if;
+    end if;
+  end process;
+
+  result <= std_logic_vector(record_counter_2) & std_logic_vector(record_counter_1);
 
   comb : process (
     start,
@@ -239,17 +248,13 @@ begin
 
     ext_platform_complete_req     <= '0';
 
-    result                        <= (others => '1');
-
     case state is
 
         -- wait for start signal
       when STATE_IDLE =>
-        done   <= '0';
-        busy   <= '0';
-        idle   <= '1';
-
-        result <= (others => '0');
+        done <= '0';
+        busy <= '0';
+        idle <= '1';
 
         if start = '1' then
           state_next <= STATE_REQ_READ_1;
@@ -318,11 +323,9 @@ begin
 
         -- unlock read
       when STATE_UNLOCK_READ_1 =>
-        done   <= '0';
-        busy   <= '1';
-        idle   <= '0';
-
-        result <= (4 => '1', others => '0');
+        done <= '0';
+        busy <= '1';
+        idle <= '0';
 
         if input_1_input_unl_valid = '1' then
           input_1_input_unl_ready <= '1';
@@ -332,11 +335,9 @@ begin
 
         -- unlock read
       when STATE_UNLOCK_READ_2 =>
-        done   <= '0';
-        busy   <= '1';
-        idle   <= '0';
-
-        result <= (5 => '1', others => '0');
+        done <= '0';
+        busy <= '1';
+        idle <= '0';
 
         if input_2_input_unl_valid = '1' then
           input_2_input_unl_ready <= '1';
@@ -345,11 +346,9 @@ begin
 
         -- unlock write
       when STATE_UNLOCK_WRITE_1 =>
-        done   <= '0';
-        busy   <= '1';
-        idle   <= '0';
-
-        result <= (6 => '1', others => '0');
+        done <= '0';
+        busy <= '1';
+        idle <= '0';
 
         if output_1_voltage_unl_valid = '1' then
           output_1_voltage_unl_ready <= '1';
@@ -359,11 +358,9 @@ begin
 
         -- unlock write
       when STATE_UNLOCK_WRITE_2 =>
-        done   <= '0';
-        busy   <= '1';
-        idle   <= '0';
-
-        result <= (7 => '1', others => '0');
+        done <= '0';
+        busy <= '1';
+        idle <= '0';
 
         if output_2_voltage_unl_valid = '1' then
           output_2_voltage_unl_ready <= '1';
@@ -384,11 +381,9 @@ begin
 
         -- wait for kernel reset
       when STATE_DONE =>
-        done   <= '1';
-        busy   <= '0';
-        idle   <= '1';
-
-        result <= (9 => '1', others => '0');
+        done <= '1';
+        busy <= '0';
+        idle <= '1';
 
         if reset = '1' then
           state_next <= STATE_IDLE;
