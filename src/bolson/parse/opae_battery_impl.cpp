@@ -138,8 +138,8 @@ static auto WrapOutput(int32_t num_rows,
 //    std::memcpy(new_offs->mutable_data(), offsets, num_offset_bytes);
 //    std::memcpy(new_vals->mutable_data(), values, num_values_bytes);
 
-    auto values_buf = arrow::Buffer::Wrap(values, num_values);
-    auto offsets_buf = arrow::Buffer::Wrap(offsets, num_values);
+    auto values_buf = arrow::Buffer::Wrap(values, num_values_bytes);
+    auto offsets_buf = arrow::Buffer::Wrap(offsets, num_offset_bytes);
     auto value_array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_values, values_buf);
     auto offsets_array =
