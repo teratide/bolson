@@ -112,11 +112,11 @@ auto OpaeBatteryParser::Make(const OpaeBatteryOptions &opts,
   return Status::OK();
 }
 
-static auto CopyAndWrapOutput(int32_t num_rows,
-                              uint8_t *offsets,
-                              uint8_t *values,
-                              std::shared_ptr<arrow::Schema> schema,
-                              std::shared_ptr<arrow::RecordBatch> *out) -> Status {
+static auto WrapOutput(int32_t num_rows,
+                       uint8_t *offsets,
+                       uint8_t *values,
+                       std::shared_ptr<arrow::Schema> schema,
+                       std::shared_ptr<arrow::RecordBatch> *out) -> Status {
   auto ret = Status::OK();
 
   // +1 because the last value in offsets buffer is the next free index in the values
@@ -130,18 +130,20 @@ static auto CopyAndWrapOutput(int32_t num_rows,
   size_t num_values_bytes = num_values * sizeof(uint64_t);
 
   try {
-    auto new_offs =
-        std::shared_ptr(std::move(arrow::AllocateBuffer(num_offset_bytes).ValueOrDie()));
-    auto new_vals =
-        std::shared_ptr(std::move(arrow::AllocateBuffer(num_values_bytes).ValueOrDie()));
+//    auto new_offs =
+//        std::shared_ptr(std::move(arrow::AllocateBuffer(num_offset_bytes).ValueOrDie()));
+//    auto new_vals =
+//        std::shared_ptr(std::move(arrow::AllocateBuffer(num_values_bytes).ValueOrDie()));
 
-    std::memcpy(new_offs->mutable_data(), offsets, num_offset_bytes);
-    std::memcpy(new_vals->mutable_data(), values, num_values_bytes);
+//    std::memcpy(new_offs->mutable_data(), offsets, num_offset_bytes);
+//    std::memcpy(new_vals->mutable_data(), values, num_values_bytes);
 
+    auto values_buf = arrow::Buffer::Wrap(values, num_values);
+    auto offsets_buf = arrow::Buffer::Wrap(offsets, num_values);
     auto value_array =
-        std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_values, new_vals);
+        std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_values, values_buf);
     auto offsets_array =
-        std::make_shared<arrow::PrimitiveArray>(arrow::int32(), num_offsets, new_offs);
+        std::make_shared<arrow::PrimitiveArray>(arrow::int32(), num_offsets, offsets_buf);
     auto list_array = arrow::ListArray::FromArrays(*offsets_array, *value_array);
 
     std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array.ValueOrDie()};
@@ -185,11 +187,11 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> St
   FLETCHER_ROE(kernel->GetReturn(&num_rows.lo, &num_rows.hi));
 
   std::shared_ptr<arrow::RecordBatch> out_batch;
-  BOLSON_ROE(CopyAndWrapOutput(num_rows.full,
-                               reinterpret_cast<uint8_t *>(out_offsets),
-                               reinterpret_cast<uint8_t *>(out_values),
-                               output_schema(),
-                               &result.batch));
+  BOLSON_ROE(WrapOutput(num_rows.full,
+                        reinterpret_cast<uint8_t *>(out_offsets),
+                        reinterpret_cast<uint8_t *>(out_values),
+                        output_schema(),
+                        &result.batch));
 
   result.parsed_bytes = in->size();
 
