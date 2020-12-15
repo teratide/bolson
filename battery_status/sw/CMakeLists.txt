@@ -26,4 +26,17 @@ add_compile_unit(
       fletcher
 )
 
+add_compile_unit(
+    NAME latency
+    TYPE EXECUTABLE
+    PRPS
+      CXX_STANDARD 11
+      CXX_STANDARD_REQUIRED ON
+    SRCS
+      src/latency.cpp
+    DEPS
+      arrow_shared
+      fletcher
+)
+
 compile_units()
