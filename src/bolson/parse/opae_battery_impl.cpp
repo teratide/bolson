@@ -106,7 +106,6 @@ auto OpaeBatteryParser::Make(const OpaeBatteryOptions &opts,
   char *afu_id = result->opts_.afu_id.data();
   result->platform->init_data = &afu_id;
   FLETCHER_ROE(result->platform->Init());
-  FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));
 
   *out = std::move(result);
 
@@ -156,33 +155,20 @@ static auto CopyAndWrapOutput(int32_t num_rows,
 
 auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
   ParsedBuffer result;
-  if (first) {
-    // If this is the first batch we parse, send all metadata to the FPGA.
-
-    // Prepare the input batch for the first time.
-    BOLSON_ROE(PrepareInputBatch(reinterpret_cast<const uint8_t *>(in->data()),
-                                 in->size()));
-    // Queue batches.
-    FLETCHER_ROE(context->QueueRecordBatch(batch_in));
-    FLETCHER_ROE(context->QueueRecordBatch(batch_out));
-    // Enable context.
-    FLETCHER_ROE(context->Enable());
-    // Construct kernel handler.
-    kernel = std::make_shared<fletcher::Kernel>(context);
-    // Write metadata.
-    FLETCHER_ROE(kernel->WriteMetaData());
-  } else {
-    // Otherwise, we don't need to construct all abstractions again.
-
-    // Write input buffer address and last index, so the FPGA kernel knows from which
-    // buffer to process and how many bytes.
-    dau_t input_addr;
-    input_addr.full = reinterpret_cast<da_t>(in->data());
-    auto input_size = static_cast<int32_t>(in->size());
-    FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_LASTIDX, input_size));
-    FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_VALUES_LO, input_addr.lo));
-    FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_VALUES_HI, input_addr.hi));
-  }
+  // Prepare the input batch.
+  BOLSON_ROE(PrepareInputBatch(reinterpret_cast<const uint8_t *>(in->data()),
+                               in->size()));
+  // Create a context.
+  FLETCHER_ROE(fletcher::Context::Make(&context, platform));
+  // Queue batches.
+  FLETCHER_ROE(context->QueueRecordBatch(batch_in));
+  FLETCHER_ROE(context->QueueRecordBatch(batch_out));
+  // Enable context.
+  FLETCHER_ROE(context->Enable());
+  // Construct kernel handler.
+  kernel = std::make_shared<fletcher::Kernel>(context);
+  // Write metadata.
+  FLETCHER_ROE(kernel->WriteMetaData());
 
   // Reset the kernel, start it, and poll until completion.
   FLETCHER_ROE(kernel->Reset());

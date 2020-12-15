@@ -39,9 +39,7 @@ class OpaeBatteryParser : public Parser {
                    std::shared_ptr<OpaeBatteryParser> *out) -> Status;
   auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status override;
  private:
-  OpaeBatteryParser(const OpaeBatteryOptions &opts) : opts_(opts) {}
-
-  bool first = true;
+  explicit OpaeBatteryParser(const OpaeBatteryOptions &opts) : opts_(opts) {}
 
   OpaeBatteryOptions opts_;
 
