@@ -193,6 +193,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> St
 
   result.parsed_bytes = in->size();
 
+  *out = result;
   return Status::OK();
 }
 

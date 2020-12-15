@@ -252,6 +252,8 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
       }
     }
 
+    BOLSON_ROE(converter.FreeBuffers());
+
     // Report some statistics.
     if (opt.statistics) {
       if (opt.succinct) {

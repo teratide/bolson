@@ -198,11 +198,7 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   t_conv.Stop();
 
   // Free buffers.
-  switch (opt.converter.implementation) {
-    case parse::Impl::ARROW: BOLSON_ROE(converter.FreeBuffers());
-      break;
-    default:return Status(Error::GenericError, "Not implemented.");
-  }
+  BOLSON_ROE(converter.FreeBuffers());
 
   // Print all statistics:
   auto json_MB = static_cast<double>(gen_bytes) / (1e6);
