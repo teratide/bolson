@@ -157,6 +157,8 @@ architecture Implementation of battery_status_2 is
 
   signal cmd_complete_1, cmd_complete_2                   : std_logic;
 
+  signal int_record_counter_1, int_record_counter_2       : unsigned(31 downto 0);
+
 begin
 
   counter_1 : process (kcd_clk)
@@ -164,26 +166,30 @@ begin
   begin
     if rising_edge(kcd_clk) then
       if json_out_ready_1 = '1' and json_out_valid_1 = '1' and json_out_last_1(1) = '1' then
-        record_counter_1 <= record_counter_1 + 1;
+        int_record_counter_1 <= int_record_counter_1 + 1;
       end if;
       if kcd_reset = '1' or reset = '1' then
-        record_counter_1 <= (others => '0');
+        int_record_counter_1 <= (others => '0');
       end if;
     end if;
   end process;
+
+  record_counter_1 <= std_logic_vector(int_record_counter_1);
 
   counter_2 : process (kcd_clk)
     is
   begin
     if rising_edge(kcd_clk) then
       if json_out_ready_2 = '1' and json_out_valid_2 = '1' and json_out_last_2(1) = '1' then
-        record_counter_2 <= record_counter_2 + 1;
+        int_record_counter_2 <= int_record_counter_2 + 1;
       end if;
       if kcd_reset = '1' or reset = '1' then
-        record_counter_2 <= (others => '0');
+        int_record_counter_2 <= (others => '0');
       end if;
     end if;
   end process;
+
+  record_counter_2 <= std_logic_vector(int_record_counter_2);
 
   comb : process (
     start,
