@@ -175,6 +175,10 @@ void ConvertThread(size_t id,
 
 void Converter::Start(std::atomic<bool> *stop_signal) {
   shutdown = stop_signal;
+  for (auto &parser : parsers) {
+    parser->Initialize(ToPointers(buffers));
+  }
+
   for (int t = 0; t < num_threads_; t++) {
     threads.emplace_back(ConvertThread,
                          t,

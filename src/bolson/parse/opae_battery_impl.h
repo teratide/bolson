@@ -37,6 +37,7 @@ class OpaeBatteryParser : public Parser {
  public:
   static auto Make(const OpaeBatteryOptions &opts,
                    std::shared_ptr<OpaeBatteryParser> *out) -> Status;
+  auto Initialize(std::vector<illex::RawJSONBuffer *> buffers) -> Status override;
   auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status override;
  private:
   explicit OpaeBatteryParser(const OpaeBatteryOptions &opts) : opts_(opts) {}
@@ -44,6 +45,8 @@ class OpaeBatteryParser : public Parser {
   OpaeBatteryOptions opts_;
 
   buffer::OpaeAllocator allocator;
+
+  std::unordered_map<std::byte *, da_t> buffer_addr_map;
 
   std::shared_ptr<arrow::RecordBatch> batch_in = nullptr;
   std::shared_ptr<arrow::RecordBatch> batch_out = nullptr;

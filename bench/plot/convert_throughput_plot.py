@@ -30,7 +30,8 @@ t_cpu = get_tp(log_cpu, 'MB/s')
 t_fpga = get_tp(log_fpga, 'MB/s')
 
 s_dsc = ["Generation",
-         "End-to-end conversion",
+         "End-to-end conversion (in)",
+         "End-to-end conversion (out)",
          "Parsing",
          "Resizing",
          "Serializing",
@@ -52,8 +53,8 @@ x_fpga = x + 0.5
 print(x_cpu)
 print(t_cpu)
 
-ax.barh(0, t_cpu[2])
-ax.barh(1, t_fpga[2])
+ax.barh(0, t_cpu[3])
+ax.barh(1, t_fpga[3])
 ax.set_yticks([0, 1])
 ax.set_yticklabels(["CPU\n(32 threads)", "FPGA\n(1 parser instance)"])
 ax.set_xlabel("Throughput (MB/s)")

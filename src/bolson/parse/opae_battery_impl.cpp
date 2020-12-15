@@ -157,25 +157,14 @@ static auto WrapOutput(int32_t num_rows,
 
 auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
   ParsedBuffer result;
-  // Prepare the input batch.
-  // Because of limitations to the opae stuff, we need to pretend this input batch
-  // is buffer::g_opae_buffercap in size for now.
-  BOLSON_ROE(PrepareInputBatch(reinterpret_cast<const uint8_t *>(in->data()),
-                               buffer::g_opae_buffercap));
-  // Create a context.
-  FLETCHER_ROE(fletcher::Context::Make(&context, platform));
-  // Queue batches.
-  FLETCHER_ROE(context->QueueRecordBatch(batch_in));
-  FLETCHER_ROE(context->QueueRecordBatch(batch_out));
-  // Enable context.
-  FLETCHER_ROE(context->Enable());
-  // Construct kernel handler.
-  kernel = std::make_shared<fletcher::Kernel>(context);
-  // Write metadata.
-  FLETCHER_ROE(kernel->WriteMetaData());
-
   // rewrite the input last index because of opae limitations.
   FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_LASTIDX, in->size()));
+
+  dau_t input_addr;
+  input_addr.full = buffer_addr_map[in->data()];
+
+  FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_VALUES_LO, input_addr.lo));
+  FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_VALUES_HI, input_addr.hi));
 
   // Reset the kernel, start it, and poll until completion.
   FLETCHER_ROE(kernel->Reset());
@@ -196,6 +185,31 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> St
   result.parsed_bytes = in->size();
 
   *out = result;
+  return Status::OK();
+}
+auto OpaeBatteryParser::Initialize(std::vector<illex::RawJSONBuffer *> buffers) -> Status {
+  // Work-around, pull each buffer through the Fletcher stack.
+  for (auto *buf : buffers) {
+    // Prepare the input batch.
+    // Because of limitations to the opae stuff, we need to pretend this input batch
+    // is buffer::g_opae_buffercap in size for now.
+    BOLSON_ROE(PrepareInputBatch(reinterpret_cast<const uint8_t *>(buf->data()),
+                                 buffer::g_opae_buffercap));
+    // Create a context.
+    FLETCHER_ROE(fletcher::Context::Make(&context, platform));
+    // Queue batches.
+    FLETCHER_ROE(context->QueueRecordBatch(batch_in));
+    FLETCHER_ROE(context->QueueRecordBatch(batch_out));
+    // Enable context.
+    FLETCHER_ROE(context->Enable());
+    // Construct kernel handler.
+    kernel = std::make_shared<fletcher::Kernel>(context);
+    // Write metadata.
+    FLETCHER_ROE(kernel->WriteMetaData());
+
+    // Workaround to store buffer device address.
+    buffer_addr_map[buf->data()] = context->device_buffer(0).device_address;
+  }
   return Status::OK();
 }
 
