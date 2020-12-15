@@ -6,7 +6,8 @@ RUN apt-get update && \
     apt-get install -y \
     curl cmake g++ make git \
     ca-certificates lsb-release wget gnupg \
-    uuid-dev libjson-c-dev libhwloc-dev libtbb-dev python-dev
+    uuid-dev libjson-c-dev libhwloc-dev libtbb-dev python-dev python3-pip && \
+    pip3 install -Iv pyarrow==1.0.1
 
 ARG OPAE_REF=release/2.0.0
 RUN mkdir -p /opae-sdk/build && \
