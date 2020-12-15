@@ -23,10 +23,11 @@ namespace bolson::buffer {
 size_t g_opae_buffercap = 1000 * 1024 * 1024;
 
 auto OpaeAllocator::Allocate(size_t size, std::byte **out) -> Status {
-  spdlog::warn("You want to opae allocate {} bytes, but you're getting {}.",
-               size,
-               g_opae_buffercap);
-
+  if (size != g_opae_buffercap) {
+    spdlog::warn("You want to opae allocate {} bytes, but you're getting {}.",
+                 size,
+                 g_opae_buffercap);
+  }
   size = g_opae_buffercap;
 
   // TODO(mbrobbel): explain this
@@ -38,8 +39,8 @@ auto OpaeAllocator::Allocate(size_t size, std::byte **out) -> Status {
                     0);
   if (addr == MAP_FAILED) {
     return Status(Error::OpaeError,
-                  "OpaeAllocator unable to allocate huge page buffer. Errno: "
-                      + std::to_string(errno));
+                  "OpaeAllocator unable to allocate huge page buffer. "
+                  "Errno: " + std::to_string(errno) + " : " + std::strerror(errno));
   }
   // Clear memory.
   std::memset(addr, 0, size);
@@ -56,10 +57,14 @@ auto OpaeAllocator::Free(std::byte *buffer) -> Status {
   if (allocations.count(addr) > 0) {
     size = allocations[addr];
   }
+
+  // Temporary work-around.
+  size = g_opae_buffercap;
+
   if (munmap(addr, size) != 0) {
     return Status(Error::OpaeError,
-                  "OpaeAllocator unable to unmap huge page buffer. Errno: "
-                      + std::to_string(errno));
+                  "OpaeAllocator unable to unmap huge page buffer. "
+                  "Errno: " + std::to_string(errno) + " : " + std::strerror(errno));
   }
   if (allocations.erase(addr) != 1) {
     return Status(Error::OpaeError, "OpaeAllocator unable to erase allocation.");
