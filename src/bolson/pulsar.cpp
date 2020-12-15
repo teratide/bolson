@@ -44,27 +44,12 @@ auto SetupClientProducer(const std::string &url,
   return Status::OK();
 }
 
-auto Publish(pulsar::Producer *producer,
-             const uint8_t *buffer,
-             size_t size,
-             illex::LatencyTracker *lat_tracker,
-             std::vector<illex::Seq> *seq_nums) -> Status {
-  pulsar::Message msg =
-      pulsar::MessageBuilder().setAllocatedContent(const_cast<uint8_t *>(buffer),
-                                                   size).build();
-  if (lat_tracker != nullptr) {
-    for (const auto &s : *seq_nums) {
-      lat_tracker->Put(s, BOLSON_LAT_MESSAGE_BUILT, illex::Timer::now());
-    }
-  }
+auto Publish(pulsar::Producer *producer, const uint8_t *buffer, size_t size) -> Status {
+  pulsar::Message
+      msg = pulsar::MessageBuilder().setAllocatedContent(const_cast<uint8_t *>(buffer),
+                                                         size).build();
+  CHECK_PULSAR(producer->send(msg));
 
-  //CHECK_PULSAR(producer->send(msg));
-
-  if (lat_tracker != nullptr) {
-    for (const auto &s : *seq_nums) {
-      lat_tracker->Put(s, BOLSON_LAT_MESSAGE_SENT, illex::Timer::now());
-    }
-  }
   return Status::OK();
 }
 
@@ -72,7 +57,6 @@ void PublishThread(PulsarContext pulsar,
                    IpcQueue *in,
                    std::atomic<bool> *shutdown,
                    std::atomic<size_t> *count,
-                   illex::LatencyTracker *lat_tracker,
                    std::promise<PublishStats> &&stats) {
   // Set up timers.
   auto thread_timer = putong::Timer(true);
@@ -85,21 +69,12 @@ void PublishThread(PulsarContext pulsar,
   while (!shutdown->load()) {
     if (in->wait_dequeue_timed(ipc_item,
                                std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
-      // Mark time point.
-      if (lat_tracker != nullptr) {
-        for (const auto &l : *ipc_item.lat) {
-          lat_tracker->Put(l, BOLSON_LAT_PUBLISH_DEQUEUE, illex::Timer::now());
-        }
-      }
-
       // Start measuring time to handle an IPC message on the Pulsar side.
       publish_timer.Start();
 
       auto status = Publish(pulsar.producer.get(),
                             ipc_item.ipc->data(),
-                            ipc_item.ipc->size(),
-                            lat_tracker,
-                            ipc_item.lat.get());
+                            ipc_item.ipc->size());
 
       // Deal with Pulsar errors.
       // In case the Producer causes some error, shut everything down.

@@ -219,7 +219,7 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
 
   auto a = convert::AggrStats(converter.stats);
   spdlog::info("Details:");
-  LogConvertStats(a, opt.converter.num_threads);
+  LogConvertStats(a, opt.converter.num_threads, "  ");
 
   return Status::OK();
 }

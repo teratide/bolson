@@ -22,6 +22,7 @@
 namespace bolson::convert {
 
 struct SerializedBatches {
+  size_t total_bytes = 0;
   std::vector<std::shared_ptr<arrow::Buffer>> messages;
 };
 

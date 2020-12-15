@@ -103,7 +103,7 @@ auto ProduceFromFile(const FileOptions &opt) -> Status {
   // Publish the buffer in Pulsar:
   timer.Start();
   for (const auto &ipc_buffer : ipc_buffers) {
-    BOLSON_ROE(Publish(pulsar.producer.get(), ipc_buffer->data(), ipc_buffer->size(), nullptr));
+    BOLSON_ROE(Publish(pulsar.producer.get(), ipc_buffer->data(), ipc_buffer->size()));
   }
   timer.Stop();
 

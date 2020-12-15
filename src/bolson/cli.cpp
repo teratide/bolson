@@ -211,7 +211,7 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
                      out->stream.latency.file,
                      "CSV file to dump latency measurements in. "
                      "If not supplied, no information is dumped.");
-  AddConvertOpts(stream, &out->stream.convert);
+  AddConvertOpts(stream, &out->stream.converter);
   AddStatsOpts(stream, &csv);
   AddArrowOpts(stream, &schema_file);
   AddPulsarOpts(stream, &out->stream.pulsar);
@@ -266,8 +266,8 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
     }
     out->stream.protocol = raw;
     out->stream.succinct = csv;
-    out->stream.convert.arrow.parse = parse_options;
-    out->stream.convert.arrow.read = read_options;
+    out->stream.converter.arrow.parse = parse_options;
+    out->stream.converter.arrow.read = read_options;
 
   } else if (bench->parsed()) {
     out->sub = SubCommand::BENCH;

@@ -43,7 +43,9 @@ struct StreamOptions {
   /// Options related to tracking latency.
   LatencyOptions latency;
   /// Options related to conversion.
-  convert::Options convert;
+  convert::Options converter;
+  /// Size of the TCP buffers.
+  size_t tcp_buffer_size = ILLEX_TCP_BUFFER_SIZE;
 };
 
 /**
@@ -52,7 +54,5 @@ struct StreamOptions {
  * \return Status::OK() if successful, error otherwise.
  */
 auto ProduceFromStream(const StreamOptions &opt) -> Status;
-
-auto ProduceFromStreamMultiBuffered(const StreamOptions &opt) -> Status;
 
 }  // namespace bolson

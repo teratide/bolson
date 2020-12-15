@@ -35,6 +35,7 @@ auto Serializer::Serialize(const ResizedBatches &in, SerializedBatches *out) -> 
                     "Maximum IPC message size exceeded."
                     "Reduce max number of rows per batch.");
     }
+    result.total_bytes += serialized->size();
 
     result.messages.push_back(serialize_result.ValueOrDie());
   }

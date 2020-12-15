@@ -49,12 +49,13 @@ static auto TryGetFilledBuffer(const std::vector<illex::RawJSONBuffer *> &buffer
   const size_t num_buffers = buffers.size();
   for (size_t i = 0; i <= num_buffers; i++) {
     b = (b + i) % num_buffers; // increase buffer to try by i, but wrap around
-    SPDLOG_DEBUG("Attempting to unlock {}", b);
-    if (!buffers[b]->empty()) {
-      if (mutexes[b]->try_lock()) {
+    if (mutexes[b]->try_lock()) {
+      if (!buffers[b]->empty()) {
         *lock_idx = b;
         *out = buffers[b];
         return true;
+      } else {
+        mutexes[b]->unlock();
       }
     }
   }
@@ -102,60 +103,65 @@ void ConvertThread(size_t id,
         ResizedBatches resized;
         SerializedBatches serialized;
 
-        SPDLOG_DEBUG("Thread {} converting {}",
-                     id,
-                     std::string_view((char *) buf->data(), buf->size()));
+//        SPDLOG_DEBUG("Thread {} converting {}",
+//                     id,
+//                     std::string_view((char *) buf->data(), buf->size()));
 
         // Parse the buffer.
         stats->status = parser->Parse(buf, &parsed);
         SHUTDOWN_ON_FAILURE();
-        t_stages.Split();
 
-        SPDLOG_DEBUG("Thread {} parsed {} bytes from buffer resulting in {} rows.",
-                     id,
-                     parsed.parsed_bytes,
-                     parsed.batch->num_rows());
+//        SPDLOG_DEBUG("Thread {} parsed {} bytes from buffer resulting in {} rows.",
+//                     id,
+//                     parsed.parsed_bytes,
+//                     parsed.batch->num_rows());
 
         // Reset and unlock the buffer.
         // Add sizes stats before buffer is converted and reset.
         stats->num_jsons += parsed.batch->num_rows();
-        stats->num_json_bytes += parsed.parsed_bytes;
+        stats->json_bytes += parsed.parsed_bytes;
+        stats->num_parsed++;
         buf->Reset();
         mutexes[lock_idx]->unlock();
         lock_idx++; // start at next buffer next time we try to unlock.
+        t_stages.Split();
 
         // Resize the batch.
         stats->status = resizer->Resize(parsed, &resized);
         SHUTDOWN_ON_FAILURE();
         t_stages.Split();
 
-        SPDLOG_DEBUG("Thread {} resized: {} RecordBatches.", id, resized.batches.size());
+//        SPDLOG_DEBUG("Thread {} resized: {} RecordBatches.", id, resized.batches.size());
 
         // Serialize the batch.
         stats->status = serializer->Serialize(resized, &serialized);
         SHUTDOWN_ON_FAILURE();
+        stats->num_ipc += serialized.messages.size();
+        stats->ipc_bytes += serialized.total_bytes;
         t_stages.Split();
 
         // Enqueue IPC items
         for (size_t i = 0; i < serialized.messages.size(); i++) {
           IpcQueueItem ipc{static_cast<size_t>(resized.batches[i]->num_rows()),
                            serialized.messages[i], {}};
-          SPDLOG_DEBUG("Thread {} enqueueing message with {} rows.",
-                       id,
-                       resized.batches[i]->num_rows());
+//          SPDLOG_DEBUG("Thread {} enqueueing message with {} rows.",
+//                       id,
+//                       resized.batches[i]->num_rows());
           out->enqueue(ipc);
         }
+        t_stages.Split();
 
         // Add parse time to stats.
         stats->t.parse += t_stages.seconds()[0];
         stats->t.resize += t_stages.seconds()[1];
         stats->t.serialize += t_stages.seconds()[2];
+        stats->t.enqueue += t_stages.seconds()[3];
       } else {
-        SPDLOG_DEBUG("Thread {} unable to get lock / or buffers not filled.", id);
+//        SPDLOG_DEBUG("Thread {} unable to get lock / or buffers not filled.", id);
         try_buffers = false;
       }
     } else {
-      SPDLOG_DEBUG("Thread {} sleeping...", id);
+//      SPDLOG_DEBUG("Thread {} sleeping...", id);
       std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
       try_buffers = true;
     }

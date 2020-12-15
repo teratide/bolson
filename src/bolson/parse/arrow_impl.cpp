@@ -29,12 +29,19 @@ auto ArrowParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
                                                        opts.read,
                                                        opts.parse);
   if (!tr_make_result.ok()) {
-    return Status(Error::ArrowError, tr_make_result.status().message());
+    return Status(Error::ArrowError,
+                  "Unable to make JSON Table Reader: "
+                      + tr_make_result.status().message());
   }
   auto t_reader = tr_make_result.ValueOrDie();
   auto tr_read_result = t_reader->Read();
   if (!tr_read_result.ok()) {
-    return Status(Error::ArrowError, tr_read_result.status().message());
+    SPDLOG_DEBUG("Erroneous JSON size {} : {}",
+                 in->size(),
+                 std::string_view(reinterpret_cast<const char *>(in->data()),
+                                  in->size()));
+    return Status(Error::ArrowError,
+                  "Unable to read JSON as table: " + tr_read_result.status().message());
   }
 
   auto table = tr_read_result.ValueOrDie();

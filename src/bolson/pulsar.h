@@ -98,17 +98,9 @@ auto SetupClientProducer(const std::string &url,
  * \param producer    The Pulsar producer to publish the message through.
  * \param buffer      The raw bytes buffer to publish.
  * \param size        The size of the buffer.
- * \param lat_tracker A latency tracker that can be used to track latency of JSONs.
- *                    If this is not supplied, nothing is tracked.
- * \param seq_nums    The sequence numbers to track the latency for. If lat_tracker is
- *                    supplied, this must also be supplied.
  * \return            Status::OK() if successful, some error otherwise.
  */
-auto Publish(pulsar::Producer *producer,
-             const uint8_t *buffer,
-             size_t size,
-             illex::LatencyTracker *lat_tracker = nullptr,
-             std::vector<illex::Seq> *seq_nums = nullptr) -> Status;
+auto Publish(pulsar::Producer *producer, const uint8_t *buffer, size_t size) -> Status;
 
 /**
  * \brief A thread to pull IPC messages from the queue and publish them to a Pulsar queue.
@@ -116,15 +108,12 @@ auto Publish(pulsar::Producer *producer,
  * \param in            Incoming queue with IPC messages.
  * \param shutdown      If this is true, this thread will try to terminate.
  * \param count         The number of published messages.
- * \param lat_tracker   A latency tracker that can be used to track latency of JSONs.
- *                      If this is not supplied, nothing is tracked.
  * \param stats         Statistics about this thread.
  */
 void PublishThread(PulsarContext pulsar,
                    IpcQueue *in,
                    std::atomic<bool> *shutdown,
                    std::atomic<size_t> *count,
-                   illex::LatencyTracker *lat_tracker,
                    std::promise<PublishStats> &&stats);
 
 /**

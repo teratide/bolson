@@ -28,6 +28,8 @@ struct TimeStats {
   double resize = 0.0;
   /// Total time spent on serializing the RecordBatch.
   double serialize = 0.0;
+  /// Total time spent on enqueueing serialized RecordBatches
+  double enqueue = 0.0;
   /// Total time spent in the conversion thread.
   double thread = 0.0;
 };
@@ -37,11 +39,13 @@ struct Stats {
   /// Number of converted JSONs.
   size_t num_jsons = 0;
   /// Number of converted JSON bytes.
-  size_t num_json_bytes = 0;
+  size_t json_bytes = 0;
+  /// Number of buffers parsed.
+  size_t num_parsed = 0;
   /// Number of IPC messages.
   size_t num_ipc = 0;
   /// Number of bytes in the IPC messages.
-  size_t total_ipc_bytes = 0;
+  size_t ipc_bytes = 0;
   /// Total time of specific operations in the pipeline.
   TimeStats t;
   /// Status about the conversion.
@@ -54,8 +58,9 @@ struct Stats {
  * \brief Print some stats about conversion.
  * \param stats The stats to print.
  * \param num_threads The number of threads used.
+ * \param t Prefix for indenting.
  */
-void LogConvertStats(const Stats &stats, size_t num_threads);
+void LogConvertStats(const Stats &stats, size_t num_threads, const std::string &t = "");
 
 /// \brief Aggregate statistics from multiple threads.
 auto AggrStats(const std::vector<Stats> &conv_stats) -> Stats;
