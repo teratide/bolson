@@ -46,7 +46,7 @@ class OpaeBatteryParser : public Parser {
 
   buffer::OpaeAllocator allocator;
 
-  std::unordered_map<std::byte *, da_t> buffer_addr_map;
+  std::unordered_map<const std::byte *, da_t> buffer_addr_map;
 
   std::shared_ptr<arrow::RecordBatch> batch_in = nullptr;
   std::shared_ptr<arrow::RecordBatch> batch_out = nullptr;

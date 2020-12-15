@@ -161,7 +161,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> St
   FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_LASTIDX, in->size()));
 
   dau_t input_addr;
-  input_addr.full = buffer_addr_map[in->data()];
+  input_addr.full = buffer_addr_map.at(in->data());
 
   FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_VALUES_LO, input_addr.lo));
   FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_VALUES_HI, input_addr.hi));
@@ -187,6 +187,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> St
   *out = result;
   return Status::OK();
 }
+
 auto OpaeBatteryParser::Initialize(std::vector<illex::RawJSONBuffer *> buffers) -> Status {
   // Work-around, pull each buffer through the Fletcher stack.
   for (auto *buf : buffers) {
