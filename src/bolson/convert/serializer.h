@@ -27,9 +27,11 @@ struct SerializedBatches {
 
 class Serializer {
  public:
+  explicit Serializer(size_t max_ipc_size) : max_ipc_size(max_ipc_size) {}
   auto Serialize(const ResizedBatches &in, SerializedBatches *out) -> Status;
  private:
   arrow::ipc::IpcWriteOptions opts = arrow::ipc::IpcWriteOptions::Defaults();
+  size_t max_ipc_size;
 };
 
 }

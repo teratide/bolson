@@ -24,13 +24,19 @@ auto Serializer::Serialize(const ResizedBatches &in, SerializedBatches *out) -> 
 
   // Serialize each batch.
   for (const auto &batch : in.batches) {
-    auto serialized = arrow::ipc::SerializeRecordBatch(*batch, opts);
-    if (!serialized.ok()) {
+    auto serialize_result = arrow::ipc::SerializeRecordBatch(*batch, opts);
+    if (!serialize_result.ok()) {
       return Status(Error::ArrowError,
-                    "Could not serialize batch: " + serialized.status().message());
+                    "Could not serialize batch: " + serialize_result.status().message());
+    }
+    auto serialized = serialize_result.ValueOrDie();
+    if (serialized->size() > max_ipc_size) {
+      return Status(Error::GenericError,
+                    "Maximum IPC message size exceeded."
+                    "Reduce max number of rows per batch.");
     }
 
-    result.messages.push_back(serialized.ValueOrDie());
+    result.messages.push_back(serialize_result.ValueOrDie());
   }
 
   *out = result;

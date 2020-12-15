@@ -109,7 +109,7 @@ static void AddConvertOpts(CLI::App *sub, convert::Options *opts) {
   sub->add_option("--max-ipc",
                   opts->max_ipc_size,
                   "Maximum size of IPC messages in bytes.")
-      ->default_val(1024);
+      ->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
   sub->add_option("--threads",
                   opts->num_threads,
                   "Number of threads to use in conversion.")
@@ -135,10 +135,6 @@ static void AddPulsarOpts(CLI::App *sub, PulsarOptions *pulsar) {
       ->default_str("pulsar://localhost:6650/");
   sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic.")
       ->default_str("non-persistent://public/default/bolson");
-  sub->add_option("-r,--pulsar-max-msg-size",
-                  pulsar->max_msg_size,
-                  "Pulsar max. message size (bytes).")
-      ->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
 }
 
 static void AddBenchOpts(CLI::App *bench, BenchOptions *out, std::string *schema_file) {

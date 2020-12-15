@@ -27,9 +27,9 @@
 namespace bolson::convert {
 
 struct Options {
-  size_t max_ipc_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
-  size_t max_batch_rows = 1024;
-  size_t num_threads = 1;
+  size_t max_ipc_size;
+  size_t max_batch_rows;
+  size_t num_threads;
   std::optional<size_t> num_buffers = std::nullopt;
   parse::Impl implementation = parse::Impl::ARROW;
   parse::ArrowOptions arrow;

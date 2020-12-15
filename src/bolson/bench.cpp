@@ -158,8 +158,8 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
 
   // Set up Resizers and Serializers.
   for (size_t t = 0; t < opt.converter.num_threads; t++) {
-    converter.resizers.emplace_back();
-    converter.serializers.emplace_back();
+    converter.resizers.emplace_back(opt.converter.max_batch_rows);
+    converter.serializers.emplace_back(opt.converter.max_ipc_size);
   }
 
   // Start converter threads.

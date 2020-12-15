@@ -18,7 +18,24 @@ namespace bolson::convert {
 
 auto Resizer::Resize(const parse::ParsedBuffer &in, ResizedBatches *out) -> Status {
   ResizedBatches result;
-  result.batches.push_back(in.batch);
+  if (in.batch->num_rows() > max_rows) {
+    size_t offset = 0;
+    size_t remaining = in.batch->num_rows();
+    while (remaining > 0) {
+      if (remaining > max_rows) {
+        result.batches.push_back(in.batch->Slice(offset, max_rows));
+        offset += max_rows;
+        remaining -= max_rows;
+      } else {
+        result.batches.push_back(in.batch->Slice(offset, remaining));
+        offset += remaining;
+        remaining = 0;
+      }
+    }
+  } else {
+    result.batches.push_back(in.batch);
+  }
+
   *out = result;
   return Status::OK();
 }
