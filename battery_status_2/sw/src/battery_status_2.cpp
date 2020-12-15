@@ -51,6 +51,19 @@ arrow::Status WrapBattery(
   return arrow::Status::OK();
 }
 
+uint8_t *huge_page()
+{
+  // credits: https://github.com/torvalds/linux/blob/master/tools/testing/selftests/vm/map_hugetlb.c
+  void *addr;
+  addr = mmap((void *)(0x0UL), 1000 * 1024 * 1024, (PROT_READ | PROT_WRITE), (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | (30 << 26)), -1, 0);
+  if (addr == MAP_FAILED)
+  {
+    perror("mmap");
+    exit(1);
+  }
+  return (uint8_t *)addr;
+}
+
 int main(int argc, char **argv)
 {
   if (argc != 5)
@@ -78,20 +91,20 @@ int main(int argc, char **argv)
 
   size_t buffer_size = 4096;
 
-  uint8_t *offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  uint8_t *offset_data = huge_page();
   memset(offset_data, 0, buffer_size);
   auto offset_buffer = std::make_shared<arrow::Buffer>(offset_data, buffer_size);
-  uint8_t *value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  uint8_t *value_data = huge_page();
   auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
   auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
   auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, offset_buffer, value_array);
   std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
   auto output_batch_1 = arrow::RecordBatch::Make(output_schema_1, 0, arrays);
 
-  uint8_t *offset_data_2 = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  uint8_t *offset_data_2 = huge_page();
   memset(offset_data_2, 0, buffer_size);
   auto offset_buffer_2 = std::make_shared<arrow::Buffer>(offset_data_2, buffer_size);
-  uint8_t *value_data_2 = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  uint8_t *value_data_2 = huge_page();
   auto value_buffer_2 = std::make_shared<arrow::Buffer>(value_data_2, buffer_size);
   auto value_array_2 = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer_2);
   auto list_array_2 = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, offset_buffer_2, value_array_2);
