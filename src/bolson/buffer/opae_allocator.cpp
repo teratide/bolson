@@ -52,23 +52,26 @@ auto OpaeAllocator::Allocate(size_t size, std::byte **out) -> Status {
 }
 
 auto OpaeAllocator::Free(std::byte *buffer) -> Status {
-  auto *addr = static_cast<void *>(buffer);
-  size_t size = 0;
-  if (allocations.count(addr) > 0) {
-    size = allocations[addr];
-  }
+  spdlog::warn("Freeing OPAE buffers on exit. :tm:");
+  // TODO: find out why munmap returns an error.
 
-  // Temporary work-around.
-  size = g_opae_buffercap;
-
-  if (munmap(addr, size) != 0) {
-    return Status(Error::OpaeError,
-                  "OpaeAllocator unable to unmap huge page buffer. "
-                  "Errno: " + std::to_string(errno) + " : " + std::strerror(errno));
-  }
-  if (allocations.erase(addr) != 1) {
-    return Status(Error::OpaeError, "OpaeAllocator unable to erase allocation.");
-  }
+//  auto *addr = static_cast<void *>(buffer);
+//  size_t size = 0;
+//  if (allocations.count(addr) > 0) {
+//    size = allocations[addr];
+//  }
+//
+//  // Temporary work-around.
+//  size = g_opae_buffercap;
+//
+//  if (munmap(addr, size) != 0) {
+//    return Status(Error::OpaeError,
+//                  "OpaeAllocator unable to unmap huge page buffer. "
+//                  "Errno: " + std::to_string(errno) + " : " + std::strerror(errno));
+//  }
+//  if (allocations.erase(addr) != 1) {
+//    return Status(Error::OpaeError, "OpaeAllocator unable to erase allocation.");
+//  }
   return Status::OK();
 }
 
