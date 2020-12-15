@@ -26,8 +26,8 @@ auto ArrowParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
   auto br = std::make_shared<arrow::io::BufferReader>(buffer);
   auto tr_make_result = arrow::json::TableReader::Make(arrow::default_memory_pool(),
                                                        br,
-                                                       read_options,
-                                                       parse_options);
+                                                       opts.read,
+                                                       opts.parse);
   if (!tr_make_result.ok()) {
     return Status(Error::ArrowError, tr_make_result.status().message());
   }

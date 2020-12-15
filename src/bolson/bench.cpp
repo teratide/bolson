@@ -56,9 +56,8 @@ static auto GenerateJSONs(size_t num_jsons,
 
 /**
  * \brief Prepare input buffers for benchmarking.
- * \param largest_json  The largest JSON. Allocation size is this times number of JSONs.
- * \param jsons         The JSONs to copy into the buffers.
- * \return A vector with the buffers.
+ * \param buffers   The buffers to fill.
+ * \param jsons     The JSONs to copy into the buffers.
  */
 static void FillBuffers(std::vector<illex::RawJSONBuffer *> buffers,
                         const std::vector<illex::JSONQueueItem> &jsons) {
@@ -110,7 +109,7 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
 
   // Select allocator.
   std::shared_ptr<buffer::Allocator> allocator;
-  switch (opt.conversion) {
+  switch (opt.converter.implementation) {
     case parse::Impl::ARROW:allocator = std::make_shared<buffer::Allocator>();
       break;
     case parse::Impl::OPAE_BATTERY:allocator = std::make_shared<buffer::OpaeAllocator>();
@@ -118,23 +117,25 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   }
 
   // Set up the Converter.
+
+  size_t num_buffers = opt.converter.num_buffers.value_or(opt.converter.num_threads);
+
   auto converter = convert::Converter(&ipc_queue,
                                       allocator.get(),
-                                      opt.num_threads,
-                                      opt.num_threads);
+                                      num_buffers,
+                                      opt.converter.num_threads);
 
   // Set up the parsers.
-  switch (opt.conversion) {
+  switch (opt.converter.implementation) {
     case parse::Impl::ARROW: {
-      for (size_t t = 0; t < opt.num_threads; t++) {
-        auto parser = std::make_shared<parse::ArrowParser>(opt.parse_opts,
-                                                           opt.read_opts);
+      for (size_t t = 0; t < opt.converter.num_threads; t++) {
+        auto parser = std::make_shared<parse::ArrowParser>(opt.converter.arrow);
         converter.parsers.push_back(parser);
       }
       break;
     }
     case parse::Impl::OPAE_BATTERY: {
-      if (opt.num_threads > 1) {
+      if (opt.converter.num_threads > 1) {
         return Status(Error::OpaeError,
                       "OpaeBattery does not support multi-threaded conversion.");
       }
@@ -146,18 +147,17 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
 
   // Allocate and fill buffers.
   // Calculate generous buffer size, +1 for newline
-  auto buf_size =
-      opt.num_threads * max_json + (opt.num_jsons * max_json) / opt.num_threads;
+  auto buf_size = num_buffers * max_json + (opt.num_jsons * max_json) / num_buffers;
   converter.AllocateBuffers(buf_size);
   FillBuffers(ToPointers(converter.buffers), items);
 
   // Lock all buffers.
-  for (size_t m = 0; m < opt.num_threads; m++) {
+  for (size_t m = 0; m < opt.converter.num_buffers; m++) {
     converter.mutexes[m].lock();
   }
 
   // Set up Resizers and Serializers.
-  for (size_t t = 0; t < opt.num_threads; t++) {
+  for (size_t t = 0; t < opt.converter.num_threads; t++) {
     converter.resizers.emplace_back();
     converter.serializers.emplace_back();
   }
@@ -176,7 +176,7 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   // Start conversion by unlocking the buffers.
   t_conv.Start();
   // Unlock all buffers.
-  for (size_t m = 0; m < opt.num_threads; m++) {
+  for (size_t m = 0; m < opt.converter.num_buffers; m++) {
     converter.mutexes[m].unlock();
   }
   // Pull JSON ipc items from the queue to check when we are done.
@@ -192,7 +192,7 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   t_conv.Stop();
 
   // Free buffers.
-  switch (opt.conversion) {
+  switch (opt.converter.implementation) {
     case parse::Impl::ARROW: BOLSON_ROE(converter.FreeBuffers());
       break;
     default:return Status(Error::GenericError, "Not implemented.");
@@ -219,7 +219,7 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
 
   auto a = convert::AggrStats(converter.stats);
   spdlog::info("Details:");
-  LogConvertStats(a, opt.num_threads);
+  LogConvertStats(a, opt.converter.num_threads);
 
   return Status::OK();
 }

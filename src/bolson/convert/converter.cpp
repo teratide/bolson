@@ -33,16 +33,27 @@ static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
   return seq_field;
 }
 
-auto TryGetFilledBuffer(const std::vector<illex::RawJSONBuffer *> &buffers,
-                        const std::vector<std::mutex *> &mutexes,
-                        illex::RawJSONBuffer **out,
-                        size_t *lock_idx) -> bool {
+/**
+ * \brief Attempt to get a lock on a buffer.
+ * \param buffers   The buffers.
+ * \param mutexes   The mutexes.
+ * \param out       A pointer to the locked buffer.
+ * \param lock_idx  The lock index. Is updated in case of lock. Lock attempts start here.
+ * \return True if a lock was obtained, false otherwise.
+ */
+static auto TryGetFilledBuffer(const std::vector<illex::RawJSONBuffer *> &buffers,
+                               const std::vector<std::mutex *> &mutexes,
+                               illex::RawJSONBuffer **out,
+                               size_t *lock_idx) -> bool {
+  auto b = *lock_idx;
   const size_t num_buffers = buffers.size();
-  for (size_t i = 0; i < num_buffers; i++) {
-    if (!buffers[i]->empty()) {
-      if (mutexes[i]->try_lock()) {
-        *lock_idx = i;
-        *out = buffers[i];
+  for (size_t i = 0; i <= num_buffers; i++) {
+    b = (b + i) % num_buffers; // increase buffer to try by i, but wrap around
+    SPDLOG_DEBUG("Attempting to unlock {}", b);
+    if (!buffers[b]->empty()) {
+      if (mutexes[b]->try_lock()) {
+        *lock_idx = b;
+        *out = buffers[b];
         return true;
       }
     }
@@ -50,15 +61,6 @@ auto TryGetFilledBuffer(const std::vector<illex::RawJSONBuffer *> &buffers,
   *out = nullptr;
   return false;
 }
-
-#define SHUTDOWN_ON_FAILURE() \
-if (!stats->status.ok()) { \
-  t.thread.Stop(); \
-  stats->t.thread = t.thread.seconds(); \
-  SPDLOG_DEBUG("Drone {} Terminating with error: {}", id, stats->status.msg()); \
-  shutdown->store(true); \
-  return; \
-} void()
 
 void ConvertThread(size_t id,
                    parse::Parser *parser,
@@ -69,15 +71,32 @@ void ConvertThread(size_t id,
                    IpcQueue *out,
                    std::atomic<bool> *shutdown,
                    Stats *stats) {
-  ConversionTimers t;
-  SPDLOG_DEBUG("Convert thread {} spawned.", id);
+  /// Macro to shut this thread and others down when something failed.
+#define SHUTDOWN_ON_FAILURE() \
+  if (!stats->status.ok()) { \
+    t_thread.Stop(); \
+    stats->t.thread = t_thread.seconds(); \
+    SPDLOG_DEBUG("Drone {} Terminating with error: {}", id, stats->status.msg()); \
+    shutdown->store(true); \
+    return; \
+  } void()
+
+  // Thread timer.
+  putong::Timer<> t_thread(true);
+  // Workload stage timer.
+  putong::SplitTimer<4> t_stages;
+  // Whether to try and unlock a buffer or to wait a bit.
   bool try_buffers = true;
+  // Buffer to unlock.
+  size_t lock_idx = 0;
+
+  SPDLOG_DEBUG("Convert thread {} spawned.", id);
 
   while (!shutdown->load()) {
     if (try_buffers) {
       illex::RawJSONBuffer *buf = nullptr;
-      size_t lock_idx = 0;
       if (TryGetFilledBuffer(buffers, mutexes, &buf, &lock_idx)) {
+        t_stages.Start();
         // Prepare intermediate wrappers.
         parse::ParsedBuffer parsed;
         ResizedBatches resized;
@@ -87,11 +106,10 @@ void ConvertThread(size_t id,
                      id,
                      std::string_view((char *) buf->data(), buf->size()));
 
-        // Convert the buffer.
-        t.parse.Start();
+        // Parse the buffer.
         stats->status = parser->Parse(buf, &parsed);
         SHUTDOWN_ON_FAILURE();
-        t.parse.Stop();
+        t_stages.Split();
 
         SPDLOG_DEBUG("Thread {} parsed {} bytes from buffer resulting in {} rows.",
                      id,
@@ -104,20 +122,19 @@ void ConvertThread(size_t id,
         stats->num_json_bytes += parsed.parsed_bytes;
         buf->Reset();
         mutexes[lock_idx]->unlock();
+        lock_idx++; // start at next buffer next time we try to unlock.
 
         // Resize the batch.
-        t.resize.Start();
         stats->status = resizer->Resize(parsed, &resized);
         SHUTDOWN_ON_FAILURE();
-        t.resize.Stop();
+        t_stages.Split();
 
         SPDLOG_DEBUG("Thread {} resized: {} RecordBatches.", id, resized.batches.size());
 
         // Serialize the batch.
-        t.serialize.Start();
         stats->status = serializer->Serialize(resized, &serialized);
         SHUTDOWN_ON_FAILURE();
-        t.serialize.Stop();
+        t_stages.Split();
 
         // Enqueue IPC items
         for (size_t i = 0; i < serialized.messages.size(); i++) {
@@ -130,10 +147,9 @@ void ConvertThread(size_t id,
         }
 
         // Add parse time to stats.
-        stats->t.parse += t.parse.seconds();
-        stats->t.resize += t.resize.seconds();
-        stats->t.serialize += t.serialize.seconds();
-        SHUTDOWN_ON_FAILURE();
+        stats->t.parse += t_stages.seconds()[0];
+        stats->t.resize += t_stages.seconds()[1];
+        stats->t.serialize += t_stages.seconds()[2];
       } else {
         SPDLOG_DEBUG("Thread {} unable to get lock / or buffers not filled.", id);
         try_buffers = false;
@@ -145,8 +161,8 @@ void ConvertThread(size_t id,
     }
   }
 
-  t.thread.Stop();
-  stats->t.thread = t.thread.seconds();
+  t_thread.Stop();
+  stats->t.thread = t_thread.seconds();
   SPDLOG_DEBUG("Drone {} Terminating.", id);
 }
 #undef SHUTDOWN_ON_FAILURE

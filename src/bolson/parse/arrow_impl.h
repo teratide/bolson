@@ -23,22 +23,21 @@
 
 #include "bolson/parse/parser.h"
 #include "bolson/status.h"
-#include "bolson/stream.h"
 
 namespace bolson::parse {
 
+struct ArrowOptions {
+  arrow::json::ParseOptions parse;
+  arrow::json::ReadOptions read;
+};
+
 class ArrowParser : public Parser {
  public:
-  explicit ArrowParser(arrow::json::ParseOptions parse_options,
-                       const arrow::json::ReadOptions &read_options)
-      : parse_options(std::move(parse_options)), read_options(read_options) {}
+  explicit ArrowParser(ArrowOptions opts) : opts(std::move(opts)) {}
 
   auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status override;
  private:
-  /// Arrow JSON parser parse options.
-  arrow::json::ParseOptions parse_options;
-  /// Arrow JSON parser read options.
-  arrow::json::ReadOptions read_options;
+  ArrowOptions opts;
 };
 
 }

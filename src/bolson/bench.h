@@ -23,6 +23,8 @@
 #include "bolson/status.h"
 #include "bolson/utils.h"
 #include "bolson/parse/parser.h"
+#include "bolson/convert/converter.h"
+#include "bolson/parse/arrow_impl.h"
 
 namespace bolson {
 
@@ -38,15 +40,9 @@ struct ClientBenchOptions {
 struct ConvertBenchOptions {
   std::shared_ptr<arrow::Schema> schema;
   illex::GenerateOptions generate;
-  arrow::json::ParseOptions parse_opts;
-  arrow::json::ReadOptions read_opts;
-  size_t num_jsons = 1024;
   bool csv = false;
-  size_t max_ipc_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
-  size_t json_threshold = 1024;
-  size_t batch_threshold = (5 * 1024 * 1024) - (32 * 1024);
-  size_t num_threads = 1;
-  parse::Impl conversion = parse::Impl::ARROW;
+  size_t num_jsons = 1024;
+  convert::Options converter;
 };
 
 /// Options for Pulsar interface benchmark.

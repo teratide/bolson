@@ -24,6 +24,7 @@
 #include "bolson/pulsar.h"
 #include "bolson/latency.h"
 #include "bolson/parse/parser.h"
+#include "bolson/convert/converter.h"
 
 namespace bolson {
 
@@ -33,31 +34,16 @@ struct StreamOptions {
   std::string hostname = "localhost";
   /// The protocol to use.
   illex::StreamProtocol protocol;
-  /// Starting sequence number
-  uint64_t seq = 0;
-  /// The Arrow JSON parsing options.
-  arrow::json::ParseOptions parse;
-  /// The Arrow JSON table reader options.
-  arrow::json::ReadOptions read;
-  /// RecordBatch size threshold before constructing an IPC message.
-  /// The default Pulsar message size limit is 5 MiB - 10 KiB.
-  /// We subtract 32 KiB to make some room for padding of RecordBatches.
-  // TODO: This is just guesswork and should be improved.
-  size_t batch_threshold = (5 * 1024 * 1024) - (32 * 1024);
-  // TODO: sdfsdfsdf
-  size_t json_threshold = 1024;
-  /// Number of conversion drone threads to spawn.
-  size_t num_threads = 1;
   /// The Pulsar options.
   PulsarOptions pulsar;
   /// Enable statistics.
   bool statistics = true;
   /// Whether to produce succinct statistics.
   bool succinct = false;
-  /// The parser implementation to use.
-  parse::Impl conversion;
   /// Options related to tracking latency.
   LatencyOptions latency;
+  /// Options related to conversion.
+  convert::Options convert;
 };
 
 /**

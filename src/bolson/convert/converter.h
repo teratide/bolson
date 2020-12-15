@@ -12,15 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <type_traits>
+#pragma once
+
+#include <atomic>
+#include <optional>
 
 #include "bolson/buffer/allocator.h"
 #include "bolson/parse/parser.h"
+#include "bolson/parse/arrow_impl.h"
 #include "bolson/convert/resizer.h"
 #include "bolson/convert/serializer.h"
 #include "bolson/status.h"
 
 namespace bolson::convert {
+
+struct Options {
+  size_t max_ipc_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
+  size_t max_batch_rows = 1024;
+  size_t num_threads = 1;
+  std::optional<size_t> num_buffers = std::nullopt;
+  parse::Impl implementation = parse::Impl::ARROW;
+  parse::ArrowOptions arrow;
+};
 
 struct Converter {
 
@@ -36,17 +49,16 @@ struct Converter {
         mutexes(std::vector<std::mutex>(num_buffers)),
         stats(std::vector<Stats>(num_threads)) {}
 
-  /**
-   * \brief Allocate the buffers for this convert context.
-   * \tparam T              The parser implementation to use.
-   * \param num_buffers     The number of buffers to allocate.
-   * \param buffer_capacity The capacity of the buffers to allocate.
-   * \return A new ConvertContext.
-   */
+  /// \brief Allocate buffers for this converter with capacity bytes.
   auto AllocateBuffers(size_t capacity) -> Status;
+
+  /// \brief Free the buffers for this converter.
   auto FreeBuffers() -> Status;
 
+  /// \brief Start the conversion threads.
   void Start(std::atomic<bool> *shutdown);
+
+  /// \brief Stop the conversion threads.
   auto Stop() -> Status;
 
   IpcQueue *output_queue_ = nullptr;

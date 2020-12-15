@@ -50,14 +50,6 @@ struct Stats {
   auto operator+=(const Stats &r) -> Stats &;
 };
 
-/// Convenience structure for conversion thread timers.
-struct ConversionTimers {
-  putong::Timer<> thread;
-  putong::Timer<> parse;
-  putong::Timer<> resize;
-  putong::Timer<> serialize;
-};
-
 /**
  * \brief Print some stats about conversion.
  * \param stats The stats to print.
