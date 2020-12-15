@@ -167,12 +167,24 @@ fields:
     behavior: control
 
   - address: 160
+    name: record_counter_1
+    doc: Custom register record_counter_1
+    bitrange: 31..0
+    behavior: status
+
+  - address: 164
+    name: record_counter_2
+    doc: Custom register record_counter_2
+    bitrange: 63..32
+    behavior: status
+
+  - address: 168
     name: Profile_enable
     doc: Activates profiler counting when this bit is high.
     bitrange: 0
     behavior: control
 
-  - address: 164
+  - address: 172
     name: Profile_clear
     doc: Resets profiler counters when this bit is asserted.
     bitrange: 32
