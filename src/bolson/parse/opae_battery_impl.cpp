@@ -157,7 +157,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> St
   ParsedBuffer result;
   // Prepare the input batch.
   BOLSON_ROE(PrepareInputBatch(reinterpret_cast<const uint8_t *>(in->data()),
-                               in->size()));
+                               in->capacity()));
   // Create a context.
   FLETCHER_ROE(fletcher::Context::Make(&context, platform));
   // Queue batches.
@@ -169,6 +169,8 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> St
   kernel = std::make_shared<fletcher::Kernel>(context);
   // Write metadata.
   FLETCHER_ROE(kernel->WriteMetaData());
+
+  FLETCHER_ROE(platform->WriteMMIO(OPAE_BATTERY_REG_INPUT_LASTIDX, in->size()));
 
   // Reset the kernel, start it, and poll until completion.
   FLETCHER_ROE(kernel->Reset());
