@@ -140,7 +140,7 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
   FLETCHER_ROE(result->kernel->WriteMetaData());
 
   // Workaround to store buffer device address.
-  for (size_t i = 0; i < result->context->num_buffers(); i++) {
+  for (size_t i = 0; i < buffers.size(); i++) {
     result->h2d_addr_map[buffers[i]->data()] =
         result->context->device_buffer(i).device_address;
   }
@@ -163,7 +163,8 @@ auto OpaeBatteryParserManager::PrepareParsers() -> Status {
                                                            i,
                                                            num_parsers_,
                                                            raw_out_offsets[i],
-                                                           raw_out_values[i]));
+                                                           raw_out_values[i],
+                                                           &platform_mutex));
   }
   return Status::OK();
 }
@@ -205,6 +206,7 @@ static auto WrapOutput(int32_t num_rows,
 
 auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
                               ParsedBuffer *out) -> Status {
+  platform_mutex->lock();
   ParsedBuffer result;
   // rewrite the input last index because of opae limitations.
   FLETCHER_ROE(platform_->WriteMMIO(input_lastidx_offset(idx_), in->size()));
@@ -231,7 +233,6 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   uint32_t done_mask = 1ul << FLETCHER_REG_STATUS_DONE;
   uint32_t done_status = 1ul << FLETCHER_REG_STATUS_DONE;
   uint32_t status = 0;
-  FLETCHER_LOG(DEBUG, "Polling kernel for completion.");
   while (!done) {
     context_->platform()->ReadMMIO(status_offset(idx_), &status);
     done = (status & done_mask) == done_status;
@@ -254,6 +255,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   result.parsed_bytes = in->size();
 
   *out = result;
+  platform_mutex->unlock();
   return Status::OK();
 }
 

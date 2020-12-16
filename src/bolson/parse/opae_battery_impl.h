@@ -38,7 +38,8 @@ class OpaeBatteryParser : public Parser {
                     size_t parser_idx,
                     size_t num_parsers,
                     std::byte *raw_out_offsets,
-                    std::byte *raw_out_values)
+                    std::byte *raw_out_values,
+                    std::mutex *platform_mutex)
       : platform_(platform),
         context_(context),
         kernel_(kernel),
@@ -46,7 +47,8 @@ class OpaeBatteryParser : public Parser {
         idx_(parser_idx),
         num_parsers(num_parsers),
         raw_out_offsets(raw_out_offsets),
-        raw_out_values(raw_out_values) {}
+        raw_out_values(raw_out_values),
+        platform_mutex(platform_mutex) {}
 
   auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status override;
 
@@ -117,6 +119,7 @@ class OpaeBatteryParser : public Parser {
   AddrMap *h2d_addr_map;
   std::byte *raw_out_offsets;
   std::byte *raw_out_values;
+  std::mutex *platform_mutex;
 };
 
 struct OpaeBatteryOptions {
@@ -153,6 +156,8 @@ class OpaeBatteryParserManager {
   std::shared_ptr<fletcher::Kernel> kernel;
 
   std::vector<std::shared_ptr<OpaeBatteryParser>> parsers_;
+
+  std::mutex platform_mutex;
 };
 
 }
