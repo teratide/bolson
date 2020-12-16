@@ -65,13 +65,15 @@ class OpaeBatteryParser : public Parser {
   // 1 input lastidx
   // 2 output firstidx
   // 3 output lastidx
-  // 4 input val addr lo
-  // 5 input val addr hi
-  // 6 output off addr lo
-  // 7 output off addr hi
-  // 8 output val addr lo
-  // 9 output val addr hi
-  static constexpr size_t arrow_regs_per_inst = 10;
+  static constexpr size_t range_regs_per_inst = 4;
+
+  // 0 input val addr lo
+  // 1 input val addr hi
+  // 2 output off addr lo
+  // 3 output off addr hi
+  // 4 output val addr lo
+  // 5 output val addr hi
+  static constexpr size_t addr_regs_per_inst = 6;
 
   // Custom regs per instance:
   // 0 control
@@ -81,7 +83,7 @@ class OpaeBatteryParser : public Parser {
   static constexpr size_t custom_regs_per_inst = 4;
 
   [[nodiscard]] auto custom_regs_offset() const -> size_t {
-    return default_regs + num_parsers * arrow_regs_per_inst;
+    return default_regs + num_parsers * (range_regs_per_inst + addr_regs_per_inst);
   }
 
   auto ctrl_offset(size_t idx) -> size_t {
@@ -97,17 +99,17 @@ class OpaeBatteryParser : public Parser {
   }
 
   static auto input_firstidx_offset(size_t idx) -> size_t {
-    return default_regs + arrow_regs_per_inst * idx;
+    return default_regs + range_regs_per_inst * idx;
   }
   static auto input_lastidx_offset(size_t idx) -> size_t {
     return input_firstidx_offset(idx) + 1;
   }
 
-  static auto input_values_lo_offset(size_t idx) -> size_t {
-    return input_firstidx_offset(idx) + 2;
+  auto input_values_lo_offset(size_t idx) -> size_t {
+    return default_regs + range_regs_per_inst * num_parsers + addr_regs_per_inst * idx;
   }
 
-  static auto input_values_hi_offset(size_t idx) -> size_t {
+  auto input_values_hi_offset(size_t idx) -> size_t {
     return input_values_lo_offset(idx) + 1;
   }
 
