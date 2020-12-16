@@ -3,13 +3,20 @@ import argparse
 import pyarrow as pa
 from pyfletchgen.lib import fletchgen
 
+import vhdmmio
+
 parser = argparse.ArgumentParser(description="Generate a kernel with N parser instances.")
 parser.add_argument("parsers", type=int, help="Number of parser instances.")
 args = parser.parse_args()
 
-assert 32 >= args.parsers > 0
+assert 16 >= args.parsers > 0
 
-kernel_name = 'battery_status'
+KERNEL_NAME = 'battery_status'
+
+
+def emphasize(s):
+    """Like print(), but emphasizes the line using ANSI escape sequences."""
+    print('\n\033[1m{}\033[0m'.format(s))
 
 
 def input_schema(idx):
@@ -44,26 +51,6 @@ def generate_schema_files(num_parsers):
 
     return files
 
-
-# prepare output folder for schemas
-if not os.path.exists('schemas'):
-    os.makedirs('schemas')
-
-schema_files = generate_schema_files(args.parsers)
-
-# prepare registers
-registers = [['c:32:parser_{:02}_control'.format(i),
-              's:32:parser_{:02}_status'.format(i),
-              's:64:parser_{:02}_rows'.format(i)]
-             for i in range(0, args.parsers)]
-registers = [item for sublist in registers for item in sublist]  # flatten list
-
-fletchgen(
-    '-i', *schema_files,
-    '-n', kernel_name,
-    '--regs', *registers,
-    '-l', 'vhdl'
-)
 
 KERNEL_VHD = """library ieee;
 use ieee.std_logic_1164.all;
@@ -199,17 +186,236 @@ KERNEL_PORTS_VHD = """    input_{idx:02}_input_valid           : in std_logic;
     parser_{idx:02}_rows                 : out std_logic_vector(63 downto 0);
 """
 
+OPAE_JSON = """{{
+  "version": 1,
+  "afu-image": {{
+    "power": 0,
+    "clock-frequency-high": "auto",
+    "clock-frequency-low": "auto",
+    "afu-top-interface": {{
+      "name": "ofs_plat_afu"
+    }},
+    "accelerator-clusters": [
+      {{
+        "name": "battery_status",
+        "total-contexts": 1,
+        "accelerator-type-uuid": "9ca43fb0-c340-4908-b79b-5c89b4ef5ee{n:1X}"
+      }}
+    ]
+  }}
+}}
+"""
+
+VHDMMIO_YAML = """
+metadata:
+  name: mmio
+
+entity:
+  bus-flatten:  yes
+  bus-prefix:   mmio_
+  clock-name:   kcd_clk
+  reset-name:   kcd_reset
+
+features:
+  bus-width:    64
+  optimize:     yes
+
+interface:
+  flatten:      yes
+
+fields:
+  - address: 0b0---
+    name: AFU_DHF
+    behavior: constant
+    value: 17293826967149215744 # [63:60]: 1 && [40]: 1
+
+  - address: 0b1---
+    name: AFU_ID_L
+    behavior: constant
+    value: {afuidint} # check battery_status.json
+
+  - address: 0b10---
+    name: AFU_ID_H
+    behavior: constant
+    value: 11287216594519869704 # check battery_status.json
+
+  - address: 0b11---
+    name: DFH_RSVD0
+    behavior: constant
+    value: 0
+
+  - address: 0b100---
+    name: DFH_RSVD1
+    behavior: constant
+    value: 0
+
+{fletchgen}
+"""
+
+OPAE_SOURCES = """battery_status.json
+
+${{FLETCHER_HARDWARE_DIR}}/vhlib/util/UtilMisc_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/util/UtilInt_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/util/UtilConv_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/Stream_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/interconnect/Interconnect_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrow/Arrow_pkg.vhd
+vhdl/AxiWriteConverter.vhd
+${{FLETCHER_HARDWARE_DIR}}/axi/AxiReadConverter.vhd
+${{FLETCHER_HARDWARE_DIR}}/interconnect/BusWriteArbiterVec.vhd
+${{FLETCHER_HARDWARE_DIR}}/interconnect/BusWriteBuffer.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamPrefixSum.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/Buffer_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferWriterPrePadder.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamPipelineControl.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamPipelineBarrel.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamReshaper.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferWriterPreCmdGen.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferWriterPre.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferWriterCmdGenBusReq.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferWriter.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamElementCounter.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayConfigParse_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayConfig_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/Array_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayWriterListSync.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/util/UtilStr_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayWriterListPrim.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayWriterLevel.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayWriterArb.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayWriter.vhd
+{rbws}
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamArb.vhd
+${{FLETCHER_HARDWARE_DIR}}/interconnect/BusReadArbiterVec.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayReaderStruct.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayReaderNull.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayReaderListPrim.vhd
+${{FLETCHER_HARDWARE_DIR}}/interconnect/BusReadBuffer.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferReaderRespCtrl.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferReaderResp.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamGearboxSerializer.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamGearboxParallelizer.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamGearbox.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferReaderPost.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferReaderCmdGenBusReq.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferReaderCmd.vhd
+${{FLETCHER_HARDWARE_DIR}}/buffers/BufferReader.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayReaderUnlockCombine.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamSync.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamNormalizer.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamSlice.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/util/UtilRam1R1W.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamFIFOCounter.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/util/UtilRam_pkg.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamFIFO.vhd
+${{FLETCHER_HARDWARE_DIR}}/vhlib/stream/StreamBuffer.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayReaderListSyncDecoder.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayReaderListSync.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayReaderList.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayReaderLevel.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayReaderArb.vhd
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayReader.vhd
+{rbrs}
+${{FLETCHER_HARDWARE_DIR}}/arrays/ArrayCmdCtrlMerger.vhd
+vhdl/vhdmmio_pkg.gen.vhd
+vhdl/mmio_pkg.gen.vhd
+vhdl/mmio.gen.vhd
+vhdl/tydi-json/component/Json_pkg.vhd
+vhdl/tydi-json/component/JsonRecordParser.vhd
+vhdl/tydi-json/component/JsonArrayParser.vhd
+vhdl/tydi-json/component/IntParser.vhd
+vhdl/tydi-json/test/schemas/battery_status/battery_status_pkg.vhd
+vhdl/tydi-json/test/schemas/battery_status/BattSchemaParser.vhd
+vhdl/battery_status.vhd
+vhdl/battery_status_Nucleus.gen.vhd
+vhdl/battery_status_Mantle.gen.vhd
+${{FLETCHER_HARDWARE_DIR}}/axi/Axi_pkg.vhd
+vhdl/AxiTop.vhd
+
+sv/ofs_plat_afu.sv
+"""
+
+emphasize("Generating schemas...")
+
+# prepare output folder for schemas
+if not os.path.exists('schemas'):
+    os.makedirs('schemas')
+
+schema_files = generate_schema_files(args.parsers)
+
+# prepare registers
+registers = [['c:32:parser_{:02}_control'.format(i),
+              's:32:parser_{:02}_status'.format(i),
+              's:64:parser_{:02}_rows'.format(i)]
+             for i in range(0, args.parsers)]
+registers = [item for sublist in registers for item in sublist]  # flatten list
+
+emphasize("Running fletchgen...")
+
+fletchgen(
+    '-i', *schema_files,
+    '-n', KERNEL_NAME,
+    '--regs', *registers,
+    '-l', 'vhdl',
+    '--mmio64',
+    '--mmio-offset', str(64),
+    '-e', '{}.ext.yml'.format(KERNEL_NAME)
+)
+
+emphasize("Generating kernel source...")
+
 all_inst = "\n".join([SUBKERNEL_INST_VHD.format(idx=i,
-                                                kernel_name=kernel_name)
+                                                kernel_name=KERNEL_NAME)
                       for i in range(0, args.parsers)])
 all_ports = "".join([KERNEL_PORTS_VHD.format(idx=i)
                      for i in range(0, args.parsers)])
 
 kernel_source = KERNEL_VHD.format(n=args.parsers,
-                                  kernel_name=kernel_name,
+                                  kernel_name=KERNEL_NAME,
                                   ports=all_ports,
                                   inst=all_inst)
 
 # Write the kernel source
-with open('vhdl/{}.gen.vhd'.format(kernel_name), 'w') as f:
+kernel_file = 'vhdl/{}.gen.vhd'.format(KERNEL_NAME)
+with open(kernel_file, 'w') as f:
     f.write(kernel_source)
+
+print("Wrote kernel source to: " + kernel_file)
+
+# Write the vhdmmio YAML
+
+emphasize("Re-running vhdmmio...")
+
+base_afu_id = 0xb79b5c89b4ef5ee0
+base_afu_id += args.parsers
+
+with open("fletchgen.mmio.yaml") as f:
+    fletchgen_yaml_part = f.readlines()[18:]
+
+vhdmmio_source = VHDMMIO_YAML.format(afuidint=base_afu_id, fletchgen=''.join(fletchgen_yaml_part))
+vhdmmio_file = "{}.mmio.yml".format(KERNEL_NAME)
+
+with open(vhdmmio_file, 'w') as f:
+    f.write(vhdmmio_source)
+
+vhdmmio.run_cli(['-V', 'vhdl', '-P', 'vhdl', vhdmmio_file])
+
+emphasize("Generating OPAE JSON...")
+
+opae_json_file = "{}.json".format(KERNEL_NAME)
+opae_json_source = OPAE_JSON.format(n=args.parsers)
+
+with open(opae_json_file, 'w') as f:
+    f.write(opae_json_source)
+
+emphasize("Generating OPAE source list ...")
+
+# Create list of recordbatch readers and writers
+rbrs = '\n'.join(["vhdl/battery_status_input_{:02}.gen.vhd".format(i) for i in range(0, args.parsers)])
+rbws = '\n'.join(["vhdl/battery_status_output_{:02}.gen.vhd".format(i) for i in range(0, args.parsers)])
+
+opae_sources_source = OPAE_SOURCES.format(rbrs=rbrs, rbws=rbws)
+opae_sources_file = "sources.txt"
+
+with open(opae_sources_file, 'w') as f:
+    f.write(opae_sources_source)

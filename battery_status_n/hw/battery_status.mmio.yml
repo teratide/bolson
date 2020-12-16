@@ -1,3 +1,4 @@
+
 metadata:
   name: mmio
 
@@ -23,7 +24,7 @@ fields:
   - address: 0b1---
     name: AFU_ID_L
     behavior: constant
-    value: 13230270076846825197 # check battery_status.json
+    value: 13230270076846825186 # check battery_status.json
 
   - address: 0b10---
     name: AFU_ID_H
@@ -83,55 +84,135 @@ fields:
     behavior: status
 
   - address: 80
-    name: input_firstidx
-    doc: input first index.
+    name: input_00_firstidx
+    doc: input_00 first index.
     bitrange: 31..0
     behavior: control
 
   - address: 84
-    name: input_lastidx
-    doc: input last index (exclusive).
+    name: input_00_lastidx
+    doc: input_00 last index (exclusive).
     bitrange: 63..32
     behavior: control
 
   - address: 88
-    name: output_firstidx
-    doc: output first index.
+    name: input_01_firstidx
+    doc: input_01 first index.
     bitrange: 31..0
     behavior: control
 
   - address: 92
-    name: output_lastidx
-    doc: output last index (exclusive).
+    name: input_01_lastidx
+    doc: input_01 last index (exclusive).
     bitrange: 63..32
     behavior: control
 
   - address: 96
-    name: input_input_values
-    doc: Buffer address for input input_values
-    bitrange: 63..0
+    name: output_00_firstidx
+    doc: output_00 first index.
+    bitrange: 31..0
+    behavior: control
+
+  - address: 100
+    name: output_00_lastidx
+    doc: output_00 last index (exclusive).
+    bitrange: 63..32
     behavior: control
 
   - address: 104
-    name: output_voltage_offsets
-    doc: Buffer address for output voltage_offsets
-    bitrange: 63..0
+    name: output_01_firstidx
+    doc: output_01 first index.
+    bitrange: 31..0
+    behavior: control
+
+  - address: 108
+    name: output_01_lastidx
+    doc: output_01 last index (exclusive).
+    bitrange: 63..32
     behavior: control
 
   - address: 112
-    name: output_voltage_values
-    doc: Buffer address for output voltage_values
+    name: input_00_input_values
+    doc: Buffer address for input_00 input_values
     bitrange: 63..0
     behavior: control
 
   - address: 120
+    name: input_01_input_values
+    doc: Buffer address for input_01 input_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 128
+    name: output_00_voltage_offsets
+    doc: Buffer address for output_00 voltage_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 136
+    name: output_00_voltage_values
+    doc: Buffer address for output_00 voltage_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 144
+    name: output_01_voltage_offsets
+    doc: Buffer address for output_01 voltage_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 152
+    name: output_01_voltage_values
+    doc: Buffer address for output_01 voltage_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 160
+    name: parser_00_control
+    doc: Custom register parser_00_control
+    bitrange: 31..0
+    behavior: control
+
+  - address: 164
+    name: parser_00_status
+    doc: Custom register parser_00_status
+    bitrange: 63..32
+    behavior: status
+
+  - address: 168
+    name: parser_00_rows
+    doc: Custom register parser_00_rows
+    bitrange: 63..0
+    behavior: status
+
+  - address: 176
+    name: parser_01_control
+    doc: Custom register parser_01_control
+    bitrange: 31..0
+    behavior: control
+
+  - address: 180
+    name: parser_01_status
+    doc: Custom register parser_01_status
+    bitrange: 63..32
+    behavior: status
+
+  - address: 184
+    name: parser_01_rows
+    doc: Custom register parser_01_rows
+    bitrange: 63..0
+    behavior: status
+
+  - address: 192
     name: Profile_enable
     doc: Activates profiler counting when this bit is high.
     bitrange: 0
     behavior: control
 
-  - address: 124
+  - address: 196
     name: Profile_clear
     doc: Resets profiler counters when this bit is asserted.
     bitrange: 32
     behavior: strobe
+
+
