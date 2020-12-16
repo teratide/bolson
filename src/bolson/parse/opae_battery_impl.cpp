@@ -271,8 +271,8 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
 
   // FLETCHER_ROE(kernel_->PollUntilDone());
   bool done = false;
-  uint32_t done_mask = 1ul << FLETCHER_REG_STATUS_DONE;
-  uint32_t done_status = 1ul << FLETCHER_REG_STATUS_DONE;
+  uint32_t done_mask = 4;
+  uint32_t done_status = 4;
   uint32_t status = 0;
   ReadMMIO(platform_, status_offset(idx_), &status, idx_, "status");
   while (!done) {
