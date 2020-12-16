@@ -204,37 +204,79 @@ static auto WrapOutput(int32_t num_rows,
   return Status::OK();
 }
 
+static auto WriteMMIO(fletcher::Platform *platform,
+                      uint64_t offset,
+                      uint32_t value,
+                      size_t idx,
+                      std::string desc = "") -> fletcher::Status {
+  SPDLOG_DEBUG("{} writing {} to offset {} ({}) {}",
+               idx,
+               value,
+               offset,
+               64 + 4 * offset,
+               desc);
+  return platform->WriteMMIO(offset, value);
+}
+
+static auto ReadMMIO(fletcher::Platform *platform,
+                     uint64_t offset,
+                     uint32_t *value,
+                     size_t idx,
+                     std::string desc = "") -> fletcher::Status {
+  SPDLOG_DEBUG("{} reading from offset {} ({}) {}",
+               idx,
+               offset,
+               64 + 4 * offset,
+               desc);
+  return platform->ReadMMIO(offset, value);
+}
+
 auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
                               ParsedBuffer *out) -> Status {
   platform_mutex->lock();
   ParsedBuffer result;
   // rewrite the input last index because of opae limitations.
-  FLETCHER_ROE(platform_->WriteMMIO(input_lastidx_offset(idx_), in->size()));
+  FLETCHER_ROE(WriteMMIO(platform_,
+                         input_lastidx_offset(idx_),
+                         in->size(),
+                         idx_,
+                         "input last idx"));
 
   dau_t input_addr;
   input_addr.full = h2d_addr_map->at(in->data());
 
-  FLETCHER_ROE(platform_->WriteMMIO(input_values_lo_offset(idx_), input_addr.lo));
-  FLETCHER_ROE(platform_->WriteMMIO(input_values_hi_offset(idx_), input_addr.hi));
+  FLETCHER_ROE(WriteMMIO(platform_,
+                         input_values_lo_offset(idx_),
+                         input_addr.lo,
+                         idx_,
+                         "input values addr lo"));
+  FLETCHER_ROE(WriteMMIO(platform_,
+                         input_values_hi_offset(idx_),
+                         input_addr.hi,
+                         idx_,
+                         "input values addr hi"));
 
   // Reset the kernel, start it, and poll until completion.
   // FLETCHER_ROE(kernel_->Reset());
-  FLETCHER_ROE(platform_->WriteMMIO(ctrl_offset(idx_),
-                                    1ul << FLETCHER_REG_CONTROL_RESET));
-  FLETCHER_ROE(platform_->WriteMMIO(ctrl_offset(idx_), 0));
+  FLETCHER_ROE(WriteMMIO(platform_, ctrl_offset(idx_),
+                         1ul << FLETCHER_REG_CONTROL_RESET,
+                         idx_,
+                         "ctrl"));
+  FLETCHER_ROE(WriteMMIO(platform_, ctrl_offset(idx_), 0, idx_, "ctrl"));
 
   //FLETCHER_ROE(kernel_->Start());
-  FLETCHER_ROE(platform_->WriteMMIO(ctrl_offset(idx_),
-                                    1ul << FLETCHER_REG_CONTROL_START));
-  FLETCHER_ROE(platform_->WriteMMIO(ctrl_offset(idx_), 0));
+  FLETCHER_ROE(WriteMMIO(platform_, ctrl_offset(idx_),
+                         1ul << FLETCHER_REG_CONTROL_START, idx_, "ctrl"));
+  FLETCHER_ROE(WriteMMIO(platform_, ctrl_offset(idx_), 0, idx_, "ctrl"));
 
   // FLETCHER_ROE(kernel_->PollUntilDone());
   bool done = false;
   uint32_t done_mask = 1ul << FLETCHER_REG_STATUS_DONE;
   uint32_t done_status = 1ul << FLETCHER_REG_STATUS_DONE;
   uint32_t status = 0;
+  ReadMMIO(platform_, status_offset(idx_), &status, idx_, "status");
   while (!done) {
-    context_->platform()->ReadMMIO(status_offset(idx_), &status);
+    platform_->ReadMMIO(status_offset(idx_), &status);
     done = (status & done_mask) == done_status;
     std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
   }
@@ -242,8 +284,8 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   // Obtain the result.
   dau_t num_rows;
   // FLETCHER_ROE(kernel->GetReturn(&num_rows.lo, &num_rows.hi));
-  context_->platform()->ReadMMIO(result_rows_offset_lo(idx_), &num_rows.lo);
-  context_->platform()->ReadMMIO(result_rows_offset_hi(idx_), &num_rows.hi);
+  ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
+  ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
 
   std::shared_ptr<arrow::RecordBatch> out_batch;
   BOLSON_ROE(WrapOutput(num_rows.full,
