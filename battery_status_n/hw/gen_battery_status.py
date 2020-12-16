@@ -55,6 +55,7 @@ def generate_schema_files(num_parsers):
 KERNEL_VHD = """library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.std_logic_misc.all;
 
 entity {kernel_name} is
   generic (
@@ -81,6 +82,10 @@ architecture Implementation of {kernel_name} is
   signal int_platform_complete_req : std_logic_vector({n}-1 downto 0);
   signal int_platform_complete_ack : std_logic_vector({n}-1 downto 0); 
 begin
+
+ext_platform_complete_req <= and_reduce(int_platform_complete_req);
+int_platform_complete_ack <= (others => ext_platform_complete_ack);
+
 {inst}
 end architecture;
 """
@@ -326,7 +331,7 @@ vhdl/mmio.gen.vhd
 ../../battery_status/hw/vhdl/tydi-json/component/IntParser.vhd
 ../../battery_status/hw/vhdl/tydi-json/test/schemas/battery_status/battery_status_pkg.vhd
 ../../battery_status/hw/vhdl/tydi-json/test/schemas/battery_status/BattSchemaParser.vhd
-vhdl/battery_status.vhd
+vhdl/battery_status.gen.vhd
 vhdl/battery_status_Nucleus.gen.vhd
 vhdl/battery_status_Mantle.gen.vhd
 ${{FLETCHER_HARDWARE_DIR}}/axi/Axi_pkg.vhd
