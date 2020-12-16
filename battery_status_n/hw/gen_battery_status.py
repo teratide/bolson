@@ -69,10 +69,6 @@ KERNEL_VHD = """library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-library work;
-use work.battery_status_pkg.all;
-use work.Stream_pkg.all;
-
 entity {kernel_name} is
   generic (
     INDEX_WIDTH : integer := 32;
