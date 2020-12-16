@@ -83,4 +83,21 @@ auto ToPointers(std::vector<T> &vec) -> std::vector<T *> {
   return result;
 }
 
+/**
+ * \brief Convert a vector of T to a vector with pointers to each T.
+ * \tparam T    The type of the items in the vector.
+ * \param vec   The vector.
+ * \return A vector with pointers to the items of vec.
+ */
+template<typename To, typename From>
+auto CastPtrs(std::vector<std::shared_ptr<From>> vec)
+-> std::vector<std::shared_ptr<To>> {
+  std::vector<std::shared_ptr<To>> result;
+  result.reserve(vec.size());
+  for (size_t i = 0; i < vec.size(); i++) {
+    result.push_back(std::static_pointer_cast<To>(vec[i]));
+  }
+  return result;
+}
+
 }  // namespace bolson

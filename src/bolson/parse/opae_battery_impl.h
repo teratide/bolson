@@ -23,44 +23,136 @@
 #include "bolson/buffer/opae_allocator.h"
 #include "bolson/stream.h"
 
-#define OPAE_BATTERY_AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5eed"
+#define OPAE_BATTERY_AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5ee0"
 
 namespace bolson::parse {
 
-struct OpaeBatteryOptions {
-  std::string afu_id = OPAE_BATTERY_AFU_ID;
-  size_t output_capacity_off = 1000 * 1024 * 1024;
-  size_t output_capacity_val = 1000 * 1024 * 1024;
-};
+using AddrMap = std::unordered_map<const std::byte *, da_t>;
 
 class OpaeBatteryParser : public Parser {
  public:
-  static auto Make(const OpaeBatteryOptions &opts,
-                   std::shared_ptr<OpaeBatteryParser> *out) -> Status;
-  auto Initialize(std::vector<illex::RawJSONBuffer *> buffers) -> Status override;
+  OpaeBatteryParser(fletcher::Platform *platform,
+                    fletcher::Context *context,
+                    fletcher::Kernel *kernel,
+                    AddrMap *addr_map,
+                    size_t parser_idx,
+                    size_t num_parsers,
+                    std::byte *raw_out_offsets,
+                    std::byte *raw_out_values)
+      : platform_(platform),
+        context_(context),
+        kernel_(kernel),
+        h2d_addr_map(addr_map),
+        idx_(parser_idx),
+        num_parsers(num_parsers),
+        raw_out_offsets(raw_out_offsets),
+        raw_out_values(raw_out_values) {}
+
   auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status override;
+
  private:
-  explicit OpaeBatteryParser(const OpaeBatteryOptions &opts) : opts_(opts) {}
+  // Fletcher default regs (unused):
+  // 0 control
+  // 1 status
+  // 2 return lo
+  // 3 return hi
+  static constexpr size_t default_regs = 4;
+
+  // Arrow regs per instance:
+  // 0 input firstidx
+  // 1 input lastidx
+  // 2 output firstidx
+  // 3 output lastidx
+  // 4 input val addr lo
+  // 5 input val addr hi
+  // 6 output off addr lo
+  // 7 output off addr hi
+  // 8 output val addr lo
+  // 9 output val addr hi
+  static constexpr size_t arrow_regs_per_inst = 10;
+
+  // Custom regs per instance:
+  // 0 control
+  // 1 status
+  // 2 result num rows lo
+  // 3 result num rows hi
+  static constexpr size_t custom_regs_per_inst = 4;
+
+  auto custom_regs_offset() const -> size_t {
+    return default_regs + num_parsers * arrow_regs_per_inst;
+  }
+
+  auto ctrl_offset(size_t idx) -> size_t {
+    return custom_regs_offset() + custom_regs_per_inst * idx;
+  }
+  auto status_offset(size_t idx) -> size_t { return ctrl_offset(idx) + 1; }
+
+  auto result_rows_offset_lo(size_t idx) -> size_t {
+    return status_offset(idx) + 1;
+  }
+  auto result_rows_offset_hi(size_t idx) -> size_t {
+    return result_rows_offset_lo(idx) + 1;
+  }
+
+  static auto input_firstidx_offset(size_t idx) -> size_t {
+    return default_regs + arrow_regs_per_inst * idx;
+  }
+  static auto input_lastidx_offset(size_t idx) -> size_t {
+    return input_firstidx_offset(idx) + 1;
+  }
+
+  static auto input_values_lo_offset(size_t idx) -> size_t {
+    return input_firstidx_offset(idx) + 2;
+  }
+
+  static auto input_values_hi_offset(size_t idx) -> size_t {
+    return input_values_lo_offset(idx) + 1;
+  }
+
+  size_t idx_;
+  size_t num_parsers;
+  fletcher::Platform *platform_;
+  fletcher::Context *context_;
+  fletcher::Kernel *kernel_;
+  AddrMap *h2d_addr_map;
+  std::byte *raw_out_offsets;
+  std::byte *raw_out_values;
+};
+
+struct OpaeBatteryOptions {
+  std::string afu_id = OPAE_BATTERY_AFU_ID;
+};
+
+class OpaeBatteryParserManager {
+ public:
+  static auto Make(const OpaeBatteryOptions &opts,
+                   const std::vector<illex::RawJSONBuffer *> &buffers,
+                   size_t num_parsers,
+                   std::shared_ptr<OpaeBatteryParserManager> *out) -> Status;
+
+  auto num_parsers() const -> size_t { return num_parsers_; }
+  auto parsers() -> std::vector<std::shared_ptr<OpaeBatteryParser>> { return parsers_; }
+ private:
+  auto PrepareInputBatches(const std::vector<illex::RawJSONBuffer *> &buffers) -> Status;
+  auto PrepareOutputBatches() -> Status;
+  auto PrepareParsers() -> Status;
 
   OpaeBatteryOptions opts_;
 
+  std::unordered_map<const std::byte *, da_t> h2d_addr_map;
+
+  size_t num_parsers_;
   buffer::OpaeAllocator allocator;
+  std::vector<std::byte *> raw_out_offsets;
+  std::vector<std::byte *> raw_out_values;
+  std::vector<std::shared_ptr<arrow::RecordBatch>> batches_in;
+  std::vector<std::shared_ptr<arrow::RecordBatch>> batches_out;
 
-  std::unordered_map<const std::byte *, da_t> buffer_addr_map;
+  std::shared_ptr<fletcher::Platform> platform;
+  std::shared_ptr<fletcher::Context> context;
+  std::shared_ptr<fletcher::Kernel> kernel;
 
-  std::shared_ptr<arrow::RecordBatch> batch_in = nullptr;
-  std::shared_ptr<arrow::RecordBatch> batch_out = nullptr;
-  std::byte *out_offsets = nullptr;
-  std::byte *out_values = nullptr;
-
-  std::shared_ptr<fletcher::Platform> platform = nullptr;
-  std::shared_ptr<fletcher::Context> context = nullptr;
-  std::shared_ptr<fletcher::Kernel> kernel = nullptr;
-
-  auto PrepareOutputBatch(size_t offsets_capacity,
-                          size_t values_capacity) -> Status;
-  auto PrepareInputBatch(const uint8_t *buffer_raw, size_t size) -> Status;
-
+  std::vector<std::shared_ptr<OpaeBatteryParser>> parsers_;
 };
 
 }

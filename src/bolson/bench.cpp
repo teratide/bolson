@@ -125,6 +125,8 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
                                       num_buffers,
                                       opt.converter.num_threads);
 
+  std::shared_ptr<parse::OpaeBatteryParserManager> opae_battery_manager;
+
   // Set up the parsers.
   switch (opt.converter.implementation) {
     case parse::Impl::ARROW: {
@@ -135,13 +137,11 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
       break;
     }
     case parse::Impl::OPAE_BATTERY: {
-      if (opt.converter.num_threads > 1) {
-        return Status(Error::OpaeError,
-                      "OpaeBattery does not support multi-threaded conversion.");
-      }
-      std::shared_ptr<parse::OpaeBatteryParser> parser;
-      BOLSON_ROE(parse::OpaeBatteryParser::Make(parse::OpaeBatteryOptions(), &parser));
-      converter.parsers.push_back(parser);
+      parse::OpaeBatteryParserManager::Make(parse::OpaeBatteryOptions(),
+                                            ToPointers(converter.buffers),
+                                            opt.converter.num_threads,
+                                            &opae_battery_manager);
+      converter.parsers = CastPtrs<parse::Parser>(opae_battery_manager->parsers());
     }
   }
 
@@ -151,7 +151,7 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
 
   // Temporary work-around for opae
   if (opt.converter.implementation == parse::Impl::OPAE_BATTERY) {
-    buf_cap = buffer::g_opae_buffercap;
+    buf_cap = buffer::opae_fixed_capacity;
   }
 
   converter.AllocateBuffers(buf_cap);

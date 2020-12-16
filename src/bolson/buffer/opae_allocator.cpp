@@ -20,15 +20,14 @@
 
 namespace bolson::buffer {
 
-size_t g_opae_buffercap = 1000 * 1024 * 1024;
-
 auto OpaeAllocator::Allocate(size_t size, std::byte **out) -> Status {
-  if (size != g_opae_buffercap) {
-    spdlog::warn("You want to opae allocate {} bytes, but you're getting {}.",
+  if (size != opae_fixed_capacity) {
+    spdlog::warn("OpaeAllocator requested to allocate {} bytes, "
+                 "but only allows allocating exactly {} bytes for now.",
                  size,
-                 g_opae_buffercap);
+                 opae_fixed_capacity);
   }
-  size = g_opae_buffercap;
+  size = opae_fixed_capacity;
 
   // TODO(mbrobbel): explain this
   void *addr = mmap(nullptr,

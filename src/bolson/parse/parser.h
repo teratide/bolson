@@ -35,9 +35,6 @@ struct ParsedBuffer {
 
 class Parser {
  public:
-  virtual auto Initialize(std::vector<illex::RawJSONBuffer *> buffers) -> Status {
-    return Status::OK();
-  }
   virtual auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status = 0;
 };
 

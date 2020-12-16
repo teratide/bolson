@@ -20,8 +20,8 @@
 
 namespace bolson::buffer {
 
-/// A work-around for limitations to the OPAE platform.
-extern size_t g_opae_buffercap;
+// TODO: Temporary work-around for limitations to the OPAE platform.
+constexpr size_t opae_fixed_capacity = 1000 * 1024 * 1024;
 
 class OpaeAllocator : public Allocator {
  public:
