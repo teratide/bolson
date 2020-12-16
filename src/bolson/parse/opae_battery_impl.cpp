@@ -259,14 +259,14 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   // Reset the kernel, start it, and poll until completion.
   // FLETCHER_ROE(kernel_->Reset());
   FLETCHER_ROE(WriteMMIO(platform_, ctrl_offset(idx_),
-                         1ul << FLETCHER_REG_CONTROL_RESET,
+                         4,
                          idx_,
                          "ctrl"));
   FLETCHER_ROE(WriteMMIO(platform_, ctrl_offset(idx_), 0, idx_, "ctrl"));
 
   //FLETCHER_ROE(kernel_->Start());
   FLETCHER_ROE(WriteMMIO(platform_, ctrl_offset(idx_),
-                         1ul << FLETCHER_REG_CONTROL_START, idx_, "ctrl"));
+                         1, idx_, "ctrl"));
   FLETCHER_ROE(WriteMMIO(platform_, ctrl_offset(idx_), 0, idx_, "ctrl"));
 
   // FLETCHER_ROE(kernel_->PollUntilDone());
