@@ -125,6 +125,15 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
                                       num_buffers,
                                       opt.converter.num_threads);
 
+  // Allocate and fill buffers.
+  // Calculate generous buffer size, +1 for newline
+  auto buf_cap = num_buffers * max_json + (opt.num_jsons * max_json) / num_buffers;
+  // Temporary work-around for opae
+  if (opt.converter.implementation == parse::Impl::OPAE_BATTERY) {
+    buf_cap = buffer::opae_fixed_capacity;
+  }
+  converter.AllocateBuffers(buf_cap);
+
   std::shared_ptr<parse::OpaeBatteryParserManager> opae_battery_manager;
 
   // Set up the parsers.
@@ -145,16 +154,6 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
     }
   }
 
-  // Allocate and fill buffers.
-  // Calculate generous buffer size, +1 for newline
-  auto buf_cap = num_buffers * max_json + (opt.num_jsons * max_json) / num_buffers;
-
-  // Temporary work-around for opae
-  if (opt.converter.implementation == parse::Impl::OPAE_BATTERY) {
-    buf_cap = buffer::opae_fixed_capacity;
-  }
-
-  converter.AllocateBuffers(buf_cap);
   FillBuffers(ToPointers(converter.buffers), items);
 
   // Lock all buffers.

@@ -143,6 +143,8 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
         result->context->device_buffer(i).device_address;
   }
 
+  BOLSON_ROE(result->PrepareParsers());
+
   *out = result;
 
   return Status::OK();
