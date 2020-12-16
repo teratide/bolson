@@ -331,6 +331,7 @@ vhdl/mmio.gen.vhd
 ../../battery_status/hw/vhdl/tydi-json/component/IntParser.vhd
 ../../battery_status/hw/vhdl/tydi-json/test/schemas/battery_status/battery_status_pkg.vhd
 ../../battery_status/hw/vhdl/tydi-json/test/schemas/battery_status/BattSchemaParser.vhd
+vhdl/battery_status_sub.vhd
 vhdl/battery_status.gen.vhd
 vhdl/battery_status_Nucleus.gen.vhd
 vhdl/battery_status_Mantle.gen.vhd
