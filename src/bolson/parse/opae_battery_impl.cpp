@@ -274,16 +274,19 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   uint32_t done_mask = 4;
   uint32_t done_status = 4;
   uint32_t status = 0;
-  ReadMMIO(platform_, status_offset(idx_), &status, idx_, "status");
-  while (!done) {
 
+  while (!done) {
 #ifndef NDEBUG
     ReadMMIO(platform_, status_offset(idx_), &status, idx_, "status");
     SPDLOG_DEBUG("Status value: {}", status);
+    platform_mutex->unlock();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    platform_mutex->lock();
 #else
     platform_->ReadMMIO(status_offset(idx_), &status);
+    platform_mutex->unlock();
     std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
+    platform_mutex->lock();
 #endif
     done = (status & done_mask) == done_status;
   }
@@ -304,7 +307,6 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   result.parsed_bytes = in->size();
 
   *out = result;
-  platform_mutex->unlock();
   return Status::OK();
 }
 
