@@ -146,10 +146,10 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
       break;
     }
     case parse::Impl::OPAE_BATTERY: {
-      parse::OpaeBatteryParserManager::Make(parse::OpaeBatteryOptions(),
-                                            ToPointers(converter.buffers),
-                                            opt.converter.num_threads,
-                                            &opae_battery_manager);
+      BOLSON_ROE(parse::OpaeBatteryParserManager::Make(parse::OpaeBatteryOptions(),
+                                                       ToPointers(converter.buffers),
+                                                       opt.converter.num_threads,
+                                                       &opae_battery_manager));
       converter.parsers = CastPtrs<parse::Parser>(opae_battery_manager->parsers());
     }
   }

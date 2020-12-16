@@ -105,6 +105,8 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
   result->opts_ = opts;
   result->num_parsers_ = num_parsers;
 
+  SPDLOG_DEBUG("Setting up OpaeBatteryParserManager for {} buffers.", buffers.size());
+
   BOLSON_ROE(result->PrepareInputBatches(buffers));
   BOLSON_ROE(result->PrepareOutputBatches());
 
@@ -142,6 +144,8 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
     result->h2d_addr_map[buffers[i]->data()] =
         result->context->device_buffer(i).device_address;
   }
+
+  SPDLOG_DEBUG("Preparing parsers.");
 
   BOLSON_ROE(result->PrepareParsers());
 
