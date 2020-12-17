@@ -297,7 +297,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
   ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
 
-  SPDLOG_DEBUG("{} number of rows: {}", idx_, num_rows);
+  SPDLOG_DEBUG("{} number of rows: {}", idx_, num_rows.full);
 
   std::shared_ptr<arrow::RecordBatch> out_batch;
   BOLSON_ROE(WrapOutput(num_rows.full,
@@ -307,7 +307,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
                         &result.batch));
 
   result.parsed_bytes = in->size();
-
+  platform_mutex->unlock();
   *out = result;
   return Status::OK();
 }

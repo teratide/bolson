@@ -184,13 +184,9 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   for (size_t m = 0; m < opt.converter.num_buffers; m++) {
     converter.mutexes[m].unlock();
   }
-  // Pull JSON ipc items from the queue to check when we are done.
-  while (num_rows != opt.num_jsons) {
-    ipc_queue.wait_dequeue(ipc_item);
-    num_rows += ipc_item.num_rows;
-    ipc_size += ipc_item.ipc->size();
-    num_ipc++;
-  }
+
+  std::this_thread::sleep_for(std::chrono::seconds(10));
+
   // Stop converting.
   shutdown.store(true);
   converter.Stop();
