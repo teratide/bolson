@@ -72,20 +72,12 @@ entity {kernel_name} is
     idle                        : out std_logic;
     busy                        : out std_logic;
     done                        : out std_logic;
-    result                      : out std_logic_vector(63 downto 0);
-    ext_platform_complete_req   : out std_logic;
-    ext_platform_complete_ack   : in std_logic
+    result                      : out std_logic_vector(63 downto 0)
   );
 end entity;
 
 architecture Implementation of {kernel_name} is
-  signal int_platform_complete_req : std_logic_vector({n}-1 downto 0);
-  signal int_platform_complete_ack : std_logic_vector({n}-1 downto 0); 
 begin
-
-ext_platform_complete_req <= and_reduce(int_platform_complete_req);
-int_platform_complete_ack <= (others => ext_platform_complete_ack);
-
 {inst}
 end architecture;
 """
@@ -142,9 +134,7 @@ SUBKERNEL_INST_VHD = """  {kernel_name}_{idx:02}_inst: entity work.{kernel_name}
       input_firstidx              => input_{idx:02}_firstidx,
       input_lastidx               => input_{idx:02}_lastidx,
       output_firstidx             => output_{idx:02}_firstidx,
-      output_lastidx              => output_{idx:02}_lastidx,
-      ext_platform_complete_req   => int_platform_complete_req({idx}),
-      ext_platform_complete_ack   => int_platform_complete_ack({idx})
+      output_lastidx              => output_{idx:02}_lastidx
     );
 """
 
@@ -364,8 +354,7 @@ fletchgen(
     '--regs', *registers,
     '-l', 'vhdl',
     '--mmio64',
-    '--mmio-offset', str(64),
-    '-e', '{}.ext.yml'.format(KERNEL_NAME)
+    '--mmio-offset', str(64)
 )
 
 emphasize("Generating kernel source...")

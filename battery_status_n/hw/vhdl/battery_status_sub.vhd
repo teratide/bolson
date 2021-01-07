@@ -74,9 +74,7 @@ entity battery_status_sub is
     input_firstidx              : in std_logic_vector(31 downto 0);
     input_lastidx               : in std_logic_vector(31 downto 0);
     output_firstidx             : in std_logic_vector(31 downto 0);
-    output_lastidx              : in std_logic_vector(31 downto 0);
-    ext_platform_complete_req   : out std_logic;
-    ext_platform_complete_ack   : in std_logic
+    output_lastidx              : in std_logic_vector(31 downto 0)
   );
 end entity;
 
@@ -92,7 +90,6 @@ architecture Implementation of battery_status_sub is
     STATE_REQ_WRITE,    -- send write request
     STATE_UNLOCK_READ,  -- unlock read
     STATE_UNLOCK_WRITE, -- unlock write
-    STATE_FENCE,        -- write fence
     STATE_DONE          -- done
   );
 
@@ -228,17 +225,7 @@ begin
 
         if output_voltage_unl_valid = '1' then
           output_voltage_unl_ready <= '1';
-          state_next               <= STATE_FENCE;
-        end if;
-
-      when STATE_FENCE =>
-        done                      <= '0';
-        busy                      <= '1';
-        idle                      <= '0';
-
-        ext_platform_complete_req <= '1';
-        if ext_platform_complete_ack = '1' then
-          state_next <= STATE_DONE;
+          state_next               <= STATE_DONE;
         end if;
 
         -- wait for kernel reset
