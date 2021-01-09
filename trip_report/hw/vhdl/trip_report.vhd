@@ -362,7 +362,9 @@ entity trip_report is
     input_firstidx                                : in  std_logic_vector(31 downto 0);
     input_lastidx                                 : in  std_logic_vector(31 downto 0);
     output_firstidx                               : in  std_logic_vector(31 downto 0);
-    output_lastidx                                : in  std_logic_vector(31 downto 0)
+    output_lastidx                                : in  std_logic_vector(31 downto 0);
+    ext_platform_complete_req                     : out std_logic;
+    ext_platform_complete_ack                     : in  std_logic
   );
 end entity;
 
@@ -498,6 +500,7 @@ architecture Implementation of trip_report is
     STATE_REQ_WRITE,    -- send write request
     STATE_UNLOCK_READ,  -- unlock read
     STATE_UNLOCK_WRITE, -- unlock write
+    STATE_FENCE,        -- write fence
     STATE_DONE          -- done
   );
 
@@ -751,6 +754,9 @@ begin
     input_input_cmd_tag         <= (others => '0');
     input_input_unl_ready       <= '0';
 
+    cmd_valid                   <= '0';
+    unl_ready                   <= '0';
+
     -- next state is the same if not changed
     state_next                  <= state;
 
@@ -814,6 +820,17 @@ begin
 
         if unl_valid = '1' then
           unl_ready  <= '1';
+          state_next <= STATE_DONE;
+        end if;
+
+
+      when STATE_FENCE =>
+        done                      <= '0';
+        busy                      <= '1';
+        idle                      <= '0';
+
+        ext_platform_complete_req <= '1';
+        if ext_platform_complete_ack = '1' then
           state_next <= STATE_DONE;
         end if;
 
