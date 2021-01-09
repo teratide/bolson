@@ -21,29 +21,30 @@ entity D2ListToVecs is
       in_valid                 : in  std_logic;
       in_ready                 : out std_logic;
       in_data                  : in  std_logic_vector(DATA_WIDTH*EPC-1 downto 0);
-      in_last                  : in  std_logic_vector(2 downto 0) := (others => '0');
-      in_count                 : in  std_logic_vector(log2ceil(EPC)-1 downto 0) := std_logic_vector(to_unsigned(1, log2ceil(EPC)));
+      in_last                  : in  std_logic_vector(1 downto 0) := (others => '0');
+      in_count                 : in  std_logic_vector(log2ceil(EPC+1)-1 downto 0) := std_logic_vector(to_unsigned(1, log2ceil(EPC+1)));
       in_dvalid                : in  std_logic := '1';
 
       -- Element stream
       out_valid                : out std_logic;
       out_ready                : in  std_logic;
       out_data                 : out std_logic_vector(DATA_WIDTH*EPC-1 downto 0);
-      out_count                : out std_logic_vector(log2ceil(EPC)-1 downto 0);
+      out_count                : out std_logic_vector(log2ceil(EPC+1)-1 downto 0);
       out_dvalid               : out std_logic;
       out_last                 : out std_logic;
 
       -- Length stream
       length_valid             : out std_logic;
       length_ready             : in  std_logic;
-      lenght_data              : out std_logic_vector(LENGTH_WIDTH-1 downto 0);
+      length_data              : out std_logic_vector(LENGTH_WIDTH-1 downto 0);
       length_dvalid            : out std_logic;
+      length_count             : out std_logic_vector(0 downto 0);
       length_last              : out std_logic
   );
 end entity;
 
 
-architecture Implementation of trip_report is
+architecture Implementation of D2ListToVecs is
 begin
     convert_proc : process (clk) is
       type input_holding_reg_type is record
@@ -125,14 +126,14 @@ begin
           end if;
     
           oe.valid := i.dvalid or i.last(1);
-          oc.valid := or_reduce(i.last)
+          oc.valid := or_reduce(i.last);
     
           -- clear holding register
           i.valid  := '0';
     
         end if;
     
-        if kcd_reset = '1' then
+        if reset = '1' then
           i.valid  := '0';
           oc.valid := '0';
           oe.valid := '0';
@@ -145,6 +146,7 @@ begin
         length_dvalid      <= oc.dvalid;
         length_last        <= oc.last;
         length_data        <= oc.data;
+        length_count       <= "1";
     
         out_valid          <= oe.valid;
         out_dvalid         <= oe.dvalid;
