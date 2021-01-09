@@ -50,8 +50,8 @@ begin
       type input_holding_reg_type is record
         valid         : std_logic;
         dvalid        : std_logic;
-        data          : std_logic_vector(DATA_WIDTH*EPC downto 0);
-        count         : std_logic_vector(log2ceil(EPC)-1 downto 0);
+        data          : std_logic_vector(DATA_WIDTH*EPC-1 downto 0);
+        count         : std_logic_vector(log2ceil(EPC+1)-1 downto 0);
         last          : std_logic_vector(1 downto 0);
       end record;
       variable i : input_holding_reg_type;
@@ -67,8 +67,8 @@ begin
       type element_output_holding_reg_type is record
         valid  : std_logic;
         dvalid : std_logic;
-        data   : std_logic_vector(DATA_WIDTH*EPC downto 0);
-        count  : std_logic_vector(log2ceil(EPC)-1 downto 0);
+        data   : std_logic_vector(DATA_WIDTH*EPC-1 downto 0);
+        count  : std_logic_vector(log2ceil(EPC+1)-1 downto 0);
         last   : std_logic;
       end record;
       variable oe    : element_output_holding_reg_type;

@@ -121,9 +121,6 @@ vhdl/StreamSerializer.vhd
 vhdl/D2ListToVecs.vhd
 
 
-
-
-
 vhdl/trip_report.vhd
 vhdl/trip_report_Nucleus.gen.vhd
 vhdl/trip_report_Mantle.gen.vhd
