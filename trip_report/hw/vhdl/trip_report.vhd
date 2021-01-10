@@ -44,17 +44,17 @@ entity trip_report is
     output_timezone_ready                         : in  std_logic;
     output_timezone_dvalid                        : out std_logic;
     output_timezone_last                          : out std_logic;
-    output_timezone                               : out std_logic_vector(63 downto 0);
+    output_timezone                               : out std_logic_vector(31 downto 0);
     output_vin_valid                              : out std_logic;
     output_vin_ready                              : in  std_logic;
     output_vin_dvalid                             : out std_logic;
     output_vin_last                               : out std_logic;
-    output_vin                                    : out std_logic_vector(63 downto 0);
+    output_vin                                    : out std_logic_vector(31 downto 0);
     output_odometer_valid                         : out std_logic;
     output_odometer_ready                         : in  std_logic;
     output_odometer_dvalid                        : out std_logic;
     output_odometer_last                          : out std_logic;
-    output_odometer                               : out std_logic_vector(63 downto 0);
+    output_odometer                               : out std_logic_vector(31 downto 0);
     output_hypermiling_valid                      : out std_logic;
     output_hypermiling_ready                      : in  std_logic;
     output_hypermiling_dvalid                     : out std_logic;
@@ -64,7 +64,7 @@ entity trip_report is
     output_avgspeed_ready                         : in  std_logic;
     output_avgspeed_dvalid                        : out std_logic;
     output_avgspeed_last                          : out std_logic;
-    output_avgspeed                               : out std_logic_vector(63 downto 0);
+    output_avgspeed                               : out std_logic_vector(31 downto 0);
     output_sec_in_band_valid                      : out std_logic;
     output_sec_in_band_ready                      : in  std_logic;
     output_sec_in_band_dvalid                     : out std_logic;
@@ -75,7 +75,7 @@ entity trip_report is
     output_sec_in_band_item_ready                 : in  std_logic;
     output_sec_in_band_item_dvalid                : out std_logic;
     output_sec_in_band_item_last                  : out std_logic;
-    output_sec_in_band_item                       : out std_logic_vector(63 downto 0);
+    output_sec_in_band_item                       : out std_logic_vector(31 downto 0);
     output_sec_in_band_item_count                 : out std_logic_vector(0 downto 0);
     output_miles_in_time_range_valid              : out std_logic;
     output_miles_in_time_range_ready              : in  std_logic;
@@ -87,7 +87,7 @@ entity trip_report is
     output_miles_in_time_range_item_ready         : in  std_logic;
     output_miles_in_time_range_item_dvalid        : out std_logic;
     output_miles_in_time_range_item_last          : out std_logic;
-    output_miles_in_time_range_item               : out std_logic_vector(63 downto 0);
+    output_miles_in_time_range_item               : out std_logic_vector(31 downto 0);
     output_miles_in_time_range_item_count         : out std_logic_vector(0 downto 0);
     output_const_speed_miles_in_band_valid        : out std_logic;
     output_const_speed_miles_in_band_ready        : in  std_logic;
@@ -99,7 +99,7 @@ entity trip_report is
     output_const_speed_miles_in_band_item_ready   : in  std_logic;
     output_const_speed_miles_in_band_item_dvalid  : out std_logic;
     output_const_speed_miles_in_band_item_last    : out std_logic;
-    output_const_speed_miles_in_band_item         : out std_logic_vector(63 downto 0);
+    output_const_speed_miles_in_band_item         : out std_logic_vector(31 downto 0);
     output_const_speed_miles_in_band_item_count   : out std_logic_vector(0 downto 0);
     output_vary_speed_miles_in_band_valid         : out std_logic;
     output_vary_speed_miles_in_band_ready         : in  std_logic;
@@ -111,7 +111,7 @@ entity trip_report is
     output_vary_speed_miles_in_band_item_ready    : in  std_logic;
     output_vary_speed_miles_in_band_item_dvalid   : out std_logic;
     output_vary_speed_miles_in_band_item_last     : out std_logic;
-    output_vary_speed_miles_in_band_item          : out std_logic_vector(63 downto 0);
+    output_vary_speed_miles_in_band_item          : out std_logic_vector(31 downto 0);
     output_vary_speed_miles_in_band_item_count    : out std_logic_vector(0 downto 0);
     output_sec_decel_valid                        : out std_logic;
     output_sec_decel_ready                        : in  std_logic;
@@ -123,7 +123,7 @@ entity trip_report is
     output_sec_decel_item_ready                   : in  std_logic;
     output_sec_decel_item_dvalid                  : out std_logic;
     output_sec_decel_item_last                    : out std_logic;
-    output_sec_decel_item                         : out std_logic_vector(63 downto 0);
+    output_sec_decel_item                         : out std_logic_vector(31 downto 0);
     output_sec_decel_item_count                   : out std_logic_vector(0 downto 0);
     output_sec_accel_valid                        : out std_logic;
     output_sec_accel_ready                        : in  std_logic;
@@ -135,7 +135,7 @@ entity trip_report is
     output_sec_accel_item_ready                   : in  std_logic;
     output_sec_accel_item_dvalid                  : out std_logic;
     output_sec_accel_item_last                    : out std_logic;
-    output_sec_accel_item                         : out std_logic_vector(63 downto 0);
+    output_sec_accel_item                         : out std_logic_vector(31 downto 0);
     output_sec_accel_item_count                   : out std_logic_vector(0 downto 0);
     output_braking_valid                          : out std_logic;
     output_braking_ready                          : in  std_logic;
@@ -147,7 +147,7 @@ entity trip_report is
     output_braking_item_ready                     : in  std_logic;
     output_braking_item_dvalid                    : out std_logic;
     output_braking_item_last                      : out std_logic;
-    output_braking_item                           : out std_logic_vector(63 downto 0);
+    output_braking_item                           : out std_logic_vector(31 downto 0);
     output_braking_item_count                     : out std_logic_vector(0 downto 0);
     output_accel_valid                            : out std_logic;
     output_accel_ready                            : in  std_logic;
@@ -159,7 +159,7 @@ entity trip_report is
     output_accel_item_ready                       : in  std_logic;
     output_accel_item_dvalid                      : out std_logic;
     output_accel_item_last                        : out std_logic;
-    output_accel_item                             : out std_logic_vector(63 downto 0);
+    output_accel_item                             : out std_logic_vector(31 downto 0);
     output_accel_item_count                       : out std_logic_vector(0 downto 0);
     output_orientation_valid                      : out std_logic;
     output_orientation_ready                      : in  std_logic;
@@ -176,7 +176,7 @@ entity trip_report is
     output_small_speed_var_item_ready             : in  std_logic;
     output_small_speed_var_item_dvalid            : out std_logic;
     output_small_speed_var_item_last              : out std_logic;
-    output_small_speed_var_item                   : out std_logic_vector(63 downto 0);
+    output_small_speed_var_item                   : out std_logic_vector(31 downto 0);
     output_small_speed_var_item_count             : out std_logic_vector(0 downto 0);
     output_large_speed_var_valid                  : out std_logic;
     output_large_speed_var_ready                  : in  std_logic;
@@ -188,18 +188,18 @@ entity trip_report is
     output_large_speed_var_item_ready             : in  std_logic;
     output_large_speed_var_item_dvalid            : out std_logic;
     output_large_speed_var_item_last              : out std_logic;
-    output_large_speed_var_item                   : out std_logic_vector(63 downto 0);
+    output_large_speed_var_item                   : out std_logic_vector(31 downto 0);
     output_large_speed_var_item_count             : out std_logic_vector(0 downto 0);
     output_accel_decel_valid                      : out std_logic;
     output_accel_decel_ready                      : in  std_logic;
     output_accel_decel_dvalid                     : out std_logic;
     output_accel_decel_last                       : out std_logic;
-    output_accel_decel                            : out std_logic_vector(63 downto 0);
+    output_accel_decel                            : out std_logic_vector(31 downto 0);
     output_speed_changes_valid                    : out std_logic;
     output_speed_changes_ready                    : in  std_logic;
     output_speed_changes_dvalid                   : out std_logic;
     output_speed_changes_last                     : out std_logic;
-    output_speed_changes                          : out std_logic_vector(63 downto 0);
+    output_speed_changes                          : out std_logic_vector(31 downto 0);
     output_timestamp_unl_valid                    : in  std_logic;
     output_timestamp_unl_ready                    : out std_logic;
     output_timestamp_unl_tag                      : in  std_logic_vector(TAG_WIDTH-1 downto 0);
@@ -376,22 +376,22 @@ architecture Implementation of trip_report is
   -- 
     -- INTEGER FIELDS
     --
-  constant TIMEZONE_INT_WIDTH                   :natural := 64;
-  constant VIN_INT_WIDTH                        :natural := 64;
-  constant ODOMETER_INT_WIDTH                   :natural := 64;
-  constant AVGSPEED_INT_WIDTH                   :natural := 64;
-  constant ACCEL_DECEL_INT_WIDTH                :natural := 64;
-  constant SPEED_CHANGES_INT_WIDTH              :natural := 64;
-  constant SEC_IN_BAND_INT_WIDTH                :natural := 64;
-  constant MILES_IN_TIME_RANGE_INT_WIDTH        :natural := 64;
-  constant CONST_SPEED_MILES_IN_BAND_INT_WIDTH  :natural := 64;
-  constant VARY_SPEED_MILES_IN_BAND_INT_WIDTH   :natural := 64;
-  constant SEC_DECEL_INT_WIDTH                  :natural := 64;
-  constant SEC_ACCEL_INT_WIDTH                  :natural := 64;
-  constant BRAKING_INT_WIDTH                    :natural := 64;
-  constant ACCEL_INT_WIDTH                      :natural := 64;
-  constant SMALL_SPEED_VAR_INT_WIDTH            :natural := 64;
-  constant LARGE_SPEED_VAR_INT_WIDTH            :natural := 64;
+  constant TIMEZONE_INT_WIDTH                   :natural := 32;
+  constant VIN_INT_WIDTH                        :natural := 32;
+  constant ODOMETER_INT_WIDTH                   :natural := 32;
+  constant AVGSPEED_INT_WIDTH                   :natural := 32;
+  constant ACCEL_DECEL_INT_WIDTH                :natural := 32;
+  constant SPEED_CHANGES_INT_WIDTH              :natural := 32;
+  constant SEC_IN_BAND_INT_WIDTH                :natural := 32;
+  constant MILES_IN_TIME_RANGE_INT_WIDTH        :natural := 32;
+  constant CONST_SPEED_MILES_IN_BAND_INT_WIDTH  :natural := 32;
+  constant VARY_SPEED_MILES_IN_BAND_INT_WIDTH   :natural := 32;
+  constant SEC_DECEL_INT_WIDTH                  :natural := 32;
+  constant SEC_ACCEL_INT_WIDTH                  :natural := 32;
+  constant BRAKING_INT_WIDTH                    :natural := 32;
+  constant ACCEL_INT_WIDTH                      :natural := 32;
+  constant SMALL_SPEED_VAR_INT_WIDTH            :natural := 32;
+  constant LARGE_SPEED_VAR_INT_WIDTH            :natural := 32;
 
   signal sec_in_band_valid                : std_logic;
   signal sec_in_band_ready                : std_logic;
