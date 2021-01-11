@@ -20,11 +20,67 @@
 //#define PLATFORM "echo"
 #endif
 
+arrow::Result<std::shared_ptr<arrow::PrimitiveArray>> AlignedPrimitiveArray(const std::shared_ptr<arrow::DataType>& type,
+                                                                            size_t buffer_size) {
+  uint8_t *value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  if (value_data == nullptr)
+  {
+    return arrow::Status::OutOfMemory("Failed to allocate buffer");
+  }
+  memset(value_data, 0, buffer_size);
+  auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
+  return arrow::ToResult(value_array);
+}
+
+arrow::Result<std::shared_ptr<arrow::ListArray>> AlignedListArray(const std::shared_ptr<arrow::DataType>& type,
+                                                                            size_t offset_buffer_size,
+                                                                            size_t value_buffer_size) {
+  uint8_t *offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), offset_buffer_size);
+  if (offset_data == nullptr)
+  {
+    return arrow::Status::OutOfMemory("Failed to allocate offset buffer");
+  }
+  memset(offset_data, 0, offset_buffer_size);
+  auto offset_buffer = std::make_shared<arrow::Buffer>(offset_data, offset_buffer_size);
+
+  uint8_t *value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), value_buffer_size);
+  if (value_data == nullptr)
+  {
+    return arrow::Status::OutOfMemory("Failed to allocate value buffer");
+  }
+  auto value_buffer = std::make_shared<arrow::Buffer>(value_data, value_buffer_size);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
+
+  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, offset_buffer, value_array);
+  return arrow::ToResult(list_array);
+}
+
+arrow::Result<std::shared_ptr<arrow::StringArray>> AlignedStringArray(size_t offset_buffer_size,
+                                                                      size_t value_buffer_size) {
+  uint8_t *offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), offset_buffer_size);
+  if (offset_data == nullptr)
+  {
+    return arrow::Status::OutOfMemory("Failed to allocate buffer");
+  }
+  memset(offset_data, 0, offset_buffer_size);
+  auto offset_buffer = std::make_shared<arrow::Buffer>(offset_data, offset_buffer_size);
+  uint8_t *value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), value_buffer_size);
+  if (value_data == nullptr)
+  {
+    return arrow::Status::OutOfMemory("Failed to allocate buffer");
+  }
+  auto value_buffer = std::make_shared<arrow::Buffer>(value_data, value_buffer_size);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), 0, value_buffer);
+  auto string_array = std::make_shared<arrow::StringArray>(0, offset_buffer, value_buffer);
+  return arrow::ToResult(string_array);
+}
+
 int main(int argc, char **argv)
 {
   if (argc != 3)
   {
-    std::cerr << "Incorrect number of arguments. Usage: battery_status path/to/input_recordbatch.rb path/to/output_recordbatch.rb" << std::endl;
+    std::cerr << "Incorrect number of arguments. Usage: trip_report path/to/input_recordbatch.rb path/to/output_recordbatch.rb" << std::endl;
     return -1;
   }
 
@@ -46,156 +102,32 @@ int main(int argc, char **argv)
 
   size_t buffer_size = 4096;
 
+
   // Int + boolean fields
-  uint8_t *timezone_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(timezone_data, 0, buffer_size);
-  auto timezone_buffer = std::make_shared<arrow::Buffer>(timezone_data, buffer_size);
-  auto timezone_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  timezone_buffer);
-
-  uint8_t *vin_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(vin_data, 0, buffer_size);
-  auto vin_buffer = std::make_shared<arrow::Buffer>(vin_data, buffer_size);
-  auto vin_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  vin_buffer);
-
-  uint8_t *odometer_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(odometer_data, 0, buffer_size);
-  auto odometer_buffer = std::make_shared<arrow::Buffer>(odometer_data, buffer_size);
-  auto odometer_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  odometer_buffer);
-
-  uint8_t *avgspeed_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(avgspeed_data, 0, buffer_size);
-  auto avgspeed_buffer = std::make_shared<arrow::Buffer>(avgspeed_data, buffer_size);
-  auto avgspeed_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  avgspeed_buffer);
-
-  uint8_t *accel_decel_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(accel_decel_data, 0, buffer_size);
-  auto accel_decel_buffer = std::make_shared<arrow::Buffer>(accel_decel_data, buffer_size);
-  auto accel_decel_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  accel_decel_buffer);
-
-  uint8_t *speed_changes_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(speed_changes_data, 0, buffer_size);
-  auto speed_changes_buffer = std::make_shared<arrow::Buffer>(speed_changes_data, buffer_size);
-  auto speed_changes_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  speed_changes_buffer);
-
-  uint8_t *hypermiling_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(hypermiling_data, 0, buffer_size);
-  auto hypermiling_buffer = std::make_shared<arrow::Buffer>(hypermiling_data, buffer_size);
-  auto hypermiling_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), 0,  hypermiling_buffer);
-
-  uint8_t *orientation_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(orientation_data, 0, buffer_size);
-  auto orientation_buffer = std::make_shared<arrow::Buffer>(orientation_data, buffer_size);
-  auto orientation_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), 0,  orientation_buffer);
-
-  //uint8_t *hypermiling_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  //memset(hypermiling_data, 0, buffer_size);
-  //auto hypermiling_buffer = std::make_shared<arrow::Buffer>(hypermiling_data, buffer_size);
-  //auto hypermiling_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  hypermiling_buffer);
-//
-  //uint8_t *orientation_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  //memset(orientation_data, 0, buffer_size);
-  //auto orientation_buffer = std::make_shared<arrow::Buffer>(orientation_data, buffer_size);
-  //auto orientation_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  orientation_buffer);
-
+  auto timezone_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
+  auto vin_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
+  auto odometer_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
+  auto avgspeed_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
+  auto accel_decel_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
+  auto speed_changes_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
+  auto hypermiling_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
+  auto orientation_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
 
   // Integer array fields
-  uint8_t *sec_in_band_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(sec_in_band_offset_data, 0, buffer_size);
-  auto sec_in_band_offset_buffer = std::make_shared<arrow::Buffer>(sec_in_band_offset_data, buffer_size);
-  uint8_t *sec_in_band_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto sec_in_band_value_buffer = std::make_shared<arrow::Buffer>(sec_in_band_value_data, buffer_size);
-  auto sec_in_band_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, sec_in_band_value_buffer);
-  auto sec_in_band_list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, sec_in_band_offset_buffer, sec_in_band_value_array);
-
-
-  uint8_t *miles_in_time_range_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(miles_in_time_range_offset_data, 0, buffer_size);
-  auto miles_in_time_range_offset_buffer = std::make_shared<arrow::Buffer>(miles_in_time_range_offset_data, buffer_size);
-  uint8_t *miles_in_time_range_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto miles_in_time_range_value_buffer = std::make_shared<arrow::Buffer>(miles_in_time_range_value_data, buffer_size);
-  auto miles_in_time_range_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, miles_in_time_range_value_buffer);
-  auto miles_in_time_range_list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, miles_in_time_range_offset_buffer, miles_in_time_range_value_array);
-
-
-  uint8_t *const_speed_miles_in_band_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(const_speed_miles_in_band_offset_data, 0, buffer_size);
-  auto const_speed_miles_in_band_offset_buffer = std::make_shared<arrow::Buffer>(const_speed_miles_in_band_offset_data, buffer_size);
-  uint8_t *const_speed_miles_in_band_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto const_speed_miles_in_band_value_buffer = std::make_shared<arrow::Buffer>(const_speed_miles_in_band_value_data, buffer_size);
-  auto const_speed_miles_in_band_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, const_speed_miles_in_band_value_buffer);
-  auto const_speed_miles_in_band_list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, const_speed_miles_in_band_offset_buffer, const_speed_miles_in_band_value_array);
-
-
-  uint8_t *vary_speed_miles_in_band_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(vary_speed_miles_in_band_offset_data, 0, buffer_size);
-  auto vary_speed_miles_in_band_offset_buffer = std::make_shared<arrow::Buffer>(vary_speed_miles_in_band_offset_data, buffer_size);
-  uint8_t *vary_speed_miles_in_band_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto vary_speed_miles_in_band_value_buffer = std::make_shared<arrow::Buffer>(vary_speed_miles_in_band_value_data, buffer_size);
-  auto vary_speed_miles_in_band_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, vary_speed_miles_in_band_value_buffer);
-  auto vary_speed_miles_in_band_list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, vary_speed_miles_in_band_offset_buffer, vary_speed_miles_in_band_value_array);
-
-
-  uint8_t *sec_decel_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(sec_decel_offset_data, 0, buffer_size);
-  auto sec_decel_offset_buffer = std::make_shared<arrow::Buffer>(sec_decel_offset_data, buffer_size);
-  uint8_t *sec_decel_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto sec_decel_value_buffer = std::make_shared<arrow::Buffer>(sec_decel_value_data, buffer_size);
-  auto sec_decel_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, sec_decel_value_buffer);
-  auto sec_decel_list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, sec_decel_offset_buffer, sec_decel_value_array);
-
-
-  uint8_t *sec_accel_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(sec_accel_offset_data, 0, buffer_size);
-  auto sec_accel_offset_buffer = std::make_shared<arrow::Buffer>(sec_accel_offset_data, buffer_size);
-  uint8_t *sec_accel_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto sec_accel_value_buffer = std::make_shared<arrow::Buffer>(sec_accel_value_data, buffer_size);
-  auto sec_accel_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, sec_accel_value_buffer);
-  auto sec_accel_list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, sec_accel_offset_buffer, sec_accel_value_array);
-
-
-  uint8_t *braking_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(braking_offset_data, 0, buffer_size);
-  auto braking_offset_buffer = std::make_shared<arrow::Buffer>(braking_offset_data, buffer_size);
-  uint8_t *braking_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto braking_value_buffer = std::make_shared<arrow::Buffer>(braking_value_data, buffer_size);
-  auto braking_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, braking_value_buffer);
-  auto braking_list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, braking_offset_buffer, braking_value_array);
-
-
-  uint8_t *accel_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(accel_offset_data, 0, buffer_size);
-  auto accel_offset_buffer = std::make_shared<arrow::Buffer>(accel_offset_data, buffer_size);
-  uint8_t *accel_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto accel_value_buffer = std::make_shared<arrow::Buffer>(accel_value_data, buffer_size);
-  auto accel_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, accel_value_buffer);
-  auto accel_list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, accel_offset_buffer, accel_value_array);
-
-
-  uint8_t *small_speed_var_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(small_speed_var_offset_data, 0, buffer_size);
-  auto small_speed_var_offset_buffer = std::make_shared<arrow::Buffer>(small_speed_var_offset_data, buffer_size);
-  uint8_t *small_speed_var_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto small_speed_var_value_buffer = std::make_shared<arrow::Buffer>(small_speed_var_value_data, buffer_size);
-  auto small_speed_var_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, small_speed_var_value_buffer);
-  auto small_speed_var_list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, small_speed_var_offset_buffer, small_speed_var_value_array);
-
-
-  uint8_t *large_speed_var_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(large_speed_var_offset_data, 0, buffer_size);
-  auto large_speed_var_offset_buffer = std::make_shared<arrow::Buffer>(large_speed_var_offset_data, buffer_size);
-  uint8_t *large_speed_var_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto large_speed_var_value_buffer = std::make_shared<arrow::Buffer>(large_speed_var_value_data, buffer_size);
-  auto large_speed_var_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, large_speed_var_value_buffer);
-  auto large_speed_var_list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, large_speed_var_offset_buffer, large_speed_var_value_array);
+  auto sec_in_band_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
+  auto miles_in_time_range_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
+  auto const_speed_miles_in_band_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
+  auto vary_speed_miles_in_band_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
+  auto sec_decel_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
+  auto sec_accel_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
+  auto braking_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
+  auto accel_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
+  auto small_speed_var_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
+  auto large_speed_var_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
 
   // That lonely string field
-  uint8_t *timestamp_offset_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(timestamp_offset_data, 0, buffer_size);
-  auto timestamp_offset_buffer = std::make_shared<arrow::Buffer>(timestamp_offset_data, buffer_size);
-  uint8_t *timestamp_value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  auto timestamp_value_buffer = std::make_shared<arrow::Buffer>(timestamp_value_data, buffer_size);
-  auto timestamp_value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, timestamp_value_buffer);
-  auto timestamp_string_array = std::make_shared<arrow::StringArray>(0, timestamp_offset_buffer, timestamp_value_buffer);
+
+  auto timestamp_string_array = AlignedStringArray(buffer_size, buffer_size).ValueOrDie();
 
 
   std::vector<std::shared_ptr<arrow::Array>> arrays = {

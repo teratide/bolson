@@ -8,7 +8,7 @@ FetchContent_Declare(cmake-modules
 FetchContent_MakeAvailable(cmake-modules)
 include(CompileUnits)
 
-project(primmap VERSION 0.0.0 LANGUAGES CXX)
+project(trip_report VERSION 0.0.0 LANGUAGES CXX)
 
 find_package(Arrow 1.0 CONFIG REQUIRED)
 find_package(fletcher CONFIG)
