@@ -23,12 +23,12 @@ fields:
   - address: 0b1---
     name: AFU_ID_L
     behavior: constant
-    value: 10412098887342654772 # check battery_status.json
+    value: 10412098887342654772 # check trip_report.json
 
   - address: 0b10---
     name: AFU_ID_H
     behavior: constant
-    value: 6903219584361648107 # check battery_status.json
+    value: 6903219584361648107 # check trip_report.json
 
   - address: 0b11---
     name: DFH_RSVD0

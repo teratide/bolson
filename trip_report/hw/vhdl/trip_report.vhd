@@ -1484,24 +1484,4 @@ large_speed_var_converter : D2ListToVecs
     length_data   => output_timestamp_length,
     length_count  => output_timestamp_count
   );
-
-
-
-
-
-
-
-
-
-
-
-
-
-       
- 
-
-
-
-
-
 end architecture;
