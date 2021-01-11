@@ -18,53 +18,51 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity PrimMap is
+entity primmap is
   generic (
     INDEX_WIDTH : integer := 32;
     TAG_WIDTH   : integer := 1
   );
   port (
-    kcd_clk                   : in std_logic;
-    kcd_reset                 : in std_logic;
-    in_number_valid           : in std_logic;
-    in_number_ready           : out std_logic;
-    in_number_dvalid          : in std_logic;
-    in_number_last            : in std_logic;
-    in_number                 : in std_logic_vector(63 downto 0);
-    in_number_unl_valid       : in std_logic;
-    in_number_unl_ready       : out std_logic;
-    in_number_unl_tag         : in std_logic_vector(TAG_WIDTH - 1 downto 0);
-    in_number_cmd_valid       : out std_logic;
-    in_number_cmd_ready       : in std_logic;
-    in_number_cmd_firstIdx    : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
-    in_number_cmd_lastIdx     : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
-    in_number_cmd_tag         : out std_logic_vector(TAG_WIDTH - 1 downto 0);
-    out_number_valid          : out std_logic;
-    out_number_ready          : in std_logic;
-    out_number_dvalid         : out std_logic;
-    out_number_last           : out std_logic;
-    out_number                : out std_logic_vector(63 downto 0);
-    out_number_unl_valid      : in std_logic;
-    out_number_unl_ready      : out std_logic;
-    out_number_unl_tag        : in std_logic_vector(TAG_WIDTH - 1 downto 0);
-    out_number_cmd_valid      : out std_logic;
-    out_number_cmd_ready      : in std_logic;
-    out_number_cmd_firstIdx   : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
-    out_number_cmd_lastIdx    : out std_logic_vector(INDEX_WIDTH - 1 downto 0);
-    out_number_cmd_tag        : out std_logic_vector(TAG_WIDTH - 1 downto 0);
-    start                     : in std_logic;
-    stop                      : in std_logic;
-    reset                     : in std_logic;
-    idle                      : out std_logic;
-    busy                      : out std_logic;
-    done                      : out std_logic;
-    result                    : out std_logic_vector(63 downto 0);
-    in_firstidx               : in std_logic_vector(31 downto 0);
-    in_lastidx                : in std_logic_vector(31 downto 0);
-    out_firstidx              : in std_logic_vector(31 downto 0);
-    out_lastidx               : in std_logic_vector(31 downto 0);
-    ext_platform_complete_req : out std_logic;
-    ext_platform_complete_ack : in std_logic
+    kcd_clk                 : in  std_logic;
+    kcd_reset               : in  std_logic;
+    in_number_valid         : in  std_logic;
+    in_number_ready         : out std_logic;
+    in_number_dvalid        : in  std_logic;
+    in_number_last          : in  std_logic;
+    in_number               : in  std_logic_vector(63 downto 0);
+    in_number_unl_valid     : in  std_logic;
+    in_number_unl_ready     : out std_logic;
+    in_number_unl_tag       : in  std_logic_vector(TAG_WIDTH-1 downto 0);
+    in_number_cmd_valid     : out std_logic;
+    in_number_cmd_ready     : in  std_logic;
+    in_number_cmd_firstIdx  : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+    in_number_cmd_lastIdx   : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+    in_number_cmd_tag       : out std_logic_vector(TAG_WIDTH-1 downto 0);
+    out_number_valid        : out std_logic;
+    out_number_ready        : in  std_logic;
+    out_number_dvalid       : out std_logic;
+    out_number_last         : out std_logic;
+    out_number              : out std_logic_vector(63 downto 0);
+    out_number_unl_valid    : in  std_logic;
+    out_number_unl_ready    : out std_logic;
+    out_number_unl_tag      : in  std_logic_vector(TAG_WIDTH-1 downto 0);
+    out_number_cmd_valid    : out std_logic;
+    out_number_cmd_ready    : in  std_logic;
+    out_number_cmd_firstIdx : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+    out_number_cmd_lastIdx  : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+    out_number_cmd_tag      : out std_logic_vector(TAG_WIDTH-1 downto 0);
+    start                   : in  std_logic;
+    stop                    : in  std_logic;
+    reset                   : in  std_logic;
+    idle                    : out std_logic;
+    busy                    : out std_logic;
+    done                    : out std_logic;
+    result                  : out std_logic_vector(63 downto 0);
+    in_firstidx             : in  std_logic_vector(31 downto 0);
+    in_lastidx              : in  std_logic_vector(31 downto 0);
+    out_firstidx            : in  std_logic_vector(31 downto 0);
+    out_lastidx             : in  std_logic_vector(31 downto 0)
   );
 end entity;
 
@@ -120,8 +118,6 @@ begin
     out_number                <= std_logic_vector(unsigned(in_number) + 1);
     out_number_last           <= in_number_last;
     out_number_dvalid         <= in_number_dvalid;
-
-    ext_platform_complete_req <= '0';
 
     state_next                <= state;
 
@@ -197,16 +193,6 @@ begin
         out_number_unl_ready <= '1';
         if out_number_unl_valid = '1' then
           state_next <= STATE_PLATFORM;
-        end if;
-
-      when STATE_PLATFORM =>
-        done                      <= '0';
-        busy                      <= '1';
-        idle                      <= '0';
-
-        ext_platform_complete_req <= '1';
-        if ext_platform_complete_ack = '1' then
-          state_next <= STATE_DONE;
         end if;
 
       when STATE_DONE =>
