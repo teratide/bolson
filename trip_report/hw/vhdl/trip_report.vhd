@@ -533,7 +533,7 @@ begin
     is
   begin
     if rising_edge(kcd_clk) then
-      if timestamp_valid = '1' and timestamp_ready = '1' and timestamp_last(1) = '1' then
+      if timestamp_ser_valid = '1' and timestamp_ser_ready = '1' and timestamp_ser_last(1) = '1' then
         record_counter <= record_counter + 1;
       end if;
       if kcd_reset = '1' or reset = '1' then
@@ -576,9 +576,9 @@ begin
   output_sec_in_band_cmd_lastIdx                <= output_lastidx;
   output_sec_in_band_cmd_tag                    <= (others => '0');
   
-  output_miles_in_time_range_cmd_firstIdx <= output_firstidx;
-  output_miles_in_time_range_cmd_lastIdx  <= output_lastidx;
-  output_miles_in_time_range_cmd_tag      <= (others => '0');
+  output_miles_in_time_range_cmd_firstIdx       <= output_firstidx;
+  output_miles_in_time_range_cmd_lastIdx        <= output_lastidx;
+  output_miles_in_time_range_cmd_tag            <= (others => '0');
   
   output_const_speed_miles_in_band_cmd_firstIdx <= output_firstidx;
   output_const_speed_miles_in_band_cmd_lastIdx  <= output_lastidx;
@@ -763,6 +763,8 @@ begin
     -- internal signal
     input_input_ready           <= int_input_input_ready;
 
+    ext_platform_complete_req   <= '0';
+
     case state is
 
         -- wait for start signal
@@ -807,8 +809,8 @@ begin
         busy <= '1';
         idle <= '0';
 
-        if unl_valid = '1' then
-          unl_ready  <= '1';
+        if input_input_unl_valid = '1' then
+          input_input_unl_ready  <= '1';
           state_next <= STATE_UNLOCK_WRITE;
         end if;
 
@@ -869,27 +871,27 @@ begin
     -- INTEGER FIELDS
     --
     TIMEZONE_INT_WIDTH                               => TIMEZONE_INT_WIDTH,
-    TIMEZONE_INT_P_PIPELINE_STAGES                   => 4,
+    TIMEZONE_INT_P_PIPELINE_STAGES                   => 3,
     TIMEZONE_BUFFER_D                                => 1,
 
     VIN_INT_WIDTH                                    => VIN_INT_WIDTH,
-    VIN_INT_P_PIPELINE_STAGES                        => 4,
+    VIN_INT_P_PIPELINE_STAGES                        => 3,
     VIN_BUFFER_D                                     => 1,
 
     ODOMETER_INT_WIDTH                               => ODOMETER_INT_WIDTH,
-    ODOMETER_INT_P_PIPELINE_STAGES                   => 4,
+    ODOMETER_INT_P_PIPELINE_STAGES                   => 3,
     ODOMETER_BUFFER_D                                => 1,
 
     AVGSPEED_INT_WIDTH                               => AVGSPEED_INT_WIDTH,
-    AVGSPEED_INT_P_PIPELINE_STAGES                   => 4,
+    AVGSPEED_INT_P_PIPELINE_STAGES                   => 3,
     AVGSPEED_BUFFER_D                                => 1,
 
     ACCEL_DECEL_INT_WIDTH                            => ACCEL_DECEL_INT_WIDTH,
-    ACCEL_DECEL_INT_P_PIPELINE_STAGES                => 4,
+    ACCEL_DECEL_INT_P_PIPELINE_STAGES                => 3,
     ACCEL_DECEL_BUFFER_D                             => 1,
 
     SPEED_CHANGES_INT_WIDTH                          => SPEED_CHANGES_INT_WIDTH,
-    SPEED_CHANGES_INT_P_PIPELINE_STAGES              => 4,
+    SPEED_CHANGES_INT_P_PIPELINE_STAGES              => 3,
     SPEED_CHANGES_BUFFER_D                           => 1,
 
     -- 
@@ -902,43 +904,43 @@ begin
     -- INTEGER ARRAY FIELDS
     --
     SEC_IN_BAND_INT_WIDTH                            => SEC_IN_BAND_INT_WIDTH,
-    SEC_IN_BAND_INT_P_PIPELINE_STAGES                => 4,
+    SEC_IN_BAND_INT_P_PIPELINE_STAGES                => 3,
     SEC_IN_BAND_BUFFER_D                             => 1,
 
     MILES_IN_TIME_RANGE_INT_WIDTH                    => MILES_IN_TIME_RANGE_INT_WIDTH,
-    MILES_IN_TIME_RANGE_INT_P_PIPELINE_STAGES        => 4,
+    MILES_IN_TIME_RANGE_INT_P_PIPELINE_STAGES        => 3,
     MILES_IN_TIME_RANGE_BUFFER_D                     => 1,
 
     CONST_SPEED_MILES_IN_BAND_INT_WIDTH              => CONST_SPEED_MILES_IN_BAND_INT_WIDTH,
-    CONST_SPEED_MILES_IN_BAND_INT_P_PIPELINE_STAGES  => 4,
+    CONST_SPEED_MILES_IN_BAND_INT_P_PIPELINE_STAGES  => 3,
     CONST_SPEED_MILES_IN_BAND_BUFFER_D               => 1,
 
     VARY_SPEED_MILES_IN_BAND_INT_WIDTH               => VARY_SPEED_MILES_IN_BAND_INT_WIDTH,
-    VARY_SPEED_MILES_IN_BAND_INT_P_PIPELINE_STAGES   => 4,
+    VARY_SPEED_MILES_IN_BAND_INT_P_PIPELINE_STAGES   => 3,
     VARY_SPEED_MILES_IN_BAND_BUFFER_D                => 1,
 
     SEC_DECEL_INT_WIDTH                              => SEC_DECEL_INT_WIDTH,
-    SEC_DECEL_INT_P_PIPELINE_STAGES                  => 4,
+    SEC_DECEL_INT_P_PIPELINE_STAGES                  => 3,
     SEC_DECEL_BUFFER_D                               => 1,
 
     SEC_ACCEL_INT_WIDTH                              => SEC_ACCEL_INT_WIDTH,
-    SEC_ACCEL_INT_P_PIPELINE_STAGES                  => 4,
+    SEC_ACCEL_INT_P_PIPELINE_STAGES                  => 3,
     SEC_ACCEL_BUFFER_D                               => 1,
 
     BRAKING_INT_WIDTH                                => BRAKING_INT_WIDTH,
-    BRAKING_INT_P_PIPELINE_STAGES                    => 4,
+    BRAKING_INT_P_PIPELINE_STAGES                    => 3,
     BRAKING_BUFFER_D                                 => 1,
 
     ACCEL_INT_WIDTH                                  => ACCEL_INT_WIDTH,
-    ACCEL_INT_P_PIPELINE_STAGES                      => 4,
+    ACCEL_INT_P_PIPELINE_STAGES                      => 3,
     ACCEL_BUFFER_D                                   => 1,
 
     SMALL_SPEED_VAR_INT_WIDTH                        => SMALL_SPEED_VAR_INT_WIDTH,
-    SMALL_SPEED_VAR_INT_P_PIPELINE_STAGES            => 4,
+    SMALL_SPEED_VAR_INT_P_PIPELINE_STAGES            => 3,
     SMALL_SPEED_VAR_BUFFER_D                         => 1,
 
     LARGE_SPEED_VAR_INT_WIDTH                        => LARGE_SPEED_VAR_INT_WIDTH,
-    LARGE_SPEED_VAR_INT_P_PIPELINE_STAGES            => 4,
+    LARGE_SPEED_VAR_INT_P_PIPELINE_STAGES            => 3,
     LARGE_SPEED_VAR_BUFFER_D                         => 1,
 
     -- 
@@ -1113,6 +1115,10 @@ begin
   --
   output_orientation <= "0000000" & orientation_data;
   output_hypermiling <= "0000000" & hypermiling_data;
+
+  --output_orientation <= std_logic_vector(resize(unsigned'("0" & orientation_data), 64));
+  --output_hypermiling <= std_logic_vector(resize(unsigned'("0" & hypermiling_data), 64));
+
 
   --
   -- Converters for the array fields

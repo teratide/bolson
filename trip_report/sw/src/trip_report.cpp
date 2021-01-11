@@ -48,44 +48,54 @@ int main(int argc, char **argv)
 
   // Int + boolean fields
   uint8_t *timezone_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(timezone_data, 2, buffer_size);
+  memset(timezone_data, 0, buffer_size);
   auto timezone_buffer = std::make_shared<arrow::Buffer>(timezone_data, buffer_size);
   auto timezone_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  timezone_buffer);
 
   uint8_t *vin_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(vin_data, 2, buffer_size);
+  memset(vin_data, 0, buffer_size);
   auto vin_buffer = std::make_shared<arrow::Buffer>(vin_data, buffer_size);
   auto vin_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  vin_buffer);
 
   uint8_t *odometer_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(odometer_data, 2, buffer_size);
+  memset(odometer_data, 0, buffer_size);
   auto odometer_buffer = std::make_shared<arrow::Buffer>(odometer_data, buffer_size);
   auto odometer_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  odometer_buffer);
 
   uint8_t *avgspeed_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(avgspeed_data, 2, buffer_size);
+  memset(avgspeed_data, 0, buffer_size);
   auto avgspeed_buffer = std::make_shared<arrow::Buffer>(avgspeed_data, buffer_size);
   auto avgspeed_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  avgspeed_buffer);
 
   uint8_t *accel_decel_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(accel_decel_data, 2, buffer_size);
+  memset(accel_decel_data, 0, buffer_size);
   auto accel_decel_buffer = std::make_shared<arrow::Buffer>(accel_decel_data, buffer_size);
   auto accel_decel_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  accel_decel_buffer);
 
   uint8_t *speed_changes_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(speed_changes_data, 2, buffer_size);
+  memset(speed_changes_data, 0, buffer_size);
   auto speed_changes_buffer = std::make_shared<arrow::Buffer>(speed_changes_data, buffer_size);
   auto speed_changes_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  speed_changes_buffer);
 
   uint8_t *hypermiling_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(hypermiling_data, 2, buffer_size);
+  memset(hypermiling_data, 0, buffer_size);
   auto hypermiling_buffer = std::make_shared<arrow::Buffer>(hypermiling_data, buffer_size);
-  auto hypermiling_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  hypermiling_buffer);
+  auto hypermiling_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), 0,  hypermiling_buffer);
 
   uint8_t *orientation_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
-  memset(orientation_data, 2, buffer_size);
+  memset(orientation_data, 0, buffer_size);
   auto orientation_buffer = std::make_shared<arrow::Buffer>(orientation_data, buffer_size);
-  auto orientation_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  orientation_buffer);
+  auto orientation_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), 0,  orientation_buffer);
+
+  //uint8_t *hypermiling_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  //memset(hypermiling_data, 0, buffer_size);
+  //auto hypermiling_buffer = std::make_shared<arrow::Buffer>(hypermiling_data, buffer_size);
+  //auto hypermiling_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  hypermiling_buffer);
+//
+  //uint8_t *orientation_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  //memset(orientation_data, 0, buffer_size);
+  //auto orientation_buffer = std::make_shared<arrow::Buffer>(orientation_data, buffer_size);
+  //auto orientation_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0,  orientation_buffer);
 
 
   // Integer array fields
