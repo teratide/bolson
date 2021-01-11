@@ -110,8 +110,8 @@ int main(int argc, char **argv)
   auto avgspeed_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
   auto accel_decel_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
   auto speed_changes_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
-  auto hypermiling_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
-  auto orientation_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
+  auto hypermiling_array = AlignedPrimitiveArray(arrow::uint8(), buffer_size).ValueOrDie();
+  auto orientation_array = AlignedPrimitiveArray(arrow::uint8(), buffer_size).ValueOrDie();
 
   // Integer array fields
   auto sec_in_band_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
