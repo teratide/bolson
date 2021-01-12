@@ -73,7 +73,6 @@ architecture Implementation of PrimMap is
     STATE_STREAMING,
     STATE_UNLOCK_IN,
     STATE_UNLOCK_OUT,
-    STATE_PLATFORM,
     STATE_DONE);
 
   signal state, state_next : state_t;
@@ -94,7 +93,6 @@ begin
     in_number_valid,
     in_number_unl_valid,
     out_number_unl_valid,
-    ext_platform_complete_ack,
     reset
     ) is
   begin
@@ -192,7 +190,7 @@ begin
 
         out_number_unl_ready <= '1';
         if out_number_unl_valid = '1' then
-          state_next <= STATE_PLATFORM;
+          state_next <= STATE_DONE;
         end if;
 
       when STATE_DONE =>
