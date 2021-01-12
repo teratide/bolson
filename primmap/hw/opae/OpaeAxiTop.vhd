@@ -408,7 +408,7 @@ begin
   m_axi_wvalid      <= wrf_wvalid;
   wrf_wready        <= m_axi_wready;
   m_axi_wdata       <= wrf_wdata;
-  m_axi_wstrb       <= wrf_wstrb;
+  m_axi_wstrb       <= (others => '1'); -- Should be wrf_wstrb, but OPAE supports nothing but all strobes asserted.
   m_axi_wlast       <= wrf_wlast;
   m_axi_wuser       <= (others => '0');
 
