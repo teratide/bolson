@@ -23,7 +23,7 @@ int main(int argc, char **argv)
 {
   if (argc != 3)
   {
-    std::cerr << "Incorrect number of arguments. Usage: battery_status path/to/input_recordbatch.rb path/to/output_recordbatch.rb" << std::endl;
+    std::cerr << "Incorrect number of arguments. Usage: primmap path/to/input_recordbatch.rb path/to/output_recordbatch.rb" << std::endl;
     return -1;
   }
 
