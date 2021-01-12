@@ -27,10 +27,9 @@ arrow::Result<std::shared_ptr<arrow::PrimitiveArray>> AlignedPrimitiveArray(cons
   {
     return arrow::Status::OutOfMemory("Failed to allocate buffer");
   }
-  memset(value_data, 0, buffer_size);
   auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
-  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
-  return arrow::ToResult(value_array);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(type, 0, value_buffer);
+  return value_array;
 }
 
 arrow::Result<std::shared_ptr<arrow::ListArray>> AlignedListArray(const std::shared_ptr<arrow::DataType>& type,
@@ -71,9 +70,76 @@ arrow::Result<std::shared_ptr<arrow::StringArray>> AlignedStringArray(size_t off
     return arrow::Status::OutOfMemory("Failed to allocate buffer");
   }
   auto value_buffer = std::make_shared<arrow::Buffer>(value_data, value_buffer_size);
-  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), 0, value_buffer);
   auto string_array = std::make_shared<arrow::StringArray>(0, offset_buffer, value_buffer);
   return arrow::ToResult(string_array);
+}
+
+std::shared_ptr<arrow::PrimitiveArray>ReWrapArray(std::shared_ptr<arrow::PrimitiveArray> array,
+                                                                  size_t num_rows) {
+
+  auto data_buff = array->data()->buffers[1]->data();
+  auto value_buffer = std::make_shared<arrow::Buffer>(data_buff, num_rows);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_rows, value_buffer);
+  return value_array;
+}
+
+std::shared_ptr<arrow::ListArray>ReWrapArray(std::shared_ptr<arrow::ListArray> array,
+                                                                  size_t num_rows) {
+  auto type = array->type();
+
+  int32_t num_offsets = num_rows + 1;
+
+  uint8_t *offsets = (uint8_t *)array->offsets()->data()->buffers[1]->data();
+  uint8_t *values = const_cast<uint8_t *>(array->values()->data()->buffers[1]->data());
+
+  uint32_t num_values = reinterpret_cast<uint32_t *>(offsets)[num_offsets-1];
+
+  size_t num_values_bytes = num_values * sizeof(array->type().get());
+  size_t num_offset_bytes = num_offsets * sizeof(uint32_t);
+
+  auto value_buffer = arrow::Buffer::Wrap(values, num_values_bytes);
+  auto offsets_buffer = arrow::Buffer::Wrap(offsets, num_offset_bytes);
+
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_values, value_buffer);
+  auto list_array = std::make_shared<arrow::ListArray>(type, num_rows, offsets_buffer, value_array);
+  return list_array;
+}
+
+std::shared_ptr<arrow::StringArray>ReWrapArray(std::shared_ptr<arrow::StringArray> array,
+                                             size_t num_rows) {
+  auto string_array = std::make_shared<arrow::StringArray>(num_rows, array->value_offsets(), array->value_data());
+  return string_array;
+}
+
+arrow::Status WrapTripReport(
+        int32_t num_rows,
+        std::vector<std::shared_ptr<arrow::Array>> arrays,
+        std::shared_ptr<arrow::Schema> schema,
+        std::shared_ptr<arrow::RecordBatch> *out)
+{
+
+  std::vector<std::shared_ptr<arrow::Array>> rewrapped_arrays;
+
+  for(std::shared_ptr<arrow::Array> f: arrays) {
+    std::cout << f->type()->ToString() << std::endl;
+    if(f->type()->Equals(arrow::uint64())) {
+      auto field = std::static_pointer_cast<arrow::PrimitiveArray>(f);
+      rewrapped_arrays.push_back(ReWrapArray(field, num_rows));
+    } else if(f->type()->Equals(arrow::uint8())) {
+      auto field = std::static_pointer_cast<arrow::PrimitiveArray>(f);
+      rewrapped_arrays.push_back(ReWrapArray(field, num_rows));
+    } else if (f->type()->Equals(arrow::list(arrow::uint64()))) {
+      auto field = std::static_pointer_cast<arrow::ListArray>(f);
+      rewrapped_arrays.push_back(ReWrapArray(field, num_rows));
+    } else if (f->type()->Equals(arrow::utf8())) {
+      auto field = std::static_pointer_cast<arrow::StringArray>(f);
+      rewrapped_arrays.push_back(ReWrapArray(field, num_rows));
+    }
+  }
+
+  *out = arrow::RecordBatch::Make(schema, num_rows, rewrapped_arrays);
+
+  return arrow::Status::OK();
 }
 
 int main(int argc, char **argv)
@@ -153,8 +219,6 @@ int main(int argc, char **argv)
   };
   auto output_batch = arrow::RecordBatch::Make(schema, 0, arrays);
 
-  std::cout << schema->ToString();
-
   fletcher::Status status;
   std::shared_ptr<fletcher::Platform> platform;
 
@@ -220,6 +284,7 @@ int main(int argc, char **argv)
     return -1;
   }
 
+
   status = kernel.PollUntilDone();
   if (!status.ok())
   {
@@ -227,12 +292,27 @@ int main(int argc, char **argv)
     return -1;
   }
 
-//  for (int i = 0; i < context->num_buffers(); i++)
-//  {
-//    auto view = fletcher::HexView();
-//    view.AddData(context->device_buffer(i).host_address, 64);
-//    std::cout << view.ToString() << std::endl;
-//  }
+  uint32_t return_value_0;
+  uint32_t return_value_1;
+  status = kernel.GetReturn(&return_value_0, &return_value_1);
+  if (!status.ok())
+  {
+    std::cerr << "Failed to get return value." << std::endl;
+    return -1;
+  }
+  uint64_t num_rows = ((uint64_t)return_value_1 << 32) | return_value_0;
+
+  std::cout << "Number of records parsed: " << num_rows << std::endl;
+
+  auto arrow_status = WrapTripReport(num_rows, arrays, schema, &output_batch);
+  if (!arrow_status.ok())
+  {
+    std::cerr << "Could not create output recordbatch." << std::endl;
+    std::cerr << arrow_status.ToString() << std::endl;
+    return -1;
+  }
+
+  std::cout << output_batch->ToString() << std::endl;
 
   return 0;
 }

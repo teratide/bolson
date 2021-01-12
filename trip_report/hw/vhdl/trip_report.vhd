@@ -743,6 +743,7 @@ begin
     input_input_cmd_ready,
     cmd_ready,
     input_input_unl_valid,
+    ext_platform_complete_ack,
     unl_valid
     ) is
   begin
@@ -822,7 +823,7 @@ begin
 
         if unl_valid = '1' then
           unl_ready  <= '1';
-          state_next <= STATE_DONE;
+          state_next <= STATE_FENCE;
         end if;
 
 
