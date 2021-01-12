@@ -168,55 +168,20 @@ int main(int argc, char **argv)
 
   size_t buffer_size = 4096;
 
+  std::vector<std::shared_ptr<arrow::Array>> arrays;
 
-  // Int + boolean fields
-  auto timezone_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
-  auto vin_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
-  auto odometer_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
-  auto avgspeed_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
-  auto accel_decel_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
-  auto speed_changes_array = AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie();
-  auto hypermiling_array = AlignedPrimitiveArray(arrow::uint8(), buffer_size).ValueOrDie();
-  auto orientation_array = AlignedPrimitiveArray(arrow::uint8(), buffer_size).ValueOrDie();
+  for(auto f : schema->fields()) {
+    if(f->type()->Equals(arrow::uint64())) {
+      arrays.push_back(AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie());
+    } else if(f->type()->Equals(arrow::uint8())) {
+      arrays.push_back(AlignedPrimitiveArray(arrow::uint8(), buffer_size).ValueOrDie());
+    } else if (f->type()->Equals(arrow::list(arrow::field("item", arrow::uint64(), false)))) {
+      arrays.push_back(AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie());
+    } else if (f->type()->Equals(arrow::utf8())) {
+      arrays.push_back(AlignedStringArray(buffer_size, buffer_size).ValueOrDie());
+    }
+  }
 
-  // Integer array fields
-  auto sec_in_band_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
-  auto miles_in_time_range_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
-  auto const_speed_miles_in_band_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
-  auto vary_speed_miles_in_band_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
-  auto sec_decel_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
-  auto sec_accel_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
-  auto braking_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
-  auto accel_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
-  auto small_speed_var_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
-  auto large_speed_var_list_array = AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie();
-
-  // That lonely string field
-
-  auto timestamp_string_array = AlignedStringArray(buffer_size, buffer_size).ValueOrDie();
-
-
-  std::vector<std::shared_ptr<arrow::Array>> arrays = {
-          timestamp_string_array,
-          timezone_array,
-          vin_array,
-          odometer_array,
-          hypermiling_array,
-          avgspeed_array,
-          sec_in_band_list_array,
-          miles_in_time_range_list_array,
-          const_speed_miles_in_band_list_array,
-          vary_speed_miles_in_band_list_array,
-          sec_decel_list_array,
-          sec_accel_list_array,
-          braking_list_array,
-          accel_list_array,
-          orientation_array,
-          small_speed_var_list_array,
-          large_speed_var_list_array,
-          accel_decel_array,
-          speed_changes_array
-  };
   auto output_batch = arrow::RecordBatch::Make(schema, 0, arrays);
 
   fletcher::Status status;
