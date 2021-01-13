@@ -906,43 +906,43 @@ begin
     --
     SEC_IN_BAND_INT_WIDTH                            => SEC_IN_BAND_INT_WIDTH,
     SEC_IN_BAND_INT_P_PIPELINE_STAGES                => 4,
-    SEC_IN_BAND_BUFFER_D                             => 1,
+    SEC_IN_BAND_BUFFER_D                             => 6,
 
     MILES_IN_TIME_RANGE_INT_WIDTH                    => MILES_IN_TIME_RANGE_INT_WIDTH,
     MILES_IN_TIME_RANGE_INT_P_PIPELINE_STAGES        => 4,
-    MILES_IN_TIME_RANGE_BUFFER_D                     => 1,
+    MILES_IN_TIME_RANGE_BUFFER_D                     => 12,
 
     CONST_SPEED_MILES_IN_BAND_INT_WIDTH              => CONST_SPEED_MILES_IN_BAND_INT_WIDTH,
     CONST_SPEED_MILES_IN_BAND_INT_P_PIPELINE_STAGES  => 4,
-    CONST_SPEED_MILES_IN_BAND_BUFFER_D               => 1,
+    CONST_SPEED_MILES_IN_BAND_BUFFER_D               => 6,
 
     VARY_SPEED_MILES_IN_BAND_INT_WIDTH               => VARY_SPEED_MILES_IN_BAND_INT_WIDTH,
     VARY_SPEED_MILES_IN_BAND_INT_P_PIPELINE_STAGES   => 4,
-    VARY_SPEED_MILES_IN_BAND_BUFFER_D                => 1,
+    VARY_SPEED_MILES_IN_BAND_BUFFER_D                => 6,
 
     SEC_DECEL_INT_WIDTH                              => SEC_DECEL_INT_WIDTH,
     SEC_DECEL_INT_P_PIPELINE_STAGES                  => 4,
-    SEC_DECEL_BUFFER_D                               => 1,
+    SEC_DECEL_BUFFER_D                               => 5,
 
     SEC_ACCEL_INT_WIDTH                              => SEC_ACCEL_INT_WIDTH,
     SEC_ACCEL_INT_P_PIPELINE_STAGES                  => 4,
-    SEC_ACCEL_BUFFER_D                               => 1,
+    SEC_ACCEL_BUFFER_D                               => 5,
 
     BRAKING_INT_WIDTH                                => BRAKING_INT_WIDTH,
     BRAKING_INT_P_PIPELINE_STAGES                    => 4,
-    BRAKING_BUFFER_D                                 => 1,
+    BRAKING_BUFFER_D                                 => 3,
 
     ACCEL_INT_WIDTH                                  => ACCEL_INT_WIDTH,
     ACCEL_INT_P_PIPELINE_STAGES                      => 4,
-    ACCEL_BUFFER_D                                   => 1,
+    ACCEL_BUFFER_D                                   => 3,
 
     SMALL_SPEED_VAR_INT_WIDTH                        => SMALL_SPEED_VAR_INT_WIDTH,
     SMALL_SPEED_VAR_INT_P_PIPELINE_STAGES            => 4,
-    SMALL_SPEED_VAR_BUFFER_D                         => 1,
+    SMALL_SPEED_VAR_BUFFER_D                         => 6,
 
     LARGE_SPEED_VAR_INT_WIDTH                        => LARGE_SPEED_VAR_INT_WIDTH,
     LARGE_SPEED_VAR_INT_P_PIPELINE_STAGES            => 4,
-    LARGE_SPEED_VAR_BUFFER_D                         => 1,
+    LARGE_SPEED_VAR_BUFFER_D                         => 6,
 
     -- 
     -- STRING FIELDS
