@@ -402,7 +402,7 @@ begin
       s_axi_bvalid  <= s.valid;
       s_axi_bresp   <= s.resp;
       m_axi_bready  <= not m.valid;
-      d2a.ready     <= not f.valid;
+      r2b.ready     <= not f.valid;
 
     end if;
   end process;

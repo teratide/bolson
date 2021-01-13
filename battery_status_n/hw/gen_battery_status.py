@@ -326,16 +326,18 @@ vhdl/mmio.gen.vhd
 {rbrs}
 
 vhdl/json/Json_pkg.vhd
-vhdl/json/component/JsonRecordParser.vhd
-vhdl/json/component/JsonArrayParser.vhd
-vhdl/json/component/IntParser.vhd
+vhdl/json/JsonRecordParser.vhd
+vhdl/json/JsonArrayParser.vhd
+vhdl/json/IntParser.vhd
+vhdl/json/battery_status_pkg.vhd
+vhdl/json/BattSchemaParser.vhd
 
 vhdl/battery_status_sub.vhd
 vhdl/battery_status.gen.vhd
 vhdl/battery_status_Nucleus.gen.vhd
 vhdl/battery_status_Mantle.gen.vhd
 
-vhdl/AxiTop.vhd
+vhdl/AxiTop.gen.vhd
 
 opae/AxiWriteFenceGenerator.vhd
 opae/OpaeAxiTop.vhd
@@ -366,7 +368,8 @@ fletchgen(
     '-l', 'vhdl',
     '--mmio64',
     '--mmio-offset', str(64),
-    '--static-vhdl'
+    '--static-vhdl',
+    '--axi'
 )
 
 emphasize("Generating kernel source...")

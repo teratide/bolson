@@ -141,8 +141,7 @@ begin
     input_input_cmd_ready,
     output_voltage_cmd_ready,
     input_input_unl_valid,
-    output_voltage_unl_valid,
-    ext_platform_complete_ack
+    output_voltage_unl_valid
     ) is
   begin
 
@@ -165,8 +164,6 @@ begin
 
     -- internal signal
     input_input_ready           <= int_input_input_ready;
-
-    ext_platform_complete_req   <= '0';
 
     case state is
 
