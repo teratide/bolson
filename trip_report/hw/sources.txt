@@ -119,6 +119,7 @@ vhdl/tydi-json/test/schemas/trip_report/TripReportParser.vhd
 vhdl/trip_report_util_pkg.vhd
 vhdl/StreamSerializer.vhd
 vhdl/D2ListToVecs.vhd
+vhdl/DropEmpty.vhd
 
 
 vhdl/trip_report.vhd

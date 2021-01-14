@@ -374,8 +374,8 @@ architecture Implementation of trip_report is
   constant EPC : natural := 8;
 
   -- 
-    -- INTEGER FIELDS
-    --
+  -- INTEGER FIELDS
+  --
   constant TIMEZONE_INT_WIDTH                   :natural := 64;
   constant VIN_INT_WIDTH                        :natural := 64;
   constant ODOMETER_INT_WIDTH                   :natural := 64;
@@ -393,6 +393,68 @@ architecture Implementation of trip_report is
   constant SMALL_SPEED_VAR_INT_WIDTH            :natural := 64;
   constant LARGE_SPEED_VAR_INT_WIDTH            :natural := 64;
 
+  -- 
+  -- INTEGER FIELDS
+  --
+  signal timezone_valid                   : std_logic;
+  signal timezone_ready                   : std_logic;
+  signal timezone_data                    : std_logic_vector(TIMEZONE_INT_WIDTH-1 downto 0);
+  signal timezone_strb                    : std_logic;
+  signal timezone_last                    : std_logic_vector(1 downto 0);
+
+  signal vin_valid                        : std_logic;
+  signal vin_ready                        : std_logic;
+  signal vin_data                         : std_logic_vector(VIN_INT_WIDTH-1 downto 0);
+  signal vin_strb                         : std_logic;
+  signal vin_last                         : std_logic_vector(1 downto 0);
+
+  signal odometer_valid                   : std_logic;
+  signal odometer_ready                   : std_logic;
+  signal odometer_data                    : std_logic_vector(ODOMETER_INT_WIDTH-1 downto 0);
+  signal odometer_strb                    : std_logic;
+  signal odometer_last                    : std_logic_vector(1 downto 0);
+
+  signal avgspeed_valid                   : std_logic;
+  signal avgspeed_ready                   : std_logic;
+  signal avgspeed_data                    : std_logic_vector(AVGSPEED_INT_WIDTH-1 downto 0);
+  signal avgspeed_strb                    : std_logic;
+  signal avgspeed_last                    : std_logic_vector(1 downto 0);
+
+  signal accel_decel_valid                : std_logic;
+  signal accel_decel_ready                : std_logic;
+  signal accel_decel_data                 : std_logic_vector(ACCEL_DECEL_INT_WIDTH-1 downto 0);
+  signal accel_decel_strb                 : std_logic;
+  signal accel_decel_last                 : std_logic_vector(1 downto 0);
+
+  signal speed_changes_valid              : std_logic;
+  signal speed_changes_ready              : std_logic;
+  signal speed_changes_data               : std_logic_vector(SPEED_CHANGES_INT_WIDTH-1 downto 0);
+  signal speed_changes_strb               : std_logic;
+  signal speed_changes_last               : std_logic_vector(1 downto 0);
+
+  -- 
+  -- BOOLEAN FIELDS
+  --
+  signal hypermiling_valid                : std_logic;
+  signal hypermiling_ready                : std_logic;
+  signal hypermiling_data                 : std_logic;
+  signal hypermiling_strb                 : std_logic;
+  signal hypermiling_last                 : std_logic_vector(1 downto 0);
+
+  signal hypermiling_data_f               : std_logic_vector(0 downto 0);
+
+  signal orientation_valid                : std_logic;
+  signal orientation_ready                : std_logic;
+  signal orientation_data                 : std_logic;
+  signal orientation_strb                 : std_logic;
+  signal orientation_last                 : std_logic_vector(1 downto 0);
+
+  signal orientation_data_f               : std_logic_vector(0 downto 0);
+  
+  
+  -- 
+  -- INTEGER ARRAY FIELDS
+  --
   signal sec_in_band_valid                : std_logic;
   signal sec_in_band_ready                : std_logic;
   signal sec_in_band_data                 : std_logic_vector(SEC_IN_BAND_INT_WIDTH-1 downto 0);
@@ -453,17 +515,10 @@ architecture Implementation of trip_report is
   signal large_speed_var_strb             : std_logic;
   signal large_speed_var_last             : std_logic_vector(2 downto 0);
 
-  -- Integer and boolean field last signals
-  signal timezone_last                    : std_logic_vector(1 downto 0);
-  signal vin_last                         : std_logic_vector(1 downto 0);
-  signal odometer_last                    : std_logic_vector(1 downto 0);
-  signal avgspeed_last                    : std_logic_vector(1 downto 0);
-  signal accel_decel_last                 : std_logic_vector(1 downto 0);
-  signal speed_changes_last               : std_logic_vector(1 downto 0);
-  signal hypermiling_last                 : std_logic_vector(1 downto 0);
-  signal orientation_last                 : std_logic_vector(1 downto 0);
 
-
+  -- 
+  -- STRING FIELD
+  --
   signal timestamp_valid                  : std_logic;
   signal timestamp_ready                  : std_logic;
   signal timestamp_data                   : std_logic_vector(8*EPC-1 downto 0);
@@ -475,9 +530,6 @@ architecture Implementation of trip_report is
   signal timestamp_ser_data               : std_logic_vector(7 downto 0);
   signal timestamp_ser_last               : std_logic_vector(2 downto 0);
   signal timestamp_ser_strb               : std_logic;
-
-  signal hypermiling_data                 : std_logic;
-  signal orientation_data                 : std_logic;
 
 
   signal int_input_input_ready            : std_logic;
@@ -543,8 +595,6 @@ begin
   end process;
 
   result <= std_logic_vector(record_counter);
-
-
 
 
   -- write request defaults
@@ -906,43 +956,43 @@ begin
     --
     SEC_IN_BAND_INT_WIDTH                            => SEC_IN_BAND_INT_WIDTH,
     SEC_IN_BAND_INT_P_PIPELINE_STAGES                => 4,
-    SEC_IN_BAND_BUFFER_D                             => 6,
+    SEC_IN_BAND_BUFFER_D                             => 12,
 
     MILES_IN_TIME_RANGE_INT_WIDTH                    => MILES_IN_TIME_RANGE_INT_WIDTH,
     MILES_IN_TIME_RANGE_INT_P_PIPELINE_STAGES        => 4,
-    MILES_IN_TIME_RANGE_BUFFER_D                     => 12,
+    MILES_IN_TIME_RANGE_BUFFER_D                     => 24,
 
     CONST_SPEED_MILES_IN_BAND_INT_WIDTH              => CONST_SPEED_MILES_IN_BAND_INT_WIDTH,
     CONST_SPEED_MILES_IN_BAND_INT_P_PIPELINE_STAGES  => 4,
-    CONST_SPEED_MILES_IN_BAND_BUFFER_D               => 6,
+    CONST_SPEED_MILES_IN_BAND_BUFFER_D               => 12,
 
     VARY_SPEED_MILES_IN_BAND_INT_WIDTH               => VARY_SPEED_MILES_IN_BAND_INT_WIDTH,
     VARY_SPEED_MILES_IN_BAND_INT_P_PIPELINE_STAGES   => 4,
-    VARY_SPEED_MILES_IN_BAND_BUFFER_D                => 6,
+    VARY_SPEED_MILES_IN_BAND_BUFFER_D                => 12,
 
     SEC_DECEL_INT_WIDTH                              => SEC_DECEL_INT_WIDTH,
     SEC_DECEL_INT_P_PIPELINE_STAGES                  => 4,
-    SEC_DECEL_BUFFER_D                               => 5,
+    SEC_DECEL_BUFFER_D                               => 10,
 
     SEC_ACCEL_INT_WIDTH                              => SEC_ACCEL_INT_WIDTH,
     SEC_ACCEL_INT_P_PIPELINE_STAGES                  => 4,
-    SEC_ACCEL_BUFFER_D                               => 5,
+    SEC_ACCEL_BUFFER_D                               => 10,
 
     BRAKING_INT_WIDTH                                => BRAKING_INT_WIDTH,
     BRAKING_INT_P_PIPELINE_STAGES                    => 4,
-    BRAKING_BUFFER_D                                 => 3,
+    BRAKING_BUFFER_D                                 => 6,
 
     ACCEL_INT_WIDTH                                  => ACCEL_INT_WIDTH,
     ACCEL_INT_P_PIPELINE_STAGES                      => 4,
-    ACCEL_BUFFER_D                                   => 3,
+    ACCEL_BUFFER_D                                   => 6,
 
     SMALL_SPEED_VAR_INT_WIDTH                        => SMALL_SPEED_VAR_INT_WIDTH,
     SMALL_SPEED_VAR_INT_P_PIPELINE_STAGES            => 4,
-    SMALL_SPEED_VAR_BUFFER_D                         => 6,
+    SMALL_SPEED_VAR_BUFFER_D                         => 13,
 
     LARGE_SPEED_VAR_INT_WIDTH                        => LARGE_SPEED_VAR_INT_WIDTH,
     LARGE_SPEED_VAR_INT_P_PIPELINE_STAGES            => 4,
-    LARGE_SPEED_VAR_BUFFER_D                         => 6,
+    LARGE_SPEED_VAR_BUFFER_D                         => 13,
 
     -- 
     -- STRING FIELDS
@@ -968,55 +1018,55 @@ begin
     --                
     -- INTEGER FIELDS               
     --    
-    timezone_valid                              => output_timezone_valid,
-    timezone_ready                              => output_timezone_ready,
-    timezone_data                               => output_timezone,
-    timezone_strb                               => output_timezone_dvalid,
+    timezone_valid                              => timezone_valid,
+    timezone_ready                              => timezone_ready,
+    timezone_data                               => timezone_data,
+    timezone_strb                               => timezone_strb,
     timezone_last                               => timezone_last,
             
-    vin_valid                                   => output_vin_valid,
-    vin_ready                                   => output_vin_ready,
-    vin_data                                    => output_vin,
-    vin_strb                                    => output_vin_dvalid,
+    vin_valid                                   => vin_valid,
+    vin_ready                                   => vin_ready,
+    vin_data                                    => vin_data,
+    vin_strb                                    => vin_strb,
     vin_last                                    => vin_last,
 
-    odometer_valid                              => output_odometer_valid,
-    odometer_ready                              => output_odometer_ready,
-    odometer_data                               => output_odometer,
-    odometer_strb                               => output_odometer_dvalid,
+    odometer_valid                              => odometer_valid,
+    odometer_ready                              => odometer_ready,
+    odometer_data                               => odometer_data,
+    odometer_strb                               => odometer_strb,
     odometer_last                               => odometer_last,
 
-    avgspeed_valid                              => output_avgspeed_valid,
-    avgspeed_ready                              => output_avgspeed_ready,
-    avgspeed_data                               => output_avgspeed,
-    avgspeed_strb                               => output_avgspeed_dvalid,
+    avgspeed_valid                              => avgspeed_valid,
+    avgspeed_ready                              => avgspeed_ready,
+    avgspeed_data                               => avgspeed_data,
+    avgspeed_strb                               => avgspeed_strb,
     avgspeed_last                               => avgspeed_last,
 
-    accel_decel_valid                           => output_accel_decel_valid,
-    accel_decel_ready                           => output_accel_decel_ready,
-    accel_decel_data                            => output_accel_decel,
-    accel_decel_strb                            => output_accel_decel_dvalid,
+    accel_decel_valid                           => accel_decel_valid,
+    accel_decel_ready                           => accel_decel_ready,
+    accel_decel_data                            => accel_decel_data,
+    accel_decel_strb                            => accel_decel_strb,
     accel_decel_last                            => accel_decel_last,
 
-    speed_changes_valid                         => output_speed_changes_valid,
-    speed_changes_ready                         => output_speed_changes_ready,
-    speed_changes_data                          => output_speed_changes,
-    speed_changes_strb                          => output_speed_changes_dvalid,
+    speed_changes_valid                         => speed_changes_valid,
+    speed_changes_ready                         => speed_changes_ready,
+    speed_changes_data                          => speed_changes_data,
+    speed_changes_strb                          => speed_changes_strb,
     speed_changes_last                          => speed_changes_last,
 
     --                
     -- BOOLEAN FIELDS               
     --                
-    hypermiling_valid                           => output_hypermiling_valid,
-    hypermiling_ready                           => output_hypermiling_ready,
+    hypermiling_valid                           => hypermiling_valid,
+    hypermiling_ready                           => hypermiling_ready,
     hypermiling_data                            => hypermiling_data,
-    hypermiling_strb                            => output_hypermiling_dvalid,
+    hypermiling_strb                            => hypermiling_strb,
     hypermiling_last                            => hypermiling_last,
 
-    orientation_valid                           => output_orientation_valid,
-    orientation_ready                           => output_orientation_ready,
+    orientation_valid                           => orientation_valid,
+    orientation_ready                           => orientation_ready,
     orientation_data                            => orientation_data,
-    orientation_strb                            => output_orientation_dvalid,
+    orientation_strb                            => orientation_strb,
     orientation_last                            => orientation_last,
 
     --                
@@ -1094,31 +1144,209 @@ begin
 
   -- Some interfacing
 
+  -- 
+  -- Converters for the integer fields
   --
-  -- Last signals
+  timezone_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => TIMEZONE_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => timezone_valid,
+    in_ready       => timezone_ready,
+    in_data        => timezone_data,
+    in_dvalid      => timezone_strb,
+    in_last        => timezone_last(1 downto 1),
+
+    out_valid      => output_timezone_valid,
+    out_ready      => output_timezone_ready,
+    out_data       => output_timezone,
+    out_dvalid     => output_timezone_dvalid,
+    out_last(0)    => output_timezone_last
+
+  );
+
+vin_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => VIN_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => vin_valid,
+    in_ready       => vin_ready,
+    in_data        => vin_data,
+    in_dvalid      => vin_strb,
+    in_last        => vin_last(1 downto 1),
+
+    out_valid      => output_vin_valid,
+    out_ready      => output_vin_ready,
+    out_data       => output_vin,
+    out_dvalid     => output_vin_dvalid,
+    out_last(0)    => output_vin_last
+
+  );
+
+odometer_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => ODOMETER_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => odometer_valid,
+    in_ready       => odometer_ready,
+    in_data        => odometer_data,
+    in_dvalid      => odometer_strb,
+    in_last        => odometer_last(1 downto 1),
+
+    out_valid      => output_odometer_valid,
+    out_ready      => output_odometer_ready,
+    out_data       => output_odometer,
+    out_dvalid     => output_odometer_dvalid,
+    out_last(0)    => output_odometer_last
+
+  );
+
+avgspeed_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => AVGSPEED_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => avgspeed_valid,
+    in_ready       => avgspeed_ready,
+    in_data        => avgspeed_data,
+    in_dvalid      => avgspeed_strb,
+    in_last        => avgspeed_last(1 downto 1),
+
+    out_valid      => output_avgspeed_valid,
+    out_ready      => output_avgspeed_ready,
+    out_data       => output_avgspeed,
+    out_dvalid     => output_avgspeed_dvalid,
+    out_last(0)    => output_avgspeed_last
+
+  );
+
+accel_decel_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => ACCEL_DECEL_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => accel_decel_valid,
+    in_ready       => accel_decel_ready,
+    in_data        => accel_decel_data,
+    in_dvalid      => accel_decel_strb,
+    in_last        => accel_decel_last(1 downto 1),
+
+    out_valid      => output_accel_decel_valid,
+    out_ready      => output_accel_decel_ready,
+    out_data       => output_accel_decel,
+    out_dvalid     => output_accel_decel_dvalid,
+    out_last(0)    => output_accel_decel_last
+
+  );
+
+speed_changes_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => SPEED_CHANGES_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => speed_changes_valid,
+    in_ready       => speed_changes_ready,
+    in_data        => speed_changes_data,
+    in_dvalid      => speed_changes_strb,
+    in_last        => speed_changes_last(1 downto 1),
+
+    out_valid      => output_speed_changes_valid,
+    out_ready      => output_speed_changes_ready,
+    out_data       => output_speed_changes,
+    out_dvalid     => output_speed_changes_dvalid,
+    out_last(0)    => output_speed_changes_last
+
+  );
+
+  -- 
+  -- Converters for the boolean fields
   --
+  hypermiling_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => 1,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
 
-  -- Integer + boolean fields
-  output_timezone_last      <= timezone_last(1);
-  output_vin_last           <= vin_last(1);
-  output_odometer_last      <= odometer_last(1);
-  output_avgspeed_last      <= avgspeed_last(1);
-  output_accel_decel_last   <= accel_decel_last(1);
-  output_speed_changes_last <= speed_changes_last(1);
-  output_hypermiling_last   <= hypermiling_last(1);
-  output_orientation_last   <= orientation_last(1);
+    in_valid       => hypermiling_valid,
+    in_ready       => hypermiling_ready,
+    in_data(0)     => hypermiling_data,
+    in_dvalid      => hypermiling_strb,
+    in_last        => hypermiling_last(1 downto 1),
 
-  -- Integer array fields
+    out_valid      => output_hypermiling_valid,
+    out_ready      => output_hypermiling_ready,
+    out_data       => hypermiling_data_f,
+    out_dvalid     => output_hypermiling_dvalid,
+    out_last(0)    => output_hypermiling_last
 
+  );
+
+orientation_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => 1,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => orientation_valid,
+    in_ready       => orientation_ready,
+    in_data(0)     => orientation_data,
+    in_dvalid      => orientation_strb,
+    in_last        => orientation_last(1 downto 1),
+
+    out_valid      => output_orientation_valid,
+    out_ready      => output_orientation_ready,
+    out_data       => orientation_data_f,
+    out_dvalid     => output_orientation_dvalid,
+    out_last(0)    => output_orientation_last
+
+  );
 
   --
   -- Data conversion for boolean fields
   --
-  output_orientation <= "0000000" & orientation_data;
-  output_hypermiling <= "0000000" & hypermiling_data;
-
-  --output_orientation <= std_logic_vector(resize(unsigned'("0" & orientation_data), 64));
-  --output_hypermiling <= std_logic_vector(resize(unsigned'("0" & hypermiling_data), 64));
+  output_orientation <= "0000000" & orientation_data_f;
+  output_hypermiling <= "0000000" & hypermiling_data_f;
 
 
   --
@@ -1155,7 +1383,7 @@ begin
     length_count  => output_sec_in_band_count
   );
 
-miles_in_time_range_converter : D2ListToVecs
+  miles_in_time_range_converter : D2ListToVecs
   generic map(
     EPC           => 1,
     DATA_WIDTH    => MILES_IN_TIME_RANGE_INT_WIDTH,
@@ -1186,7 +1414,7 @@ miles_in_time_range_converter : D2ListToVecs
     length_count  => output_miles_in_time_range_count
   );
 
-const_speed_miles_in_band_converter : D2ListToVecs
+  const_speed_miles_in_band_converter : D2ListToVecs
   generic map(
     EPC           => 1,
     DATA_WIDTH    => CONST_SPEED_MILES_IN_BAND_INT_WIDTH,
@@ -1217,7 +1445,7 @@ const_speed_miles_in_band_converter : D2ListToVecs
     length_count  => output_const_speed_miles_in_band_count
   );
 
-vary_speed_miles_in_band_converter : D2ListToVecs
+  vary_speed_miles_in_band_converter : D2ListToVecs
   generic map(
     EPC           => 1,
     DATA_WIDTH    => VARY_SPEED_MILES_IN_BAND_INT_WIDTH,
@@ -1248,7 +1476,7 @@ vary_speed_miles_in_band_converter : D2ListToVecs
     length_count  => output_vary_speed_miles_in_band_count
   );
 
-sec_decel_converter : D2ListToVecs
+  sec_decel_converter : D2ListToVecs
   generic map(
     EPC           => 1,
     DATA_WIDTH    => SEC_DECEL_INT_WIDTH,
@@ -1279,7 +1507,7 @@ sec_decel_converter : D2ListToVecs
     length_count  => output_sec_decel_count
   );
 
-sec_accel_converter : D2ListToVecs
+  sec_accel_converter : D2ListToVecs
   generic map(
     EPC           => 1,
     DATA_WIDTH    => SEC_ACCEL_INT_WIDTH,
@@ -1310,7 +1538,7 @@ sec_accel_converter : D2ListToVecs
     length_count  => output_sec_accel_count
   );
 
-braking_converter : D2ListToVecs
+  braking_converter : D2ListToVecs
   generic map(
     EPC           => 1,
     DATA_WIDTH    => BRAKING_INT_WIDTH,
@@ -1341,7 +1569,7 @@ braking_converter : D2ListToVecs
     length_count  => output_braking_count
   );
 
-accel_converter : D2ListToVecs
+  accel_converter : D2ListToVecs
   generic map(
     EPC           => 1,
     DATA_WIDTH    => ACCEL_INT_WIDTH,
@@ -1372,7 +1600,7 @@ accel_converter : D2ListToVecs
     length_count  => output_accel_count
   );
 
-small_speed_var_converter : D2ListToVecs
+  small_speed_var_converter : D2ListToVecs
   generic map(
     EPC           => 1,
     DATA_WIDTH    => SMALL_SPEED_VAR_INT_WIDTH,
@@ -1403,7 +1631,7 @@ small_speed_var_converter : D2ListToVecs
     length_count  => output_small_speed_var_count
   );
 
-large_speed_var_converter : D2ListToVecs
+  large_speed_var_converter : D2ListToVecs
   generic map(
     EPC           => 1,
     DATA_WIDTH    => LARGE_SPEED_VAR_INT_WIDTH,

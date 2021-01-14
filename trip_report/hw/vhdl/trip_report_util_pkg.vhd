@@ -78,4 +78,30 @@ package trip_report_util_pkg is
       length_last              : out std_logic
   );
   end component;
+
+  component DropEmpty is
+    generic (
+      EPC                      : natural := 1;
+      DATA_WIDTH               : natural := 8;
+      DIMENSIONALITY           : natural := 1
+      );
+  port (
+      clk                      : in  std_logic;
+      reset                    : in  std_logic;
+
+      -- Input stream
+      in_valid                 : in  std_logic;
+      in_ready                 : out std_logic;
+      in_data                  : in  std_logic_vector(DATA_WIDTH*EPC-1 downto 0);
+      in_dvalid                : in  std_logic := '1';
+      in_last                  : in  std_logic_vector(DIMENSIONALITY-1 downto 0) := (others => '0');
+
+      -- Output stream
+      out_valid                : out std_logic;
+      out_ready                : in  std_logic;
+      out_data                 : out std_logic_vector(DATA_WIDTH*EPC-1 downto 0);
+      out_dvalid               : out std_logic := '1';
+      out_last                 : out std_logic_vector(DIMENSIONALITY-1 downto 0) := (others => '0')
+  );
+  end component;
 end trip_report_util_pkg;

@@ -92,6 +92,7 @@ architecture behavioral of StreamSerializer is
 
           -- Do processing when both registers are ready.
           os := '0';
+          ol := (others => '0');
           if to_x01(iv) = '1' then
             for idx in 0 to EPC-1 loop
               if to_x01(ov) /= '1' then
