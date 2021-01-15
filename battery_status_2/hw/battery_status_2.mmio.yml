@@ -1,0 +1,192 @@
+metadata:
+  name: mmio
+
+entity:
+  bus-flatten:  yes
+  bus-prefix:   mmio_
+  clock-name:   kcd_clk
+  reset-name:   kcd_reset
+
+features:
+  bus-width:    64
+  optimize:     yes
+
+interface:
+  flatten:      yes
+
+fields:
+  - address: 0b0---
+    name: AFU_DHF
+    behavior: constant
+    value: 17293826967149215744 # [63:60]: 1 && [40]: 1
+
+  - address: 0b1---
+    name: AFU_ID_L
+    behavior: constant
+    value: 13230270076846825198 # check battery_status.json
+
+  - address: 0b10---
+    name: AFU_ID_H
+    behavior: constant
+    value: 11287216594519869704 # check battery_status.json
+
+  - address: 0b11---
+    name: DFH_RSVD0
+    behavior: constant
+    value: 0
+
+  - address: 0b100---
+    name: DFH_RSVD1
+    behavior: constant
+    value: 0
+
+  - address: 64
+    name: start
+    doc: Start the kernel.
+    bitrange: 0
+    behavior: strobe
+
+  - address: 64
+    name: stop
+    doc: Stop the kernel.
+    bitrange: 1
+    behavior: strobe
+
+  - address: 64
+    name: reset
+    doc: Reset the kernel.
+    bitrange: 2
+    behavior: strobe
+
+  - address: 68
+    name: idle
+    doc: Kernel idle status.
+    bitrange: 32
+    behavior: status
+
+  - address: 68
+    name: busy
+    doc: Kernel busy status.
+    bitrange: 33
+    behavior: status
+
+  - address: 68
+    name: done
+    doc: Kernel done status.
+    bitrange: 34
+    behavior: status
+
+  - address: 72
+    name: result
+    doc: Result.
+    bitrange: 63..0
+    behavior: status
+
+  - address: 80
+    name: input_1_firstidx
+    doc: input_1 first index.
+    bitrange: 31..0
+    behavior: control
+
+  - address: 84
+    name: input_1_lastidx
+    doc: input_1 last index (exclusive).
+    bitrange: 63..32
+    behavior: control
+
+  - address: 88
+    name: input_2_firstidx
+    doc: input_2 first index.
+    bitrange: 31..0
+    behavior: control
+
+  - address: 92
+    name: input_2_lastidx
+    doc: input_2 last index (exclusive).
+    bitrange: 63..32
+    behavior: control
+
+  - address: 96
+    name: output_1_firstidx
+    doc: output_1 first index.
+    bitrange: 31..0
+    behavior: control
+
+  - address: 100
+    name: output_1_lastidx
+    doc: output_1 last index (exclusive).
+    bitrange: 63..32
+    behavior: control
+
+  - address: 104
+    name: output_2_firstidx
+    doc: output_2 first index.
+    bitrange: 31..0
+    behavior: control
+
+  - address: 108
+    name: output_2_lastidx
+    doc: output_2 last index (exclusive).
+    bitrange: 63..32
+    behavior: control
+
+  - address: 112
+    name: input_1_input_values
+    doc: Buffer address for input_1 input_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 120
+    name: input_2_input_values
+    doc: Buffer address for input_2 input_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 128
+    name: output_1_voltage_offsets
+    doc: Buffer address for output_1 voltage_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 136
+    name: output_1_voltage_values
+    doc: Buffer address for output_1 voltage_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 144
+    name: output_2_voltage_offsets
+    doc: Buffer address for output_2 voltage_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 152
+    name: output_2_voltage_values
+    doc: Buffer address for output_2 voltage_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 160
+    name: record_counter_1
+    doc: Custom register record_counter_1
+    bitrange: 31..0
+    behavior: status
+
+  - address: 164
+    name: record_counter_2
+    doc: Custom register record_counter_2
+    bitrange: 63..32
+    behavior: status
+
+  - address: 168
+    name: Profile_enable
+    doc: Activates profiler counting when this bit is high.
+    bitrange: 0
+    behavior: control
+
+  - address: 172
+    name: Profile_clear
+    doc: Resets profiler counters when this bit is asserted.
+    bitrange: 32
+    behavior: strobe
+
