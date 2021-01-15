@@ -1,0 +1,5 @@
+fletchgen.mmio.yaml
+vhdmmio-doc
+vhdmmio.log
+*.rb
+*.as
