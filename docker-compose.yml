@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  # This is a standalone pulsar instance.
+  pulsar:
+    image: apachepulsar/pulsar:2.7.0
+    command: bin/pulsar standalone
+    ports:
+    - "6650:6650"
+    - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/admin"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # This is the producer of raw data.
+  illex:
+    build:
+      context: .
+      target: illex
+    command: stream -m 1024 battery.as
+    depends_on:
+      pulsar:
+        condition: service_healthy
+    ports:
+    - "10197:10197"
+
+  # This is the producer of Arrow data for Pulsar
+  # Bolson consumes raw data, converts it Apache Arrow data using an FPGA accelerator.
+  # The Apache Arrow data is then published to Pulsar.
+  bolson:
+    build:
+      context: .
+      target: bolson
+    command: stream battery.as -p arrow --max-rows 50000 -u pulsar://pulsar:6650
+    depends_on:
+      pulsar:
+        condition: service_healthy
+
+  # The consumer consumes the produced messages and prints them.
+  consumer:
+    image: apachepulsar/pulsar:2.7.0
+    command: bin/pulsar-client --url pulsar://pulsar:6650 consume -s client-consume -n 0 bolson
+    depends_on:
+      pulsar:
+        condition: service_healthy

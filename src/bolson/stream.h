@@ -31,7 +31,7 @@ namespace bolson {
 /// Stream subcommand options.
 struct StreamOptions {
   /// The hostname of the stream server.
-  std::string hostname = "localhost";
+  std::string hostname = "illex";
   /// The protocol to use.
   illex::StreamProtocol protocol;
   /// The Pulsar options.
