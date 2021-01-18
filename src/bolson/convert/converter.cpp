@@ -126,8 +126,6 @@ void ConvertThread(size_t id,
         lock_idx++; // start at next buffer next time we try to unlock.
         t_stages.Split();
 
-/*
-
         // Resize the batch.
         stats->status = resizer->Resize(parsed, &resized);
         SHUTDOWN_ON_FAILURE();
@@ -152,7 +150,7 @@ void ConvertThread(size_t id,
           out->enqueue(ipc);
         }
         t_stages.Split();
-*/
+
         // Add parse time to stats.
         stats->t.parse += t_stages.seconds()[0];
         stats->t.resize += t_stages.seconds()[1];
