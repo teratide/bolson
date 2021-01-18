@@ -21,7 +21,6 @@ RUN curl -L -O https://downloads.apache.org/pulsar/pulsar-${PULSAR_VERSION}/DEB/
 FROM pulsar as bolson
 ADD . /bolson
 WORKDIR /bolson/release
-# RUN cmake -DCMAKE_BUILD_TYPE=Release .. && \
 RUN cmake -DCMAKE_BUILD_TYPE=Debug .. && \
     make -j && \
     make install
@@ -33,8 +32,16 @@ FROM arrow as illex
 ARG ILLEX_REF=master
 WORKDIR /illex/release
 RUN curl -L https://github.com/teratide/illex/archive/${ILLEX_REF}.tar.gz | tar xz --strip-components=1 -C /illex && \
-    cmake -DCMAKE_BUILD_TYPE=Release .. && \
+    cmake -DCMAKE_BUILD_TYPE=Debug .. && \
     make -j && \
     make install
 ADD battery.as /illex/release
 ENTRYPOINT [ "illex" ]
+
+FROM python:3.8-slim as consumer
+ARG ARROW_VERSION=1.0.1
+ARG PULSAR_VERSION=2.7.0
+RUN python3 -m pip install pyarrow==${ARROW_VERSION} pulsar-client==${PULSAR_VERSION}
+ADD client.py client.py
+ENTRYPOINT [ "python3" ]
+CMD [ "client.py" ]
