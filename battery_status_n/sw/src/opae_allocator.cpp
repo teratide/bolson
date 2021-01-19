@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <malloc.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <cstring>
 
-#include <spdlog/spdlog.h>
-
+#include "./log.h"
 #include "./opae_allocator.h"
 
 bool OpaeAllocator::Allocate(size_t size, byte **out) {
@@ -29,7 +28,14 @@ bool OpaeAllocator::Allocate(size_t size, byte **out) {
                  size,
                  page);
   }
-  void *addr = memalign(page, page);
+  void *addr;
+  if (posix_memalign(&addr, page, page) != 0) {
+    spdlog::error("OpaeAllocator posix_memalign call failed.");
+    return false;
+  }
+  spdlog::info("OpaeAllocator allocated buffer of size {} at {:016X}.",
+               page,
+               reinterpret_cast<uint64_t>(addr));
   // Clear memory.
   std::memset(addr, 0, size);
   // Add to current allocations.

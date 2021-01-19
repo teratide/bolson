@@ -20,8 +20,8 @@
 #include <fletcher/context.h>
 #include <fletcher/platform.h>
 #include <fletcher/kernel.h>
-#include <spdlog/spdlog.h>
 
+#include "./log.h"
 #include "./opae_battery_impl.h"
 
 /// Return Bolson error status when Fletcher error status is supplied.
@@ -61,9 +61,12 @@ static std::shared_ptr<arrow::Schema> output_schema() {
 
 bool OpaeBatteryParserManager::PrepareInputBatches(const std::vector<RawJSONBuffer *> &buffers) {
   for (const auto &buf : buffers) {
-    auto wrapped = arrow::Buffer::Wrap(buf->data_, buf->capacity_);
+    spdlog::info("Wrapping buffer (@:{:016X} s:{}) into Arrow RecordBatch.",
+                 reinterpret_cast<uint64_t>(buf->data_),
+                 buf->size_);
+    auto wrapped = arrow::Buffer::Wrap(buf->data_, buf->size_);
     auto array =
-        std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), buf->capacity_, wrapped);
+        std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), buf->size_, wrapped);
     batches_in.push_back(arrow::RecordBatch::Make(input_schema(),
                                                   buf->capacity_,
                                                   {array}));
@@ -103,7 +106,7 @@ bool OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
   result->opts_ = opts;
   result->num_parsers_ = num_parsers;
 
-  SPDLOG_DEBUG("Setting up OpaeBatteryParserManager for {} buffers.", buffers.size());
+  spdlog::info("Setting up OpaeBatteryParserManager for {} buffers.", buffers.size());
 
   ROE(result->PrepareInputBatches(buffers));
   ROE(result->PrepareOutputBatches());
@@ -114,7 +117,7 @@ bool OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
   std::stringstream ss;
   ss << std::hex << num_parsers;
   result->opts_.afu_id[strlen(OPAE_BATTERY_AFU_ID) - 1] = ss.str()[0];
-  SPDLOG_DEBUG("AFU ID: {}", result->opts_.afu_id);
+  spdlog::info("AFU ID: {}", result->opts_.afu_id);
   const char *afu_id = result->opts_.afu_id.data();
   result->platform->init_data = &afu_id;
   FLETCHER_ROE(result->platform->Init());
@@ -143,7 +146,7 @@ bool OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
         result->context->device_buffer(i).device_address;
   }
 
-  SPDLOG_DEBUG("Preparing parsers.");
+  spdlog::info("Preparing parsers.");
 
   ROE(result->PrepareParsers());
 
@@ -203,7 +206,7 @@ static fletcher::Status WriteMMIO(fletcher::Platform *platform,
                                   uint32_t value,
                                   size_t idx,
                                   std::string desc = "") {
-  SPDLOG_DEBUG("{} writing {} to offset {} ({}) {}",
+  spdlog::info("{} writing {} to offset {} ({}) {}",
                idx,
                value,
                offset,
@@ -217,7 +220,7 @@ static fletcher::Status ReadMMIO(fletcher::Platform *platform,
                                  uint32_t *value,
                                  size_t idx,
                                  std::string desc = "") {
-  SPDLOG_DEBUG("{} reading from offset {} ({}) {}",
+  spdlog::info("{} reading from offset {} ({}) {}",
                idx,
                offset,
                64 + 4 * offset,
@@ -271,7 +274,7 @@ bool OpaeBatteryParser::Parse(RawJSONBuffer *in, ParsedBuffer *out) {
   while (!done) {
 #ifndef NDEBUG
     ReadMMIO(platform_, status_offset(idx_), &status, idx_, "status");
-    SPDLOG_DEBUG("Status value: {}", status);
+    spdlog::info("Status value: {}", status);
     platform_mutex->unlock();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     platform_mutex->lock();
@@ -290,7 +293,7 @@ bool OpaeBatteryParser::Parse(RawJSONBuffer *in, ParsedBuffer *out) {
   ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
   ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
 
-  SPDLOG_DEBUG("{} number of rows: {}", idx_, num_rows.full);
+  spdlog::info("{} number of rows: {}", idx_, num_rows.full);
 
   std::shared_ptr<arrow::RecordBatch> out_batch;
   ROE(WrapOutput(num_rows.full,

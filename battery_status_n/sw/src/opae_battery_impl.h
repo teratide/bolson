@@ -104,7 +104,7 @@ class OpaeBatteryParser {
   // 3 result num rows hi
   static constexpr size_t custom_regs_per_inst = 4;
 
-  [[nodiscard]] auto custom_regs_offset() const -> size_t {
+  size_t custom_regs_offset() const {
     return default_regs + num_parsers
         * (2 * range_regs_per_inst + in_addr_regs_per_inst + out_addr_regs_per_inst);
   }

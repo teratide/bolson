@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+
+#include "./log.h"
 #include "./opae_allocator.h"
 #include "./opae_battery_impl.h"
 
@@ -21,40 +24,40 @@
 #define PLATFORM "opae-ase"
 #endif
 
-const char *test_string = "{\"voltage\" : [0, 1, 2, 3]}";
+const std::string test_string = "{\"voltage\" : [0, 1, 2, 3]}";
 
 const int num_parsers = 8;
 
 int main(int argc, char **argv) {
+  std::cout << "Using " << PLATFORM << std::endl;
   OpaeAllocator alloc;
-  size_t num_bytes = std::strlen(test_string);
+  size_t num_bytes = test_string.length();
 
-  std::vector<RawJSONBuffer> raw_buffers;
-  std::vector<RawJSONBuffer *> raw_buffers_ptr;
-  std::vector<ParsedBuffer> outputs;
+  std::vector<RawJSONBuffer> buffers(num_parsers);
+  std::vector<RawJSONBuffer *> buffers_ptr(num_parsers);
+  std::vector<ParsedBuffer> outputs(num_parsers);
 
   // Create buffer wrappers, allocate buffers, copy test string into buffers.
   for (int i = 0; i < num_parsers; i++) {
-    RawJSONBuffer buf;
-    alloc.Allocate(num_bytes, &buf.data_);
-    std::memcpy(buf.data_, test_string, num_bytes);
-    buf.size_ = num_bytes;
-    buf.capacity_ = num_bytes;
-    raw_buffers.push_back(buf);
-    raw_buffers_ptr.push_back(&raw_buffers[i]);
+    alloc.Allocate(opae_fixed_capacity, &buffers[i].data_);
+    std::memcpy(buffers[i].data_, test_string.data(), num_bytes);
+    buffers[i].size_ = num_bytes;
+    buffers[i].capacity_ = opae_fixed_capacity;
+    buffers_ptr[i] = &buffers[i];
   }
 
   // Set up manager.
   std::shared_ptr<OpaeBatteryParserManager> m;
   OpaeBatteryParserManager::Make(OpaeBatteryOptions{},
-                                 raw_buffers_ptr,
+                                 buffers_ptr,
                                  num_parsers,
                                  &m);
 
   // Parse buffer with every parser.
   auto parsers = m->parsers();
   for (int i = 0; i < num_parsers; i++) {
-    parsers[i]->Parse(&raw_buffers[i], &outputs[i]);
+    parsers[i]->Parse(&buffers[i], &outputs[i]);
+    std::cout << outputs[i].batch->ToString() << std::endl;
   }
 
   return 0;
