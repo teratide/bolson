@@ -274,11 +274,19 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   uint32_t done_mask = 4;
   uint32_t done_status = 4;
   uint32_t status = 0;
+  dau_t num_rows;
 
   while (!done) {
 #ifndef NDEBUG
     ReadMMIO(platform_, status_offset(idx_), &status, idx_, "status");
     SPDLOG_DEBUG("Status value: {}", status);
+
+    // Obtain the result.
+    // FLETCHER_ROE(kernel->GetReturn(&num_rows.lo, &num_rows.hi));
+    ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
+    ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
+    SPDLOG_DEBUG("{} number of rows: {}", idx_, num_rows.full);
+
     platform_mutex->unlock();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     platform_mutex->lock();
@@ -290,14 +298,6 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
 #endif
     done = (status & done_mask) == done_status;
   }
-
-  // Obtain the result.
-  dau_t num_rows;
-  // FLETCHER_ROE(kernel->GetReturn(&num_rows.lo, &num_rows.hi));
-  ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
-  ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
-
-  SPDLOG_DEBUG("{} number of rows: {}", idx_, num_rows.full);
 
   std::shared_ptr<arrow::RecordBatch> out_batch;
   BOLSON_ROE(WrapOutput(num_rows.full,
