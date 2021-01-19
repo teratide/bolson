@@ -19,8 +19,7 @@ RUN mkdir -p /opae-sdk/build && \
     rm -rf /opae-sdk/build
 
 ARG FLETCHER_OPAE_REF=6a06c02a766bb7e6119feb02cce0f718a8fd5416
-RUN mkdir -p /fletcher-opae && \
-    curl -L https://github.com/teratide/fletcher-opae/archive/${FLETCHER_OPAE_REF}.tar.gz | tar xz -C /fletcher-opae --strip-components=1 && \
+RUN git clone -b multi_battery https://github.com/teratide/fletcher-opae.git /fletcher-opae && \
     cd /fletcher-opae && \
     cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr . && \
     make -j && \
