@@ -107,7 +107,7 @@ begin
       valid                     => out_valid,
       ready                     => out_ready,
       data                      => out_data,
-    --  dvalid                    => out_strb,
+      --dvalid                    => out_strb,
       last                      => out_last
     );
 
@@ -130,7 +130,7 @@ begin
 
     b.unblock;
 
-    tc_wait_for(10 us);
+    tc_wait_for(20 us);
 
     tc_check(b.pq_ready, true);
     tc_check(b.pq_get_str, "All is well");

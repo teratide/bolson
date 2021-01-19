@@ -250,22 +250,42 @@ int main(int argc, char **argv)
   }
 
 
-  status = kernel.PollUntilDone();
-  if (!status.ok())
-  {
-    std::cerr << "Something went wrong waiting for the kernel to finish." << std::endl;
-    return -1;
-  }
+  // status = kernel.PollUntilDone();
+  // if (!status.ok())
+  // {
+  //   std::cerr << "Something went wrong waiting for the kernel to finish." << std::endl;
+  //   return -1;
+  // }
 
   uint32_t return_value_0;
   uint32_t return_value_1;
-  status = kernel.GetReturn(&return_value_0, &return_value_1);
-  if (!status.ok())
-  {
-    std::cerr << "Failed to get return value." << std::endl;
-    return -1;
+  uint64_t state = 0;
+  uint64_t num_rows = 0;
+  while(state != 96) {
+    status = kernel.GetReturn(&return_value_0, &return_value_1);
+    state = ((uint64_t)112) & ((uint64_t)return_value_0);
+    num_rows = ((uint64_t)3) & ((uint64_t)return_value_0);
+    uint64_t reg = ((uint64_t)return_value_1 << 32) | return_value_0;
+    std::cout << "Result reg:" << std::hex << reg << std::endl;
+    if (!status.ok())
+    {
+      std::cerr << "Failed to get return value." << std::endl;
+      return -1;
+    }
+    usleep(1000000);
   }
-  uint64_t num_rows = ((uint64_t)return_value_1 << 32) | return_value_0;
+
+
+  // uint32_t return_value_0;
+  // uint32_t return_value_1;
+  // status = kernel.GetReturn(&return_value_0, &return_value_1);
+  // if (!status.ok())
+  // {
+  //   std::cerr << "Failed to get return value." << std::endl;
+  //   return -1;
+  // }
+  //uint64_t num_rows = ((uint64_t)return_value_1 << 32) | return_value_0;
+  
 
   std::cout << "Number of records parsed: " << num_rows << std::endl;
 

@@ -11,7 +11,7 @@ pa.output_stream("in.as").write(input_schema.serialize())
 
 test_rec= """{
     "timestamp": "2005-09-09T11:59:06-10:00",
-    "timezone": 883,
+    "timezone": 883, 
     "vin": 16852243674679352615,
     "odometer": 997,
     "hypermiling": false,
@@ -45,7 +45,7 @@ test_rec= """{
     "sec_accel": [2580, 3830, 792, 2407, 2425, 3305, 2985, 1920, 3889, 909],
     "braking": [2541, 13, 3533, 59, 116, 134],
     "accel": [1780, 228, 1267, 2389, 437, 871],
-    "orientation": false,
+    "orientation": true,
     "small_speed_var": [1254, 3048, 377, 754, 1745, 3666, 2820, 3303, 2558, 1308, 2795, 941, 2049],
     "large_speed_var": [3702, 931, 2040, 3388, 2575, 881, 1821, 3675, 2080, 3973, 4132, 3965, 4166],
     "accel_decel": 1148,

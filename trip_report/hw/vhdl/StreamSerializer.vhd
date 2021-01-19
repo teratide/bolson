@@ -91,25 +91,20 @@ architecture behavioral of StreamSerializer is
           end if;
 
           -- Do processing when both registers are ready.
-          os := '0';
-          ol := (others => '0');
           if to_x01(iv) = '1' then
+            ol := (others => '0');
             for idx in 0 to EPC-1 loop
               if to_x01(ov) /= '1' then
-                if or_reduce(id(idx).last) = '1' then
-                  ol := id(idx).last;
+                od := id(idx).data;
+                os := id(idx).strb;
+                ol := id(idx).last;
+                if  to_x01(id(idx).strb) = '1' or or_reduce(id(idx).last) = '1' then
                   ov := '1';
-                  id(idx).last := (others => '0');
                 end if;
-                if to_x01(id(idx).strb) = '1' then
-                  od := id(idx).data;
-                  ov := '1';
-                  os := '1';
-                  id(idx).strb := '0';
-                end if;
-             end if;
+                id(idx).last := (others => '0');
+                id(idx).strb := '0';
+              end if;
             end loop;
-
             iv := '0';
             for idx in id'range loop
               if id(idx).strb = '1' or or_reduce(id(idx).last) = '1' then
