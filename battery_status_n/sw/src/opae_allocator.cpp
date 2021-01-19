@@ -21,24 +21,25 @@
 #include "./opae_allocator.h"
 
 bool OpaeAllocator::Allocate(size_t size, byte **out) {
-  size_t page = sysconf(_SC_PAGESIZE);
-  if (size != page) {
+    if (size != opae_fixed_capacity) {
     spdlog::warn("OpaeAllocator requested to allocate {} bytes, "
                  "but only allows allocating exactly {} bytes for now.",
                  size,
-                 page);
+                 opae_fixed_capacity);
   }
-  void *addr;
-  if (posix_memalign(&addr, page, page) != 0) {
-    spdlog::error("OpaeAllocator posix_memalign call failed.");
+  size = opae_fixed_capacity;
+  
+  void *addr = mmap(nullptr,
+                    size,
+                    (PROT_READ | PROT_WRITE),
+                    (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | (30u << 26)),
+                    -1,
+                    0);
+  if (addr == MAP_FAILED) {
+    spdlog::error("OpaeAllocator unable to allocate huge page buffer. "
+                  "Errno: " + std::to_string(errno) + " : " + std::strerror(errno));
     return false;
   }
-  spdlog::info("OpaeAllocator allocated buffer of size {} at {:016X}.",
-               page,
-               reinterpret_cast<uint64_t>(addr));
-  // Clear memory.
-  std::memset(addr, 0, size);
-  // Add to current allocations.
   allocations[addr] = size;
 
   *out = static_cast<byte *>(addr);

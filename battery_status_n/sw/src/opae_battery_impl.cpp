@@ -63,8 +63,8 @@ bool OpaeBatteryParserManager::PrepareInputBatches(const std::vector<RawJSONBuff
   for (const auto &buf : buffers) {
     spdlog::info("Wrapping buffer (@:{:016X} s:{}) into Arrow RecordBatch.",
                  reinterpret_cast<uint64_t>(buf->data_),
-                 buf->size_);
-    auto wrapped = arrow::Buffer::Wrap(buf->data_, buf->size_);
+                 buf->capacity_);
+    auto wrapped = arrow::Buffer::Wrap(buf->data_, buf->capacity_);
     auto array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), buf->size_, wrapped);
     batches_in.push_back(arrow::RecordBatch::Make(input_schema(),
@@ -132,6 +132,8 @@ bool OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
   for (const auto &batch : result->batches_out) {
     FLETCHER_ROE(result->context->QueueRecordBatch(batch));
   }
+
+  spdlog::info("Enabling context...");  
 
   // Enable context.
   FLETCHER_ROE(result->context->Enable());

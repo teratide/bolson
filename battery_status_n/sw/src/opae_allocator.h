@@ -20,7 +20,7 @@
 typedef uint8_t byte;
 
 // TODO: Temporary work-around for limitations to the OPAE platform.
-constexpr size_t opae_fixed_capacity = 4096;
+constexpr size_t opae_fixed_capacity = 1024 * 1024 * 1024;
 
 class OpaeAllocator {
  public:
