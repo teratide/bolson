@@ -28,7 +28,7 @@ RUN mkdir -p /fletcher-opae && \
     rm -rf /fletcher-opae
 
 ARG ARROW_VERSION=1.0.1
-ARG PULSAR_VERSION=2.6.0
+ARG PULSAR_VERSION=2.7.0
 
 RUN wget https://apache.bintray.com/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-archive-keyring-latest-$(lsb_release --codename --short).deb && \
     dpkg -i apache-arrow-archive-keyring-latest-$(lsb_release --codename --short).deb && \
