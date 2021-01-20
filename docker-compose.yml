@@ -6,7 +6,7 @@ services:
     build:
       context: .
       target: illex
-    command: stream -m 128 -v battery.as
+    command: stream -m 1 -v --repeat-jsons --repeat-interval 2000 battery.as
     ports:
     - "10197:10197"
 

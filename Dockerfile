@@ -29,10 +29,10 @@ ENV LD_LIBRARY_PATH=/usr/local/lib/
 ENTRYPOINT [ "bolson" ]
 
 FROM arrow as illex
-ARG ILLEX_REF=master
+ARG ILLEX_REF=repeat
 WORKDIR /illex/release
 RUN curl -L https://github.com/teratide/illex/archive/${ILLEX_REF}.tar.gz | tar xz --strip-components=1 -C /illex && \
-    cmake -DCMAKE_BUILD_TYPE=Debug .. && \
+    cmake -DCMAKE_BUILD_TYPE=Release .. && \
     make -j && \
     make install
 ADD battery.as /illex/release
