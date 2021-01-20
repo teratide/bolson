@@ -199,6 +199,8 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   // 'stream' subcommand:
   auto *stream = app.add_subcommand("stream",
                                     "Produce Pulsar messages from a JSON TCP stream.");
+  stream->add_option("--host", out->stream.hostname, "JSON source TCP server hostname.")
+      ->default_val("localhost");
   auto *port_opt = stream->add_option("--port", stream_port, "Port.")
       ->default_val(illex::RAW_PORT);
   stream->add_option("--l-samples",
