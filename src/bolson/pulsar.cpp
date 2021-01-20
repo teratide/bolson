@@ -76,10 +76,12 @@ void PublishThread(PulsarContext pulsar,
                             ipc_item.ipc->data(),
                             ipc_item.ipc->size());
 
+      spdlog::info("Published {} item(s) to Pulsar.", ipc_item.num_rows);
+
       // Deal with Pulsar errors.
       // In case the Producer causes some error, shut everything down.
       if (!status.ok()) {
-        spdlog::error("Pulsar error: {} for message of size {} B with {} rows.",
+        spdlog::error("Pulsar error: {} for message of size {} B with {} row(s).",
                       status.msg(),
                       ipc_item.ipc->size(),
                       ipc_item.num_rows);

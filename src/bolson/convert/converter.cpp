@@ -151,10 +151,6 @@ void ConvertThread(size_t id,
         }
         t_stages.Split();
 
-        spdlog::info("Enqueued {} row(s) in {} Arrow IPC message(s).",
-                     parsed.batch->num_rows(),
-                     serialized.messages.size());
-
         // Add parse time to stats.
         stats->t.parse += t_stages.seconds()[0];
         stats->t.resize += t_stages.seconds()[1];

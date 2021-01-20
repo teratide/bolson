@@ -6,7 +6,7 @@ services:
     build:
       context: .
       target: illex
-    command: stream -m 1 -v --repeat-jsons --repeat-interval 2000 battery.as
+    command: stream -m 1 -v --repeat-jsons --repeat-interval 500 battery.as
     ports:
     - "10197:10197"
 
@@ -39,7 +39,7 @@ services:
     build:
       context: .
       target: bolson
-    command: stream --max-rows 8 -u pulsar://pulsar:6650 -t bolson battery.as
+    command: stream --host illex -u pulsar://pulsar:6650 -t bolson battery.as
     depends_on:
       pulsar:
         condition: service_healthy
