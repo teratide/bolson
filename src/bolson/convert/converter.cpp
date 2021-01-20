@@ -151,7 +151,7 @@ void ConvertThread(size_t id,
         }
         t_stages.Split();
 
-        spdlog::info("Enqueued {} rows in {} Arrow IPC messages .",
+        spdlog::info("Enqueued {} row(s) in {} Arrow IPC message(s).",
                      parsed.batch->num_rows(),
                      serialized.messages.size());
 
