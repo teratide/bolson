@@ -53,12 +53,19 @@ class OpaeBatteryParser : public Parser {
   auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status override;
 
  private:
+  static const uint32_t stat_idle = (1u << 0u);
+  static const uint32_t stat_busy = (1u << 1u);
+  static const uint32_t stat_done = (1u << 2u);
+  static const uint32_t ctrl_start = (1u << 0u);
+  static const uint32_t ctrl_stop = (1u << 1u);
+  static const uint32_t ctrl_reset = (1u << 2u);
+
   // Fletcher default regs (unused):
   // 0 control
   // 1 status
   // 2 return lo
   // 3 return hi
-  static constexpr size_t default_regs = 4;
+  static const size_t default_regs = 4;
 
   // Arrow input ranges
   // 0 input firstidx
@@ -67,26 +74,27 @@ class OpaeBatteryParser : public Parser {
   // Arrow output ranges
   // 0 output firstidx
   // 1 output lastidx
-  static constexpr size_t range_regs_per_inst = 2;
+  static const size_t range_regs_per_inst = 2;
 
   // 0 input val addr lo
   // 1 input val addr hi
-  static constexpr size_t in_addr_regs_per_inst = 2;
+  static const size_t in_addr_regs_per_inst = 2;
   // 2 output off addr lo
   // 3 output off addr hi
   // 4 output val addr lo
   // 5 output val addr hi
-  static constexpr size_t out_addr_regs_per_inst = 4;
+  static const size_t out_addr_regs_per_inst = 4;
 
   // Custom regs per instance:
   // 0 control
   // 1 status
   // 2 result num rows lo
   // 3 result num rows hi
-  static constexpr size_t custom_regs_per_inst = 4;
+  static const size_t custom_regs_per_inst = 4;
 
   [[nodiscard]] auto custom_regs_offset() const -> size_t {
-    return default_regs + num_parsers * (2 * range_regs_per_inst + in_addr_regs_per_inst + out_addr_regs_per_inst);
+    return default_regs + num_parsers
+        * (2 * range_regs_per_inst + in_addr_regs_per_inst + out_addr_regs_per_inst);
   }
 
   auto ctrl_offset(size_t idx) -> size_t {
@@ -110,7 +118,8 @@ class OpaeBatteryParser : public Parser {
   }
 
   auto input_values_lo_offset(size_t idx) -> size_t {
-    return default_regs + (2 * range_regs_per_inst) * num_parsers + in_addr_regs_per_inst * idx;
+    return default_regs + (2 * range_regs_per_inst) * num_parsers
+        + in_addr_regs_per_inst * idx;
   }
 
   auto input_values_hi_offset(size_t idx) -> size_t {
@@ -165,5 +174,9 @@ class OpaeBatteryParserManager {
 
   std::mutex platform_mutex;
 };
+
+/// \brief Print properties of the buffer in human-readable format.
+auto ToString(const illex::RawJSONBuffer &buffer,
+              bool show_contents = true) -> std::string;
 
 }
