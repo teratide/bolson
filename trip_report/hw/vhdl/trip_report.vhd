@@ -537,20 +537,12 @@ architecture Implementation of trip_report is
   signal in_strb                          : std_logic_vector(EPC - 1 downto 0);
   signal int_in_last                      : std_logic_vector(2 * EPC - 1 downto 0);
 
-  signal record_counter                   : unsigned(1 downto 0);
+  signal record_counter                   : unsigned(63 downto 0);
 
   signal cmd_valid                        : std_logic;
   signal cmd_ready                        : std_logic;
   signal unl_valid                        : std_logic;
   signal unl_ready                        : std_logic;
-
-  -- DEBUG
-  signal field_valid : std_logic_vector(18 downto 0);
-  signal unl_dbg     : std_logic_vector(18 downto 0);
-  signal last_dbg     : std_logic_vector(18 downto 0);
-  signal state_dbg   : std_logic_vector(2 downto 0);
-  signal dbg_aggr    : std_logic_vector(63 downto 0);
-
 
 
   type state_t is (
@@ -601,72 +593,7 @@ begin
     end if;
   end process;
 
-  --result <= std_logic_vector(record_counter);
-
-
-  unl_dbg(0)            <= output_timezone_unl_valid;
-  unl_dbg(1)            <= output_vin_unl_valid;
-  unl_dbg(2)            <= output_odometer_unl_valid;
-  unl_dbg(3)            <= output_avgspeed_unl_valid;
-  unl_dbg(4)            <= output_accel_decel_unl_valid;
-  unl_dbg(5)            <= output_speed_changes_unl_valid;
-  unl_dbg(6)            <= output_sec_in_band_unl_valid;
-  unl_dbg(7)            <= output_miles_in_time_range_unl_valid;
-  unl_dbg(8)            <= output_const_speed_miles_in_band_unl_valid;
-  unl_dbg(9)            <= output_vary_speed_miles_in_band_unl_valid;
-  unl_dbg(10)           <= output_sec_decel_unl_valid;
-  unl_dbg(11)           <= output_sec_accel_unl_valid;
-  unl_dbg(12)           <= output_braking_unl_valid;
-  unl_dbg(13)           <= output_accel_unl_valid;
-  unl_dbg(14)           <= output_small_speed_var_unl_valid;
-  unl_dbg(15)           <= output_large_speed_var_unl_valid;
-  unl_dbg(16)           <= output_hypermiling_unl_valid;
-  unl_dbg(17)           <= output_orientation_unl_valid;
-
-  last_dbg(0)           <= timezone_last(timezone_last'left);
-  last_dbg(1)           <= vin_last(vin_last'left);
-  last_dbg(2)           <= odometer_last(odometer_last'left);
-  last_dbg(3)           <= avgspeed_last(avgspeed_last'left);
-  last_dbg(4)           <= accel_decel_last(accel_decel_last'left);
-  last_dbg(5)           <= speed_changes_last(speed_changes_last'left);
-  last_dbg(6)           <= hypermiling_last(hypermiling_last'left);
-  last_dbg(7)           <= orientation_last(orientation_last'left);
-  last_dbg(8)           <= sec_in_band_last(sec_in_band_last'left);
-  last_dbg(9)           <= miles_in_time_range_last(miles_in_time_range_last'left);
-  last_dbg(10)          <= const_speed_miles_in_band_last(const_speed_miles_in_band_last'left);
-  last_dbg(11)          <= vary_speed_miles_in_band_last(vary_speed_miles_in_band_last'left);
-  last_dbg(12)          <= sec_decel_last(sec_decel_last'left);
-  last_dbg(13)          <= sec_accel_last(sec_accel_last'left);
-  last_dbg(14)          <= braking_last(braking_last'left);
-  last_dbg(15)          <= accel_last(accel_last'left);
-  last_dbg(16)          <= small_speed_var_last(small_speed_var_last'left);
-  last_dbg(17)          <= large_speed_var_last(large_speed_var_last'left);
-  last_dbg(18)          <= timestamp_ser_last(timestamp_ser_last'left);
-
-  process (state) begin
-    case state is
-      when STATE_IDLE => state_dbg <= "000";
-      when STATE_REQ_READ => state_dbg <= "001";
-      when STATE_REQ_WRITE => state_dbg <= "010";
-      when STATE_UNLOCK_READ => state_dbg <= "011";
-      when STATE_UNLOCK_WRITE => state_dbg <= "100";
-      when STATE_FENCE => state_dbg <= "101";
-      when STATE_DONE => state_dbg <= "110";
-      when others => state_dbg <= "111";
-    end case;
-  end process;
-
-  dbg_aggr(63 downto 45) <= field_valid;
-  dbg_aggr(44 downto 26) <= unl_dbg;
-  dbg_aggr(25 downto 7)  <= last_dbg;
-  dbg_aggr(6 downto 4) <= state_dbg;
-  dbg_aggr(3) <= input_input_valid;
-  dbg_aggr(2) <= input_input_last;
-  dbg_aggr(1 downto 0) <= std_logic_vector(record_counter);
-
-  result <= dbg_aggr;
-
-
+  result <= std_logic_vector(record_counter);
 
   -- write request defaults
   output_timezone_cmd_firstIdx                  <= output_firstidx;
@@ -1210,10 +1137,8 @@ begin
     timestamp_ready                             => timestamp_ready,
     timestamp_data                              => timestamp_data, 
     timestamp_last                              => timestamp_last, 
-    timestamp_strb                              => timestamp_strb,
+    timestamp_strb                              => timestamp_strb
 
-    -- DEBUG
-    field_valid                                 => field_valid
   );
 
   -- Some interfacing
