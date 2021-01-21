@@ -77,6 +77,7 @@ architecture Implementation of DropEmpty is
         if to_x01(reset) /= '0' then
           ir      := '0';
           i.valid := '0';
+          o.valid := '0';
         end if;
   
         -- Forward output holding register.

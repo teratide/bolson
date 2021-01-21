@@ -978,7 +978,7 @@ begin
 
     BRAKING_INT_WIDTH                                => BRAKING_INT_WIDTH,
     BRAKING_INT_P_PIPELINE_STAGES                    => 4,
-    BRAKING_BUFFER_D                                 => 6,
+    BRAKING_BUFFER_D                                 => 13,
 
     ACCEL_INT_WIDTH                                  => ACCEL_INT_WIDTH,
     ACCEL_INT_P_PIPELINE_STAGES                      => 4,
