@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(bolson VERSION 0.0.1 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
-find_package(Arrow 1.0 CONFIG REQUIRED)
-find_library(pulsar 2.6.0 REQUIRED)
+find_package(Arrow 3.0.0 CONFIG REQUIRED)
+find_library(pulsar 2.7.0 REQUIRED)
 
 include(FetchContent)
 
@@ -62,13 +62,13 @@ FetchContent_MakeAvailable(putong)
 # illex
 FetchContent_Declare(illex
   GIT_REPOSITORY  https://github.com/teratide/illex
-  GIT_TAG         multibuffer
+  GIT_TAG         master
 )
 FetchContent_MakeAvailable(illex)
 
 FetchContent_Declare(fletcher
   GIT_REPOSITORY  https://github.com/abs-tudelft/fletcher
-  GIT_TAG         master
+  GIT_TAG         arrow-3.0
 )
 FetchContent_MakeAvailable(fletcher)
 

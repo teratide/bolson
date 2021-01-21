@@ -81,7 +81,7 @@ auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> 
   auto buffer = arrow::io::BufferOutputStream::Create(GetBatchSize(batch));
   if (!buffer.ok()) return arrow::Result<std::shared_ptr<arrow::Buffer>>(buffer.status());
 
-  auto writer = arrow::ipc::NewStreamWriter(buffer.ValueOrDie().get(), batch->schema());
+  auto writer = arrow::ipc::MakeStreamWriter(buffer.ValueOrDie().get(), batch->schema());
   if (!writer.ok()) return arrow::Result<std::shared_ptr<arrow::Buffer>>(writer.status());
 
   auto status = writer.ValueOrDie()->WriteRecordBatch(*batch);

@@ -26,14 +26,17 @@ RUN git clone -b multi_battery https://github.com/teratide/fletcher-opae.git /fl
     make install && \
     rm -rf /fletcher-opae
 
-ARG ARROW_VERSION=1.0.1
-ARG PULSAR_VERSION=2.7.0
+ARG ARROW_REF=apache-arrow-3.0.0
+RUN mkdir -p /arrow/cpp/build && \
+    curl -L https://github.com/apache/arrow/archive/${ARROW_REF}.tar.gz | tar xz -C /arrow --strip-components=1 && \
+    cd /arrow/cpp/build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DARROW_JSON=ON .. && \
+    make -j && \
+    make install && \
+    rm -rf /arrow
 
-RUN wget https://apache.bintray.com/arrow/$(lsb_release --id --short | tr 'A-Z' 'a-z')/apache-arrow-archive-keyring-latest-$(lsb_release --codename --short).deb && \
-    dpkg -i apache-arrow-archive-keyring-latest-$(lsb_release --codename --short).deb && \
-    apt-get update && \
-    apt-get install -y libarrow-dev=${ARROW_VERSION}-1 && \
-    curl -L -O https://downloads.apache.org/pulsar/pulsar-${PULSAR_VERSION}/DEB/apache-pulsar-client.deb && \
+ARG PULSAR_VERSION=2.7.0
+RUN curl -L -O https://downloads.apache.org/pulsar/pulsar-${PULSAR_VERSION}/DEB/apache-pulsar-client.deb && \
     dpkg -i apache-pulsar-client.deb && \
     curl -L -O https://downloads.apache.org/pulsar/pulsar-${PULSAR_VERSION}/DEB/apache-pulsar-client-dev.deb && \
     dpkg -i apache-pulsar-client-dev.deb
