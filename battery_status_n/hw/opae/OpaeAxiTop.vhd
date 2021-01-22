@@ -413,7 +413,7 @@ begin
   m_axi_wuser       <= (others => '0');
 
   wrf_bvalid        <= m_axi_bvalid;
-  m_axi_bready      <= wrf_wready;
+  m_axi_bready      <= wrf_bready;
   wrf_bresp         <= m_axi_bresp;
 
   m_axi_arvalid     <= wrf_arvalid;

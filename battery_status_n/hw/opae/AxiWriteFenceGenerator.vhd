@@ -383,10 +383,10 @@ begin
           fence_pending := '1';
           resp := s.resp;
         else
-          m := s;
+          s := m;
         end if;
         f.valid := '0';
-        s.valid := '0';
+        m.valid := '0';
       end if;
 
       -- Handle reset.

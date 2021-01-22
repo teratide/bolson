@@ -169,9 +169,9 @@ begin
 
         -- wait for start signal
       when STATE_IDLE =>
-        done <= '0';
-        busy <= '0';
         idle <= '1';
+        busy <= '0';
+        done <= '0';
 
         if start = '1' then
           state_next <= STATE_REQ_READ;
@@ -179,9 +179,9 @@ begin
 
         -- send read request
       when STATE_REQ_READ =>
-        done                  <= '0';
-        busy                  <= '1';
-        idle                  <= '0';
+        idle <= '0';
+        busy <= '1';
+        done <= '0';
 
         input_input_cmd_valid <= '1';
 
@@ -192,44 +192,45 @@ begin
 
         -- send write request
       when STATE_REQ_WRITE =>
-        done                     <= '0';
-        busy                     <= '1';
-        idle                     <= '0';
+        idle <= '0';
+        busy <= '1';
+        done <= '0';
 
         output_voltage_cmd_valid <= '1';
 
-        -- handshake
         if output_voltage_cmd_ready = '1' then
           state_next <= STATE_UNLOCK_READ;
         end if;
 
         -- unlock read
       when STATE_UNLOCK_READ =>
-        done <= '0';
-        busy <= '1';
         idle <= '0';
+        busy <= '1';
+        done <= '0';
+
+        input_input_unl_ready <= '1';
 
         if input_input_unl_valid = '1' then
-          input_input_unl_ready <= '1';
           state_next            <= STATE_UNLOCK_WRITE;
         end if;
 
         -- unlock write
       when STATE_UNLOCK_WRITE =>
-        done <= '0';
-        busy <= '1';
         idle <= '0';
+        busy <= '1';
+        done <= '0';
+
+        output_voltage_unl_ready <= '1';
 
         if output_voltage_unl_valid = '1' then
-          output_voltage_unl_ready <= '1';
           state_next               <= STATE_DONE;
         end if;
 
         -- wait for kernel reset
       when STATE_DONE =>
-        done <= '1';
+        idle <= '0';
         busy <= '0';
-        idle <= '1';
+        done <= '1';
 
         if reset = '1' then
           state_next <= STATE_IDLE;
