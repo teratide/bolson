@@ -21,6 +21,12 @@
 #include "./opae_allocator.h"
 
 bool OpaeAllocator::Allocate(size_t size, byte **out) {
+#ifndef NDEBUG
+  size_t page_size = sysconf(_SC_PAGESIZE);
+  size_t alloc_size = ((size / page_size) + (size % page_size > 0)) * page_size;
+  posix_memalign(reinterpret_cast<void**>(out), page_size, alloc_size);
+  return true;
+#else
     if (size != opae_fixed_capacity) {
     spdlog::warn("OpaeAllocator requested to allocate {} bytes, "
                  "but only allows allocating exactly {} bytes for now.",
@@ -28,7 +34,7 @@ bool OpaeAllocator::Allocate(size_t size, byte **out) {
                  opae_fixed_capacity);
   }
   size = opae_fixed_capacity;
-  
+
   void *addr = mmap(nullptr,
                     size,
                     (PROT_READ | PROT_WRITE),
@@ -44,6 +50,7 @@ bool OpaeAllocator::Allocate(size_t size, byte **out) {
 
   *out = static_cast<byte *>(addr);
   return true;
+#endif
 }
 
 bool OpaeAllocator::Free(byte *buffer) {

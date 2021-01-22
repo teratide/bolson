@@ -111,6 +111,7 @@ bool OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
   ROE(result->PrepareInputBatches(buffers));
   ROE(result->PrepareOutputBatches());
 
+  spdlog::info("Using {}", FLETCHER_PLATFORM);
   FLETCHER_ROE(fletcher::Platform::Make(FLETCHER_PLATFORM, &result->platform, false));
 
   // Fix AFU id
@@ -133,7 +134,7 @@ bool OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
     FLETCHER_ROE(result->context->QueueRecordBatch(batch));
   }
 
-  spdlog::info("Enabling context...");  
+  spdlog::info("Enabling context...");
 
   // Enable context.
   FLETCHER_ROE(result->context->Enable());
@@ -272,11 +273,15 @@ bool OpaeBatteryParser::Parse(RawJSONBuffer *in, ParsedBuffer *out) {
   uint32_t done_mask = 4;
   uint32_t done_status = 4;
   uint32_t status = 0;
+  dau_t num_rows;
 
   while (!done) {
 #ifndef NDEBUG
     ReadMMIO(platform_, status_offset(idx_), &status, idx_, "status");
     spdlog::info("Status value: {}", status);
+    ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
+    ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
+    spdlog::info("{} number of rows: {}", idx_, num_rows.full);
     platform_mutex->unlock();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     platform_mutex->lock();
@@ -289,12 +294,9 @@ bool OpaeBatteryParser::Parse(RawJSONBuffer *in, ParsedBuffer *out) {
     done = (status & done_mask) == done_status;
   }
 
-  // Obtain the result.
-  dau_t num_rows;
   // FLETCHER_ROE(kernel->GetReturn(&num_rows.lo, &num_rows.hi));
   ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
   ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
-
   spdlog::info("{} number of rows: {}", idx_, num_rows.full);
 
   std::shared_ptr<arrow::RecordBatch> out_batch;

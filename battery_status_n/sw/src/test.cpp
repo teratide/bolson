@@ -18,27 +18,30 @@
 #include "./opae_allocator.h"
 #include "./opae_battery_impl.h"
 
-#ifdef NDEBUG
-#define PLATFORM "opae"
-#else
-#define PLATFORM "opae-ase"
-#endif
-
-const std::string test_string = "{\"voltage\" : [0, 1, 2, 3]}";
-
 const int num_parsers = 8;
+const int num_jsons = 2;
 
 int main(int argc, char **argv) {
-  std::cout << "Using " << PLATFORM << std::endl;
   OpaeAllocator alloc;
-  size_t num_bytes = test_string.length();
 
   std::vector<RawJSONBuffer> buffers(num_parsers);
   std::vector<RawJSONBuffer *> buffers_ptr(num_parsers);
   std::vector<ParsedBuffer> outputs(num_parsers);
 
   // Create buffer wrappers, allocate buffers, copy test string into buffers.
+
   for (int i = 0; i < num_parsers; i++) {
+    std::string test_string;
+    for (int j = 0; j < (i + 1) * num_jsons; j++) {
+      test_string += "{\"voltage\":[";
+      for (int k = 0; k < i * j / 4 + j + 1; k++) {
+        test_string += std::to_string(k);
+        if (k != i * j / 4 + j) { test_string += ","; }
+      }
+      test_string += "]}\n";
+    }
+    size_t num_bytes = test_string.length();
+    std::cout << "JSON " << i << ", len: " << num_bytes << " = " << test_string;
     alloc.Allocate(opae_fixed_capacity, &buffers[i].data_);
     std::memcpy(buffers[i].data_, test_string.data(), num_bytes);
     buffers[i].size_ = num_bytes;
@@ -62,3 +65,4 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
