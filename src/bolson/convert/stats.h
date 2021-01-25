@@ -21,6 +21,9 @@
 
 namespace bolson::convert {
 
+/**
+ * \brief Various statistics related to durations of pipeline stages.
+ */
 struct TimeStats {
   /// Total time spent on parsing JSONs to Arrow RecordBatch.
   double parse = 0.0;
@@ -34,7 +37,9 @@ struct TimeStats {
   double thread = 0.0;
 };
 
-/// Statistics from conversion threads.
+/**
+ * \brief Converter statistics.
+ */
 struct Stats {
   /// Number of converted JSONs.
   size_t num_jsons = 0;

@@ -76,11 +76,13 @@ auto OpaeBatteryParserManager::PrepareOutputBatches() -> Status {
   for (size_t i = 0; i < num_parsers_; i++) {
     std::byte *offsets = nullptr;
     std::byte *values = nullptr;
-    BOLSON_ROE(allocator.Allocate(buffer::opae_fixed_capacity, &offsets));
-    BOLSON_ROE(allocator.Allocate(buffer::opae_fixed_capacity, &values));
+    BOLSON_ROE(allocator.Allocate(buffer::OpaeAllocator::opae_fixed_capacity, &offsets));
+    BOLSON_ROE(allocator.Allocate(buffer::OpaeAllocator::opae_fixed_capacity, &values));
 
-    auto offset_buffer = arrow::Buffer::Wrap(offsets, buffer::opae_fixed_capacity);
-    auto values_buffer = arrow::Buffer::Wrap(values, buffer::opae_fixed_capacity);
+    auto offset_buffer =
+        arrow::Buffer::Wrap(offsets, buffer::OpaeAllocator::opae_fixed_capacity);
+    auto values_buffer =
+        arrow::Buffer::Wrap(values, buffer::OpaeAllocator::opae_fixed_capacity);
     auto values_array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, values_buffer);
     auto list_array = std::make_shared<arrow::ListArray>(output_type(),

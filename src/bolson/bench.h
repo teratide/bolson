@@ -98,10 +98,13 @@ struct BenchOptions {
  */
 auto RunBench(const BenchOptions &opt) -> Status;
 
+/// \brief Run the TCP client benchmark.
 auto BenchClient(const ClientBenchOptions &opt) -> Status;
 
+/// \brief Run the Pulsar producer benchmark.
 auto BenchPulsar(const PulsarBenchOptions &opt) -> Status;
 
+/// \brief Run the JSON-to-Arrow conversion benchmark.
 auto BenchConvert(const ConvertBenchOptions &opt) -> Status;
 
 }

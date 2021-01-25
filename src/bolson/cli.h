@@ -24,27 +24,36 @@
 
 namespace bolson {
 
-enum class SubCommand { NONE, FILE, STREAM, BENCH };
+/// Possible subcommands to run.
+enum class SubCommand {
+  NONE,     ///< Run no subcommand.
+  FILE,     ///< Run the file subcommand.
+  STREAM,   ///< Run the stream subcommand.
+  BENCH     ///< Run the bench subcommand.
+};
 
 /// \brief Application options.
 struct AppOptions {
   /// The name of the application.
-  constexpr static auto name = "bolson";
+  static constexpr auto name = "bolson";
   /// A description of the application.
-  constexpr static auto
-      desc = "Converting JSONs to Arrow IPC messages that get sent to Pulsar.";
+  static constexpr auto
+      desc = "Converts raw JSONs to Arrow RecordBatches and published them to Pulsar.";
 
   /// \brief Populate an instance of the application options based on CLI arguments.
   static auto FromArguments(int argc, char *argv[], AppOptions *out) -> Status;
 
+  /// Subcommand to run.
   SubCommand sub = SubCommand::NONE;
 
+  /// Options for the file subcommand.
   FileOptions file;
-  StreamOptions stream;
-  BenchOptions bench;
 
-  bool succinct = false;
-  bool exit = false;
+  /// Options for the stream subcommand.
+  StreamOptions stream;
+
+  /// Options for the bench subcommand.
+  BenchOptions bench;
 };
 
 }  // namespace bolson

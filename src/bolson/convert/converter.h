@@ -24,17 +24,33 @@
 #include "bolson/convert/serializer.h"
 #include "bolson/status.h"
 
+/// Contains all constructs to support JSON to Arrow conversion and serialization.
 namespace bolson::convert {
 
+/**
+ * \brief Converter options.
+ */
 struct Options {
+  /// Maximum size of an IPC message.
   size_t max_ipc_size;
+  /// Maximum number of rows in a RecordBatch.
   size_t max_batch_rows;
+  /// Number of threads to use.
   size_t num_threads;
+  /// Number of buffers to use.
   std::optional<size_t> num_buffers = std::nullopt;
+  /// Parser imlpementation to use.
   parse::Impl implementation = parse::Impl::ARROW;
+  /// Options for Arrow built-in parser implementation.
   parse::ArrowOptions arrow;
 };
 
+/**
+ * \brief Converter for JSON to Arrow IPC messages.
+ *
+ * When started, this unit spawns multiple threads performing the conversion
+ * simultaneously.
+ */
 struct Converter {
 
   // TODO: hide this constructor because it can fail
@@ -49,16 +65,29 @@ struct Converter {
         mutexes(std::vector<std::mutex>(num_buffers)),
         stats(std::vector<Stats>(num_threads)) {}
 
-  /// \brief Allocate buffers for this converter with capacity bytes.
+  /**
+   * \brief Allocate all buffers using the supplied allocator.
+   * \param capacity The capacity of the buffers to allocate.
+   * \return Status::OK() if successful, some error otherwise.
+   */
   auto AllocateBuffers(size_t capacity) -> Status;
 
-  /// \brief Free the buffers for this converter.
+  /**
+   * \brief Free the buffers for this converter.
+   * \return Status::OK() if successful, some error otherwise.
+   */
   auto FreeBuffers() -> Status;
 
-  /// \brief Start the conversion threads.
+  /**
+   * \brief Start the converter, spawning the supplied number of converter threads.
+   * \param shutdown Shutdown signal.
+   */
   void Start(std::atomic<bool> *shutdown);
 
-  /// \brief Stop the conversion threads.
+  /**
+   * \brief Stop the converter, joining all converter threads.
+   * \return Status::OK() if successful, some error otherwise.
+   */
   auto Stop() -> Status;
 
   IpcQueue *output_queue_ = nullptr;

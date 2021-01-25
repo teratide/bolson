@@ -26,10 +26,22 @@ struct ResizedBatches {
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
 };
 
-// TODO: not use number of rows but something better to resize.
+/**
+ * \brief Resizes RecordBatches to not exceed a specific number of rows.
+ */
 class Resizer {
  public:
+  /**
+   * \brief Resizer constructor.
+   * \param max_rows The maximum number of rows a RecordBatch may contain.
+   */
   explicit Resizer(size_t max_rows) : max_rows(max_rows) {}
+  /**
+   * \brief Resize all RecordBatches in a parsed buffer to not exceed a maximum no. rows.
+   * \param in  The parsed buffer containing resulting Arrow RecordBatches.
+   * \param out The resized RecordBatches.
+   * \return Status::OK() if successful, some error otherwise.
+   */
   auto Resize(const parse::ParsedBuffer &in, ResizedBatches *out) -> Status;
  private:
   size_t max_rows;

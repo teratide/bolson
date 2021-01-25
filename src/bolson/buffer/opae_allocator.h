@@ -20,11 +20,16 @@
 
 namespace bolson::buffer {
 
-// TODO: Temporary work-around for limitations to the OPAE platform.
-constexpr size_t opae_fixed_capacity = 1024 * 1024 * 1024;
-
+/**
+ * \brief Memory allocator for the Intel OPAE FPGA platform.
+ *
+ * This allocator can currently only allocate exactly one GibiByte.
+ */
 class OpaeAllocator : public Allocator {
  public:
+  // TODO: Temporary work-around for limitations to the OPAE platform.
+  static constexpr size_t opae_fixed_capacity = 1024 * 1024 * 1024;
+
   auto Allocate(size_t size, std::byte **out) -> Status override;
   auto Free(std::byte *buffer) -> Status override;
  private:

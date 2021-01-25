@@ -51,8 +51,8 @@ auto OpaeAllocator::Allocate(size_t size, std::byte **out) -> Status {
 }
 
 auto OpaeAllocator::Free(std::byte *buffer) -> Status {
-  spdlog::warn("Freeing OPAE buffers on exit. :tm:");
-  // TODO: find out why munmap returns an error.
+  spdlog::warn("OpaeAllocator free not implemented. Freeing on exit :tm:.");
+  // TODO: find out why munmap code below returns an error.
 
 //  auto *addr = static_cast<void *>(buffer);
 //  size_t size = 0;

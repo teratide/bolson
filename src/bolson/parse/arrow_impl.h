@@ -26,15 +26,20 @@
 
 namespace bolson::parse {
 
+/**
+ * \brief Options for Arrow's built-in JSON parser.
+ */
 struct ArrowOptions {
   arrow::json::ParseOptions parse;
   arrow::json::ReadOptions read;
 };
 
+/**
+ * \brief Parser implementation using Arrow's built-in JSON parser.
+ */
 class ArrowParser : public Parser {
  public:
   explicit ArrowParser(ArrowOptions opts) : opts(std::move(opts)) {}
-
   auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status override;
  private:
   ArrowOptions opts;

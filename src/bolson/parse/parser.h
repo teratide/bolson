@@ -25,16 +25,32 @@
 #include "bolson/pulsar.h"
 #include "bolson/convert/stats.h"
 
+/// Contains all constructs to parse JSONs.
 namespace bolson::parse {
 
+/**
+ * \brief The result of parsing a raw JSON buffer.
+ */
 struct ParsedBuffer {
+  /// The resulting Arrow RecordBatch
   std::shared_ptr<arrow::RecordBatch> batch;
+  /// The number of bytes parsed.
   size_t parsed_bytes = 0;
+  /// The sequence number.
   illex::Seq seq = 0;
 };
 
+/**
+ * \brief Abstract class for implementations of parsing JSONs to Arrow RecordBatch.
+ */
 class Parser {
  public:
+  /**
+   * \brief Parse a buffer containing raw JSON data.
+   * \param in  The buffer with the raw JSON data.
+   * \param out The buffer with the parsed data represented as Arrow RecordBatch.
+   * \return Status::OK() if successful, some error otherwise.
+   */
   virtual auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status = 0;
 };
 

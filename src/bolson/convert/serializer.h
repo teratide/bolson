@@ -21,14 +21,34 @@
 
 namespace bolson::convert {
 
+/**
+ * \brief Structure to hold serialized RecordBatches as Arrow IPC messages.
+ */
 struct SerializedBatches {
   size_t total_bytes = 0;
   std::vector<std::shared_ptr<arrow::Buffer>> messages;
 };
 
+/**
+ * \brief Class used to serialize a batch of Arrow RecordBatches into Arrow IPC messages.
+ */
 class Serializer {
  public:
+  /**
+   * \brief Serializer constructor.
+   * \param max_ipc_size Maximum size of Arrow IPC messages.
+   */
   explicit Serializer(size_t max_ipc_size) : max_ipc_size(max_ipc_size) {}
+  /**
+   * \brief Serialize RecordBatches.
+   *
+   * If the serialized RecordBatch exceeds max_ipc_size in bytes, this function returns
+   * an error.
+   *
+   * \param in  The RecordBatches to be resized.
+   * \param out The serialized RecordBatches.
+   * \return Status::OK() if successful, some error otherwise.
+   */
   auto Serialize(const ResizedBatches &in, SerializedBatches *out) -> Status;
  private:
   arrow::ipc::IpcWriteOptions opts = arrow::ipc::IpcWriteOptions::Defaults();

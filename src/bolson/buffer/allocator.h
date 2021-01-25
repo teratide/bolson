@@ -19,11 +19,29 @@
 
 #include "bolson/status.h"
 
+/// Contains all constructs to handle buffer allocation.
 namespace bolson::buffer {
 
+/**
+ * \brief Abstract class for memory allocators.
+ *
+ * This can be used to plug in custom allocators to enable e.g. FPGA processing.
+ */
 class Allocator {
  public:
+  /**
+   * \brief Allocate memory.
+   * \param size The number of bytes to allocate.
+   * \param out A pointer to the pointer of the allocated memory.
+   * \return Status::OK() if successful, some error otherwise.
+   */
   virtual auto Allocate(size_t size, std::byte **out) -> Status;
+
+  /**
+   * \brief Free memory.
+   * \param buffer A pointer to the allocated memory.
+   * \return Status::OK() if successful, some error otherwise.
+   */
   virtual auto Free(std::byte *buffer) -> Status;
 };
 

@@ -94,15 +94,15 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   }
   // Generate JSONs
   spdlog::info("Generating JSONs...");
-  std::vector<illex::JSONQueueItem> items;
   t_gen.Start();
+  std::vector<illex::JSONQueueItem> items;
   auto bytes_largest = GenerateJSONs(opt.num_jsons, *opt.schema, opt.generate, &items);
   auto gen_bytes = bytes_largest.first;
   auto max_json = bytes_largest.second + 1; // + 1 for newline.
   t_gen.Stop();
 
+  spdlog::info("Initializing converter...");
   t_init.Start();
-
   // Set up output queue.
   IpcQueue ipc_queue;
   IpcQueueItem ipc_item;
@@ -117,7 +117,6 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   }
 
   // Set up the Converter.
-
   size_t num_buffers = opt.converter.num_buffers.value_or(opt.converter.num_threads);
 
   auto converter = convert::Converter(&ipc_queue,
@@ -130,7 +129,7 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   auto buf_cap = num_buffers * max_json + (opt.num_jsons * max_json) / num_buffers;
   // Temporary work-around for opae
   if (opt.converter.implementation == parse::Impl::OPAE_BATTERY) {
-    buf_cap = buffer::opae_fixed_capacity;
+    buf_cap = buffer::OpaeAllocator::opae_fixed_capacity;
   }
   converter.AllocateBuffers(buf_cap);
 
