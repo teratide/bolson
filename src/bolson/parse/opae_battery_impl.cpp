@@ -146,7 +146,9 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
         reinterpret_cast<const std::byte *>(result->context->device_buffer(i).host_address);
     auto da = result->context->device_buffer(i).device_address;
     result->h2d_addr_map[ha] = da;
-    SPDLOG_DEBUG("  H: 0x{:016X} <--> D: 0x{:016X}", reinterpret_cast<uint64_t>(ha), da);
+    SPDLOG_DEBUG("  H: 0x{:016X} <--> D: 0x{:016X}",
+                 reinterpret_cast<uint64_t>(ha),
+                 da);
   }
 
   SPDLOG_DEBUG("Preparing parsers.");
@@ -281,7 +283,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   uint32_t status = 0;
   dau_t num_rows;
 
-  while (!done) {
+  do {
 #ifndef NDEBUG
     ReadMMIO(platform_, status_offset(idx_), &status, idx_, "status");
     // Obtain the result.
@@ -290,16 +292,22 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
     ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
     SPDLOG_DEBUG("Thread {:2} | Number of rows: {}", idx_, num_rows.full);
 
+    platform_mutex->unlock();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    platform_mutex->lock();
 #else
     platform_->ReadMMIO(status_offset(idx_), &status);
-    std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
-#endif
     done = ((status & stat_done) == stat_done) || (num_rows.full == in->num_jsons());
-  }
+
+    platform_mutex->unlock();
+    std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
+    platform_mutex->lock();
+#endif
+  } while (!done);
 
   ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
   ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
+  platform_mutex->unlock();
 
   std::shared_ptr<arrow::RecordBatch> out_batch;
   BOLSON_ROE(WrapOutput(num_rows.full,
@@ -316,7 +324,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   result.parsed_bytes = in->size();
   result.batch = out_batch;
   *out = result;
-  platform_mutex->unlock();
+
   return Status::OK();
 }
 
