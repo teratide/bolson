@@ -272,10 +272,10 @@ auto BenchQueue(const QueueBenchOptions &opt) -> Status {
 
 auto BenchPulsar(const PulsarBenchOptions &opt) -> Status {
   if (!opt.csv) {
-    spdlog::info("Sending {} Pulsar messages of size {} B to topic {}",
-                 opt.num_messages,
-                 opt.message_size,
-                 opt.pulsar.topic);
+    spdlog::info("Number of messages : {}", opt.num_messages);
+    spdlog::info("Message size       : {} bytes", opt.message_size);
+    spdlog::info("Pulsar URL         : {}", opt.pulsar.url);
+    spdlog::info("Pulsar topic       : {}", opt.pulsar.topic);
   }
   // Setup Pulsar context
   PulsarContext pulsar;
@@ -303,8 +303,8 @@ auto BenchPulsar(const PulsarBenchOptions &opt) -> Status {
               << std::endl;
   } else {
     // Print stats.
-    spdlog::info("  Time   : {} s", t.seconds());
-    spdlog::info("  Goodput: {} MB/s",
+    spdlog::info("Time               : {} s", t.seconds());
+    spdlog::info("Goodput            : {} MB/s",
                  1E-6 * static_cast<double>(opt.num_messages * opt.message_size)
                      / t.seconds());
   }

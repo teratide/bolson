@@ -169,7 +169,7 @@ static void AddBenchOpts(CLI::App *bench, BenchOptions *out, std::string *schema
                    out->pulsar.num_messages,
                    "Pulsar number of messages.")
       ->default_val(1024);
-  AddPulsarOpts(bench, &out->pulsar.pulsar);
+  AddPulsarOpts(bench_pulsar, &out->pulsar.pulsar);
 
   // 'bench queue' subcommand
   auto *bench_queue = bench->add_subcommand("queue", "Run queue microbenchmark.");
@@ -218,8 +218,9 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
 
 
   // 'bench' subcommand:
-  auto *bench = app.add_subcommand("bench", "Run some micro-benchmarks.")
-      ->require_subcommand();
+  auto *bench =
+      app.add_subcommand("bench", "Run micro-benchmarks on isolated pipeline stages.")
+          ->require_subcommand();
   AddStatsOpts(bench, &csv);
   AddBenchOpts(bench, &out->bench, &schema_file);
 
