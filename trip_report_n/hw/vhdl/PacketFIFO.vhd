@@ -38,7 +38,7 @@ entity PacketFIFO is
   );
 end entity;
 
-architecture implementation of PacketFIFO is
+architecture Implementation of PacketFIFO is
 
   -- Data bits, last bits, strb
   constant BUFF_WIDTH          : integer := DATA_WIDTH + DIMENSIONALITY + 1 ;

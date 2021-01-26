@@ -164,4 +164,29 @@ package trip_report_util_pkg is
   
     );
   end component;
+
+  component ArbiterController is
+    generic (
+        NUM_INPUTS            : natural;
+        INDEX_WIDTH           : natural;
+        TAG_WIDTH             : natural := 8
+        );
+    port (
+        clk                   : in  std_logic;
+        reset                 : in  std_logic;
+  
+        pkt_valid             : in  std_logic_vector(NUM_INPUTS-1 downto 0);
+        pkt_ready             : out std_logic_vector(NUM_INPUTS-1 downto 0);
+  
+        cmd_valid             : out std_logic;
+        cmd_ready             : in  std_logic;
+        cmd_index             : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+  
+        tag_valid             : out std_logic;
+        tag_ready             : in  std_logic;
+        tag                   : out std_logic_vector(TAG_WIDTH-1 downto 0);
+  
+        tag_cfg               : in std_logic_vector(NUM_INPUTS*TAG_WIDTH-1 downto 0)
+    );
+  end component;
 end trip_report_util_pkg;
