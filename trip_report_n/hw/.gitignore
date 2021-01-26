@@ -1,0 +1,8 @@
+fletchgen.mmio.yaml
+vhdmmio-doc
+vhdmmio.log
+*.rb
+*.as
+trip_report.json
+trip_report.mmio.yml
+sources.txt
