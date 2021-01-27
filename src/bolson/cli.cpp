@@ -117,6 +117,9 @@ static void AddConvertOpts(CLI::App *sub, convert::Options *opts) {
   sub->add_option("--buffers",
                   opts->num_buffers,
                   "Number of buffers to use. If not set, equal to number of threads.");
+  sub->add_option("--afuid",
+                  opts->opae_battery.afu_id,
+                  "OPAE battery implementation AFU ID.");
 }
 
 static void AddStatsOpts(CLI::App *sub, bool *csv) {

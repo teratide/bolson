@@ -21,11 +21,12 @@
 #include <fletcher/api.h>
 
 #include "bolson/buffer/opae_allocator.h"
-#include "bolson/stream.h"
-
-#define OPAE_BATTERY_AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5ee0"
 
 namespace bolson::parse {
+
+struct OpaeBatteryOptions {
+  std::string afu_id;
+};
 
 using AddrMap = std::unordered_map<const std::byte *, da_t>;
 
@@ -135,10 +136,6 @@ class OpaeBatteryParser : public Parser {
   std::byte *raw_out_offsets;
   std::byte *raw_out_values;
   std::mutex *platform_mutex;
-};
-
-struct OpaeBatteryOptions {
-  std::string afu_id = OPAE_BATTERY_AFU_ID;
 };
 
 class OpaeBatteryParserManager {

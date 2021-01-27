@@ -26,7 +26,7 @@
 
 #include "bolson/parse/parser.h"
 #include "bolson/parse/opae_battery_impl.h"
-#include "bolson/utils.h"
+#include "bolson/latency.h"
 
 /// Return Bolson error status when Fletcher error status is supplied.
 #define FLETCHER_ROE(s) {                                                               \
@@ -102,6 +102,22 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
                                     const std::vector<illex::RawJSONBuffer *> &buffers,
                                     size_t num_parsers,
                                     std::shared_ptr<OpaeBatteryParserManager> *out) -> Status {
+  // Attempt to auto derive AFU ID if not supplied.
+  std::string afu_id_str;
+  if (opts.afu_id.empty()) {
+    if (num_parsers > 255) {
+      return Status(Error::OpaeError,
+                    "Number of parsers larger than 255 is not supported.");
+    }
+    std::stringstream ss;
+    ss << std::setw(2) << std::hex << num_parsers;
+    afu_id_str = "9ca43fb0-c340-4908-b79b-5c89b4ef5e" + ss.str();
+  } else {
+    afu_id_str = opts.afu_id;
+  }
+  spdlog::info("Using AFU ID: {}", afu_id_str);
+
+  // Create and set up manager
   auto result = std::make_shared<OpaeBatteryParserManager>();
   result->opts_ = opts;
   result->num_parsers_ = num_parsers;
@@ -113,13 +129,11 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
 
   FLETCHER_ROE(fletcher::Platform::Make("opae", &result->platform, false));
 
-  // Fix AFU id
-  std::stringstream ss;
-  ss << std::hex << num_parsers;
-  result->opts_.afu_id[strlen(OPAE_BATTERY_AFU_ID) - 1] = ss.str()[0];
-  SPDLOG_DEBUG("AFU ID: {}", result->opts_.afu_id);
+  result->opts_.afu_id = afu_id_str;
   char *afu_id = result->opts_.afu_id.data();
   result->platform->init_data = &afu_id;
+
+  // Initialize the platform.
   FLETCHER_ROE(result->platform->Init());
 
   // Pull everything through the fletcher stack once.

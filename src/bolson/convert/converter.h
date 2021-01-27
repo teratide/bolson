@@ -20,6 +20,7 @@
 #include "bolson/buffer/allocator.h"
 #include "bolson/parse/parser.h"
 #include "bolson/parse/arrow_impl.h"
+#include "bolson/parse/opae_battery_impl.h"
 #include "bolson/convert/resizer.h"
 #include "bolson/convert/serializer.h"
 #include "bolson/status.h"
@@ -43,6 +44,8 @@ struct Options {
   parse::Impl implementation = parse::Impl::ARROW;
   /// Options for Arrow built-in parser implementation.
   parse::ArrowOptions arrow;
+  /// Options for Opae Battery parser implementation.
+  parse::OpaeBatteryOptions opae_battery;
 };
 
 /**
