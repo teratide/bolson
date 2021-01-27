@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <memory>
+#include <arrow/api.h>
 #include <arrow/json/api.h>
 #include <arrow/io/api.h>
 
@@ -34,16 +35,13 @@ auto ArrowParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
                       + tr_make_result.status().message());
   }
   auto t_reader = tr_make_result.ValueOrDie();
+
   auto tr_read_result = t_reader->Read();
   if (!tr_read_result.ok()) {
-    SPDLOG_DEBUG("Erroneous JSON size {} : {}",
-                 in->size(),
-                 std::string_view(reinterpret_cast<const char *>(in->data()),
-                                  in->size()));
     return Status(Error::ArrowError,
-                  "Unable to read JSON as table: " + tr_read_result.status().message());
+                  "Unable to read JSON as table: "
+                      + tr_read_result.status().message());
   }
-
   auto table = tr_read_result.ValueOrDie();
 
   // Combine potential chunks in this table and read the first batch.

@@ -37,27 +37,6 @@ void()
 
 namespace bolson::parse {
 
-static auto input_schema() -> std::shared_ptr<arrow::Schema> {
-  static auto result = fletcher::WithMetaRequired(
-      *arrow::schema({arrow::field("input", arrow::uint8(), false)}),
-      "input",
-      fletcher::Mode::READ);
-  return result;
-}
-
-static auto output_type() -> std::shared_ptr<arrow::DataType> {
-  static auto result = arrow::list(arrow::field("item", arrow::uint64(), false));
-  return result;
-}
-
-static auto output_schema() -> std::shared_ptr<arrow::Schema> {
-  static auto result = fletcher::WithMetaRequired(
-      *arrow::schema({arrow::field("voltage", output_type(), false)}),
-      "output",
-      fletcher::Mode::WRITE);
-  return result;
-}
-
 auto OpaeBatteryParserManager::PrepareInputBatches(
     const std::vector<illex::RawJSONBuffer *> &buffers)
 -> Status {
@@ -65,7 +44,7 @@ auto OpaeBatteryParserManager::PrepareInputBatches(
     auto wrapped = arrow::Buffer::Wrap(buf->data(), buf->capacity());
     auto array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), buf->capacity(), wrapped);
-    batches_in.push_back(arrow::RecordBatch::Make(input_schema(),
+    batches_in.push_back(arrow::RecordBatch::Make(OpaeBatteryParser::input_schema(),
                                                   buf->capacity(),
                                                   {array}));
   }
@@ -85,14 +64,16 @@ auto OpaeBatteryParserManager::PrepareOutputBatches() -> Status {
         arrow::Buffer::Wrap(values, buffer::OpaeAllocator::opae_fixed_capacity);
     auto values_array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, values_buffer);
-    auto list_array = std::make_shared<arrow::ListArray>(output_type(),
+    auto list_array = std::make_shared<arrow::ListArray>(OpaeBatteryParser::output_type(),
                                                          0,
                                                          offset_buffer,
                                                          values_array);
     std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
     raw_out_offsets.push_back(offsets);
     raw_out_values.push_back(values);
-    batches_out.push_back(arrow::RecordBatch::Make(output_schema(), 0, arrays));
+    batches_out.push_back(arrow::RecordBatch::Make(OpaeBatteryParser::output_schema(),
+                                                   0,
+                                                   arrays));
   }
 
   return Status::OK();
@@ -110,7 +91,7 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
                     "Number of parsers larger than 255 is not supported.");
     }
     std::stringstream ss;
-    ss << std::setw(2) << std::hex << num_parsers;
+    ss << std::setw(2) << std::setfill('0') << std::hex << num_parsers;
     afu_id_str = "9ca43fb0-c340-4908-b79b-5c89b4ef5e" + ss.str();
   } else {
     afu_id_str = opts.afu_id;
@@ -302,8 +283,9 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   do {
 #ifndef NDEBUG
     ReadMMIO(platform_, status_offset(idx_), &status, idx_, "status");
-    // Obtain the result.
-    // FLETCHER_ROE(kernel->GetReturn(&num_rows.lo, &num_rows.hi));
+    done = (status & stat_done) == stat_done;
+
+    // Obtain the result for debugging.
     ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
     ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
     SPDLOG_DEBUG("Thread {:2} | Number of rows: {}", idx_, num_rows.full);
@@ -313,7 +295,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
     platform_mutex->lock();
 #else
     platform_->ReadMMIO(status_offset(idx_), &status);
-    done = ((status & stat_done) == stat_done) || (num_rows.full == in->num_jsons());
+    done = (status & stat_done) == stat_done;
 
     platform_mutex->unlock();
     std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
@@ -342,6 +324,27 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
   *out = result;
 
   return Status::OK();
+}
+
+auto OpaeBatteryParser::input_schema() -> std::shared_ptr<arrow::Schema> {
+  static auto result = fletcher::WithMetaRequired(
+      *arrow::schema({arrow::field("input", arrow::uint8(), false)}),
+      "input",
+      fletcher::Mode::READ);
+  return result;
+}
+
+auto OpaeBatteryParser::output_type() -> std::shared_ptr<arrow::DataType> {
+  static auto result = arrow::list(arrow::field("item", arrow::uint64(), false));
+  return result;
+}
+
+auto OpaeBatteryParser::output_schema() -> std::shared_ptr<arrow::Schema> {
+  static auto result = fletcher::WithMetaRequired(
+      *arrow::schema({arrow::field("voltage", output_type(), false)}),
+      "output",
+      fletcher::Mode::WRITE);
+  return result;
 }
 
 auto ToString(const illex::RawJSONBuffer &buffer, bool show_contents) -> std::string {

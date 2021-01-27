@@ -33,14 +33,16 @@ namespace bolson::convert {
  */
 struct Options {
   /// Maximum size of an IPC message.
-  size_t max_ipc_size;
+  size_t max_ipc_size = 0;
   /// Maximum number of rows in a RecordBatch.
-  size_t max_batch_rows;
-  /// Number of threads to use.
-  size_t num_threads;
-  /// Number of buffers to use.
+  size_t max_batch_rows = 0;
+  /// Number of threads.
+  size_t num_threads = 1;
+  /// Number of buffers.
   std::optional<size_t> num_buffers = std::nullopt;
-  /// Parser imlpementation to use.
+  /// Capacity for each buffer.
+  size_t buf_capacity = 0;
+  /// Parser implementation to use.
   parse::Impl implementation = parse::Impl::ARROW;
   /// Options for Arrow built-in parser implementation.
   parse::ArrowOptions arrow;
@@ -54,18 +56,56 @@ struct Options {
  * When started, this unit spawns multiple threads performing the conversion
  * simultaneously.
  */
-struct Converter {
+class Converter {
+ public:
+  /**
+   * \brief Construct a converter instance.
+   *
+   * Allocates buffers that should be accessed only by obtaining a lock using mutexes().
+   *
+   * \param opts        Conversion options.
+   * \param ipc_queue   The IPC queue to push converted batches to.
+   * \param out         A pointer to a shared pointer to store the converter.
+   * \return Status::OK() if successful, some error otherwise.
+   */
+  static auto Make(const Options &opts,
+                   IpcQueue *ipc_queue,
+                   std::shared_ptr<Converter> *out) -> Status;
 
-  // TODO: hide this constructor because it can fail
-  explicit Converter(IpcQueue *output_queue,
-                     buffer::Allocator *allocator,
-                     size_t num_buffers = 1,
-                     size_t num_threads = 1)
+  /**
+   * \brief Start the converter, spawning the supplied number of converter threads.
+   * \param shutdown Shutdown signal.
+   */
+  void Start(std::atomic<bool> *shutdown);
+
+  /// \brief Stop the converter, joining all converter threads.
+  auto Finish() -> Status;
+
+  /// \brief Return a pointer to the buffers.
+  auto mutable_buffers() -> std::vector<illex::RawJSONBuffer *>;
+
+  /// \brief Return a pointer to the buffers.
+  auto mutexes() -> std::vector<std::mutex *>;
+
+  /// \brief Lock all mutexes of all buffers.
+  void LockBuffers();
+
+  /// brief Lock all mutexes of all buffers.
+  void UnlockBuffers();
+
+  /// \brief Return converter statistics.
+  auto Statistics() -> std::vector<Stats>;
+
+ private:
+  Converter(IpcQueue *output_queue,
+            buffer::Allocator *allocator,
+            size_t num_buffers = 1,
+            size_t num_threads = 1)
       : output_queue_(output_queue),
         allocator_(allocator),
         num_buffers_(num_buffers),
         num_threads_(num_threads),
-        mutexes(std::vector<std::mutex>(num_buffers)),
+        mutexes_(std::vector<std::mutex>(num_buffers)),
         stats(std::vector<Stats>(num_threads)) {}
 
   /**
@@ -81,18 +121,6 @@ struct Converter {
    */
   auto FreeBuffers() -> Status;
 
-  /**
-   * \brief Start the converter, spawning the supplied number of converter threads.
-   * \param shutdown Shutdown signal.
-   */
-  void Start(std::atomic<bool> *shutdown);
-
-  /**
-   * \brief Stop the converter, joining all converter threads.
-   * \return Status::OK() if successful, some error otherwise.
-   */
-  auto Stop() -> Status;
-
   IpcQueue *output_queue_ = nullptr;
   buffer::Allocator *allocator_ = nullptr;
   size_t num_threads_ = 1;
@@ -102,9 +130,13 @@ struct Converter {
   std::vector<convert::Resizer> resizers;
   std::vector<convert::Serializer> serializers;
   std::vector<illex::RawJSONBuffer> buffers;
-  std::vector<std::mutex> mutexes;
+  std::vector<std::mutex> mutexes_;
   std::vector<std::thread> threads;
   std::vector<Stats> stats;
+
+  // TODO: work-around for OPAE because it needs a manager.
+  //  This should be abstracted.
+  std::shared_ptr<parse::OpaeBatteryParserManager> opae_battery_manager;
 };
 
 }

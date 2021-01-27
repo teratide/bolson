@@ -166,15 +166,15 @@ void Converter::Start(std::atomic<bool> *stop_signal) {
                          parsers[t].get(),
                          &resizers[t],
                          &serializers[t],
-                         ToPointers(buffers),
-                         ToPointers(mutexes),
+                         mutable_buffers(),
+                         mutexes(),
                          output_queue_,
                          shutdown,
                          &stats[t]);
   }
 }
 
-auto Converter::Stop() -> Status {
+auto Converter::Finish() -> Status {
   // Wait for the drones to get shut down by the caller of this function.
   // Also gather the statistics and see if there was any error.
   for (size_t t = 0; t < num_threads_; t++) {
@@ -187,6 +187,8 @@ auto Converter::Stop() -> Status {
       }
     }
   }
+
+  BOLSON_ROE(FreeBuffers());
 
   return Status::OK();
 }
@@ -209,6 +211,100 @@ auto Converter::FreeBuffers() -> Status {
     BOLSON_ROE(allocator_->Free(buffers[b].mutable_data()));
   }
   return Status::OK();
+}
+
+auto Converter::Make(const Options &opts,
+                     IpcQueue *ipc_queue,
+                     std::shared_ptr<Converter> *out) -> Status {
+  // Select allocator.
+  std::shared_ptr<buffer::Allocator> allocator;
+  switch (opts.implementation) {
+    case parse::Impl::ARROW:allocator = std::make_shared<buffer::Allocator>();
+      break;
+    case parse::Impl::OPAE_BATTERY:allocator = std::make_shared<buffer::OpaeAllocator>();
+      break;
+  }
+
+  // Set up the Converter.
+  size_t num_buffers = opts.num_buffers.value_or(opts.num_threads);
+
+  auto *converter_ptr = new convert::Converter(ipc_queue,
+                                               allocator.get(),
+                                               num_buffers,
+                                               opts.num_threads);
+  auto converter = std::shared_ptr<convert::Converter>(converter_ptr);
+
+  // Allocate buffers.
+  switch (opts.implementation) {
+    case parse::Impl::ARROW: {
+      BOLSON_ROE(converter->AllocateBuffers(opts.buf_capacity));
+      break;
+    }
+    case parse::Impl::OPAE_BATTERY: {
+      if (opts.buf_capacity > buffer::OpaeAllocator::opae_fixed_capacity) {
+        return Status(Error::OpaeError,
+                      "Cannot allocate buffers larger than "
+                          + std::to_string(buffer::OpaeAllocator::opae_fixed_capacity)
+                          + " bytes.");
+      }
+      BOLSON_ROE(converter->AllocateBuffers(buffer::OpaeAllocator::opae_fixed_capacity));
+      break;
+    }
+  }
+
+
+  // Set up the parsers.
+  switch (opts.implementation) {
+    case parse::Impl::ARROW: {
+      for (size_t t = 0; t < opts.num_threads; t++) {
+        auto parser = std::make_shared<parse::ArrowParser>(opts.arrow);
+        converter->parsers.push_back(parser);
+      }
+      break;
+    }
+    case parse::Impl::OPAE_BATTERY: {
+      BOLSON_ROE(parse::OpaeBatteryParserManager::Make(opts.opae_battery,
+                                                       ToPointers(converter->buffers),
+                                                       opts.num_threads,
+                                                       &converter->opae_battery_manager));
+      converter->parsers =
+          CastPtrs<parse::Parser>(converter->opae_battery_manager->parsers());
+    }
+  }
+
+  // Set up Resizers and Serializers.
+  for (size_t t = 0; t < opts.num_threads; t++) {
+    converter->resizers.emplace_back(opts.max_batch_rows);
+    converter->serializers.emplace_back(opts.max_ipc_size);
+  }
+
+  *out = std::move(converter);
+
+  return Status::OK();
+}
+
+auto Converter::mutable_buffers() -> std::vector<illex::RawJSONBuffer *> {
+  return ToPointers(buffers);
+}
+
+auto Converter::mutexes() -> std::vector<std::mutex *> {
+  return ToPointers(mutexes_);
+}
+
+void Converter::LockBuffers() {
+  for (auto &mutex : mutexes_) {
+    mutex.lock();
+  }
+}
+
+void Converter::UnlockBuffers() {
+  for (auto &mutex : mutexes_) {
+    mutex.unlock();
+  }
+}
+
+auto Converter::Statistics() -> std::vector<Stats> {
+  return stats;
 }
 
 }

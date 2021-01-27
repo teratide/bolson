@@ -105,6 +105,21 @@ auto BenchClient(const ClientBenchOptions &opt) -> Status;
 auto BenchPulsar(const PulsarBenchOptions &opt) -> Status;
 
 /// \brief Run the JSON-to-Arrow conversion benchmark.
-auto BenchConvert(const ConvertBenchOptions &opt) -> Status;
+auto BenchConvert(ConvertBenchOptions opt) -> Status;
+
+/// \brief Generate a bunch of JSONs, returns number of bytes and largest JSON size.
+auto GenerateJSONs(size_t num_jsons,
+                   const arrow::Schema &schema,
+                   const illex::GenerateOptions &gen_opts,
+                   std::vector<illex::JSONQueueItem> *items)
+-> std::pair<size_t, size_t>;
+
+/**
+ * \brief Prepare input buffers for benchmarking or testing.
+ * \param buffers   The buffers to fill.
+ * \param jsons     The JSONs to copy into the buffers.
+ */
+void FillBuffers(std::vector<illex::RawJSONBuffer *> buffers,
+                 const std::vector<illex::JSONQueueItem> &jsons);
 
 }

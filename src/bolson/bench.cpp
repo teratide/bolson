@@ -34,10 +34,10 @@
 
 namespace bolson {
 
-static auto GenerateJSONs(size_t num_jsons,
-                          const arrow::Schema &schema,
-                          const illex::GenerateOptions &gen_opts,
-                          std::vector<illex::JSONQueueItem> *items)
+auto GenerateJSONs(size_t num_jsons,
+                   const arrow::Schema &schema,
+                   const illex::GenerateOptions &gen_opts,
+                   std::vector<illex::JSONQueueItem> *items)
 -> std::pair<size_t, size_t> {
   size_t largest = 0;
   // Generate a message with tweets in JSON format.
@@ -54,13 +54,8 @@ static auto GenerateJSONs(size_t num_jsons,
   return {raw_chars, largest};
 }
 
-/**
- * \brief Prepare input buffers for benchmarking.
- * \param buffers   The buffers to fill.
- * \param jsons     The JSONs to copy into the buffers.
- */
-static void FillBuffers(std::vector<illex::RawJSONBuffer *> buffers,
-                        const std::vector<illex::JSONQueueItem> &jsons) {
+void FillBuffers(std::vector<illex::RawJSONBuffer *> buffers,
+                 const std::vector<illex::JSONQueueItem> &jsons) {
   auto items_per_buffer = jsons.size() / buffers.size();
   auto items_first_buf = jsons.size() % buffers.size();
   size_t item = 0;
@@ -83,7 +78,7 @@ static void FillBuffers(std::vector<illex::RawJSONBuffer *> buffers,
   }
 }
 
-auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
+auto BenchConvert(ConvertBenchOptions opt) -> Status {
   putong::Timer<> t_gen, t_init, t_conv;
 
   if (!opt.csv) {
@@ -94,99 +89,66 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   }
   // Generate JSONs
   spdlog::info("Generating JSONs...");
+
   t_gen.Start();
   std::vector<illex::JSONQueueItem> items;
   auto bytes_largest = GenerateJSONs(opt.num_jsons, *opt.schema, opt.generate, &items);
+  t_gen.Stop();
+
   auto gen_bytes = bytes_largest.first;
   auto max_json = bytes_largest.second + 1; // + 1 for newline.
-  t_gen.Stop();
 
   spdlog::info("Initializing converter...");
   t_init.Start();
+
+  // Fix options if not supplied.
+  if (!opt.converter.num_buffers) {
+    opt.converter.num_buffers = opt.converter.num_threads;
+  }
+
+  if (opt.converter.buf_capacity == 0) {
+    // Calculate buffer capacity.
+    opt.converter.buf_capacity = opt.converter.num_threads * max_json
+        + (opt.num_jsons * max_json) / opt.converter.num_threads;
+  }
+
   // Set up output queue.
   IpcQueue ipc_queue;
   IpcQueueItem ipc_item;
 
-  // Select allocator.
-  std::shared_ptr<buffer::Allocator> allocator;
-  switch (opt.converter.implementation) {
-    case parse::Impl::ARROW:allocator = std::make_shared<buffer::Allocator>();
-      break;
-    case parse::Impl::OPAE_BATTERY:allocator = std::make_shared<buffer::OpaeAllocator>();
-      break;
-  }
+  // Construct converter.
+  std::shared_ptr<convert::Converter> converter;
+  BOLSON_ROE(convert::Converter::Make(opt.converter, &ipc_queue, &converter));
 
-  // Set up the Converter.
-  size_t num_buffers = opt.converter.num_buffers.value_or(opt.converter.num_threads);
+  // Fill buffers.
+  FillBuffers(converter->mutable_buffers(), items);
 
-  auto converter = convert::Converter(&ipc_queue,
-                                      allocator.get(),
-                                      num_buffers,
-                                      opt.converter.num_threads);
-
-  // Allocate and fill buffers.
-  // Calculate generous buffer size, +1 for newline
-  auto buf_cap = num_buffers * max_json + (opt.num_jsons * max_json) / num_buffers;
-  // Temporary work-around for opae
-  if (opt.converter.implementation == parse::Impl::OPAE_BATTERY) {
-    buf_cap = buffer::OpaeAllocator::opae_fixed_capacity;
-  }
-  converter.AllocateBuffers(buf_cap);
-
-  std::shared_ptr<parse::OpaeBatteryParserManager> opae_battery_manager;
-
-  // Set up the parsers.
-  switch (opt.converter.implementation) {
-    case parse::Impl::ARROW: {
-      for (size_t t = 0; t < opt.converter.num_threads; t++) {
-        auto parser = std::make_shared<parse::ArrowParser>(opt.converter.arrow);
-        converter.parsers.push_back(parser);
-      }
-      break;
-    }
-    case parse::Impl::OPAE_BATTERY: {
-      BOLSON_ROE(parse::OpaeBatteryParserManager::Make(opt.converter.opae_battery,
-                                                       ToPointers(converter.buffers),
-                                                       opt.converter.num_threads,
-                                                       &opae_battery_manager));
-      converter.parsers = CastPtrs<parse::Parser>(opae_battery_manager->parsers());
-    }
-  }
-
-  FillBuffers(ToPointers(converter.buffers), items);
-
-  // Lock all buffers.
-  for (size_t m = 0; m < opt.converter.num_buffers; m++) {
-    converter.mutexes[m].lock();
-  }
-
-  // Set up Resizers and Serializers.
-  for (size_t t = 0; t < opt.converter.num_threads; t++) {
-    converter.resizers.emplace_back(opt.converter.max_batch_rows);
-    converter.serializers.emplace_back(opt.converter.max_ipc_size);
-  }
+  // Lock all buffers, so the threads don't start parsing until we unlock all buffers
+  // at the same time.
+  converter->LockBuffers();
 
   // Start converter threads.
-  spdlog::info("Converting...");
-
   std::atomic<bool> shutdown = false;
   size_t num_rows = 0;
   size_t ipc_size = 0;
   size_t num_ipc = 0;
 
-  converter.Start(&shutdown);
+  converter->Start(&shutdown);
   t_init.Stop();
+
+  spdlog::info("All threads spawned. Unlocking buffers and start converting...");
 
   // Start conversion by unlocking the buffers.
   t_conv.Start();
-  // Unlock all buffers.
-  for (size_t m = 0; m < opt.converter.num_buffers; m++) {
-    converter.mutexes[m].unlock();
-  }
+  converter->UnlockBuffers();
 
   // Pull JSON ipc items from the queue to check when we are done.
   while (num_rows != opt.num_jsons) {
     ipc_queue.wait_dequeue(ipc_item);
+    SPDLOG_DEBUG("Popped IPC item of {} rows {}/{}",
+                 ipc_item.num_rows,
+                 num_rows,
+                 opt.num_jsons);
     num_rows += ipc_item.num_rows;
     ipc_size += ipc_item.ipc->size();
     num_ipc++;
@@ -194,11 +156,8 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
 
   // Stop converting.
   shutdown.store(true);
-  converter.Stop();
+  converter->Finish();
   t_conv.Stop();
-
-  // Free buffers.
-  BOLSON_ROE(converter.FreeBuffers());
 
   // Print all statistics:
   auto json_MB = static_cast<double>(gen_bytes) / (1e6);
@@ -219,7 +178,7 @@ auto BenchConvert(const ConvertBenchOptions &opt) -> Status {
   spdlog::info("  Throughput (out)  : {} MB/s", ipc_MB / t_conv.seconds());
   spdlog::info("  Throughput        : {} MJ/s", json_M / t_conv.seconds());
 
-  auto a = convert::AggrStats(converter.stats);
+  auto a = convert::AggrStats(converter->Statistics());
   spdlog::info("Details:");
   LogConvertStats(a, opt.converter.num_threads, "  ");
 

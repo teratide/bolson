@@ -249,7 +249,6 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
     BOLSON_ROE(ReadSchemaFromFile(schema_file, &schema));
 
     // Generate parse options.
-    parse_options = arrow::json::ParseOptions::Defaults();
     parse_options.explicit_schema = schema;
     parse_options.unexpected_field_behavior = arrow::json::UnexpectedFieldBehavior::Error;
   }

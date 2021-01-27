@@ -95,6 +95,8 @@ add_compile_unit(
     src/bolson/convert/resizer.cpp
     src/bolson/convert/serializer.cpp
     src/bolson/convert/converter.cpp
+  TSTS
+    test/bolson/convert/test_opae_battery.cpp
   DEPS
     arrow_shared
     CLI11::CLI11

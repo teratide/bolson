@@ -32,6 +32,17 @@ using AddrMap = std::unordered_map<const std::byte *, da_t>;
 
 class OpaeBatteryParser : public Parser {
  public:
+
+  /// \brief Return a schema with a single uint8 column.
+  static auto input_schema() -> std::shared_ptr<arrow::Schema>;
+
+  /// \brief Return the Arrow type list<uint64>
+  static auto output_type() -> std::shared_ptr<arrow::DataType>;
+
+  /// \brief Return the Arrow schema with an output_type field.
+  static auto output_schema() -> std::shared_ptr<arrow::Schema>;
+
+  /// \brief OpaeBatteryParser constructor.
   OpaeBatteryParser(fletcher::Platform *platform,
                     fletcher::Context *context,
                     fletcher::Kernel *kernel,
