@@ -194,7 +194,7 @@ OPAE_JSON = """{{
       {{
         "name": "battery_status",
         "total-contexts": 1,
-        "accelerator-type-uuid": "9ca43fb0-c340-4908-b79b-5c89b4ef5ee{n:1X}"
+        "accelerator-type-uuid": "9ca43fb0-c340-4908-b79b-5c89b4ef5e{n:02X}"
       }}
     ]
   }}
@@ -396,7 +396,7 @@ print("Wrote kernel source to: " + kernel_file)
 
 emphasize("Re-running vhdmmio...")
 
-base_afu_id = 0xb79b5c89b4ef5ee0
+base_afu_id = 0xb79b5c89b4ef5e00
 base_afu_id += args.parsers
 
 with open("fletchgen.mmio.yaml") as f:
