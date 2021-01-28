@@ -14,9 +14,10 @@
 
 #pragma once
 
-#include <vector>
 #include <arrow/api.h>
 #include <illex/client_buffered.h>
+
+#include <vector>
 
 #include "bolson/parse/parser.h"
 #include "bolson/status.h"
@@ -41,9 +42,10 @@ class Resizer {
    * \param out The resized RecordBatches.
    * \return Status::OK() if successful, some error otherwise.
    */
-  auto Resize(const parse::ParsedBatch &in, ResizedBatches *out) -> Status;
+  auto Resize(const parse::ParsedBatch& in, ResizedBatches* out) -> Status;
+
  private:
   size_t max_rows;
 };
 
-}
+}  // namespace bolson::convert

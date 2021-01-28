@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <thread>
-#include <memory>
+#include "bolson/convert/converter.h"
+
 #include <arrow/api.h>
+#include <illex/client_buffered.h>
 
-#include "illex/client_buffered.h"
+#include <memory>
+#include <thread>
 
-#include "bolson/parse/parser.h"
 #include "bolson/convert/resizer.h"
 #include "bolson/convert/serializer.h"
-#include "bolson/convert/converter.h"
-#include "bolson/utils.h"
 #include "bolson/latency.h"
+#include "bolson/parse/parser.h"
+#include "bolson/utils.h"
 
 namespace bolson::convert {
 
@@ -41,14 +42,13 @@ static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
  * \param lock_idx  The lock index. Is updated in case of lock. Lock attempts start here.
  * \return True if a lock was obtained, false otherwise.
  */
-static auto TryGetFilledBuffer(const std::vector<illex::RawJSONBuffer *> &buffers,
-                               const std::vector<std::mutex *> &mutexes,
-                               illex::RawJSONBuffer **out,
-                               size_t *lock_idx) -> bool {
+static auto TryGetFilledBuffer(const std::vector<illex::RawJSONBuffer*>& buffers,
+                               const std::vector<std::mutex*>& mutexes,
+                               illex::RawJSONBuffer** out, size_t* lock_idx) -> bool {
   auto b = *lock_idx;
   const size_t num_buffers = buffers.size();
   for (size_t i = 0; i <= num_buffers; i++) {
-    b = (b + i) % num_buffers; // increase buffer to try by i, but wrap around
+    b = (b + i) % num_buffers;  // increase buffer to try by i, but wrap around
     if (mutexes[b]->try_lock()) {
       if (!buffers[b]->empty()) {
         *lock_idx = b;
@@ -63,24 +63,21 @@ static auto TryGetFilledBuffer(const std::vector<illex::RawJSONBuffer *> &buffer
   return false;
 }
 
-void ConvertThread(size_t id,
-                   parse::Parser *parser,
-                   Resizer *resizer,
-                   Serializer *serializer,
-                   const std::vector<illex::RawJSONBuffer *> &buffers,
-                   const std::vector<std::mutex *> &mutexes,
-                   IpcQueue *out,
-                   std::atomic<bool> *shutdown,
-                   Stats *stats) {
+void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
+                   Serializer* serializer,
+                   const std::vector<illex::RawJSONBuffer*>& buffers,
+                   const std::vector<std::mutex*>& mutexes, IpcQueue* out,
+                   std::atomic<bool>* shutdown, Stats* stats) {
   /// Macro to shut this thread and others down when something failed.
-#define SHUTDOWN_ON_FAILURE() \
-  if (!stats->status.ok()) { \
-    t_thread.Stop(); \
-    stats->t.thread = t_thread.seconds(); \
+#define SHUTDOWN_ON_FAILURE()                                                     \
+  if (!stats->status.ok()) {                                                      \
+    t_thread.Stop();                                                              \
+    stats->t.thread = t_thread.seconds();                                         \
     SPDLOG_DEBUG("Drone {} Terminating with error: {}", id, stats->status.msg()); \
-    shutdown->store(true); \
-    return; \
-  } void()
+    shutdown->store(true);                                                        \
+    return;                                                                       \
+  }                                                                               \
+  void()
 
   // Thread timer.
   putong::Timer<> t_thread(true);
@@ -95,7 +92,7 @@ void ConvertThread(size_t id,
 
   while (!shutdown->load()) {
     if (try_buffers) {
-      illex::RawJSONBuffer *buf = nullptr;
+      illex::RawJSONBuffer* buf = nullptr;
       if (TryGetFilledBuffer(buffers, mutexes, &buf, &lock_idx)) {
         t_stages.Start();
         // Prepare intermediate wrappers.
@@ -114,7 +111,7 @@ void ConvertThread(size_t id,
         stats->num_parsed++;
         buf->Reset();
         mutexes[lock_idx]->unlock();
-        lock_idx++; // start at next buffer next time we try to unlock.
+        lock_idx++;  // start at next buffer next time we try to unlock.
         t_stages.Split();
 
         // Resize the batch.
@@ -155,20 +152,13 @@ void ConvertThread(size_t id,
 }
 #undef SHUTDOWN_ON_FAILURE
 
-void Converter::Start(std::atomic<bool> *shutdown) {
+void Converter::Start(std::atomic<bool>* shutdown) {
   shutdown_ = shutdown;
 
   for (int t = 0; t < num_threads_; t++) {
-    threads.emplace_back(ConvertThread,
-        t,
-        parsers[t].get(),
-        &resizers[t],
-        &serializers[t],
-        mutable_buffers(),
-        mutexes(),
-        output_queue_,
-        shutdown_,
-        &stats[t]);
+    threads.emplace_back(ConvertThread, t, parsers[t].get(), &resizers[t],
+                         &serializers[t], mutable_buffers(), mutexes(), output_queue_,
+                         shutdown_, &stats[t]);
   }
 }
 
@@ -194,7 +184,7 @@ auto Converter::Finish() -> Status {
 auto Converter::AllocateBuffers(size_t capacity) -> Status {
   // Allocate buffers.
   for (size_t b = 0; b < num_buffers_; b++) {
-    std::byte *raw = nullptr;
+    std::byte* raw = nullptr;
     BOLSON_ROE(allocator_->Allocate(capacity, &raw));
     illex::RawJSONBuffer buf;
     illex::RawJSONBuffer::Create(raw, capacity, &buf);
@@ -211,15 +201,16 @@ auto Converter::FreeBuffers() -> Status {
   return Status::OK();
 }
 
-auto Converter::Make(const Options &opts,
-                     IpcQueue *ipc_queue,
-                     std::shared_ptr<Converter> *out) -> Status {
+auto Converter::Make(const Options& opts, IpcQueue* ipc_queue,
+                     std::shared_ptr<Converter>* out) -> Status {
   // Select allocator.
   std::shared_ptr<buffer::Allocator> allocator;
   switch (opts.implementation) {
-    case parse::Impl::ARROW:allocator = std::make_shared<buffer::Allocator>();
+    case parse::Impl::ARROW:
+      allocator = std::make_shared<buffer::Allocator>();
       break;
-    case parse::Impl::OPAE_BATTERY:allocator = std::make_shared<buffer::OpaeAllocator>();
+    case parse::Impl::OPAE_BATTERY:
+      allocator = std::make_shared<buffer::OpaeAllocator>();
       break;
   }
 
@@ -227,8 +218,7 @@ auto Converter::Make(const Options &opts,
   size_t num_buffers = opts.num_buffers.value_or(opts.num_threads);
 
   auto converter = std::shared_ptr<convert::Converter>(
-      new convert::Converter(ipc_queue, allocator, num_buffers, opts.num_threads)
-  );
+      new convert::Converter(ipc_queue, allocator, num_buffers, opts.num_threads));
 
   // Allocate buffers.
   switch (opts.implementation) {
@@ -239,15 +229,14 @@ auto Converter::Make(const Options &opts,
     case parse::Impl::OPAE_BATTERY: {
       if (opts.buf_capacity > buffer::OpaeAllocator::opae_fixed_capacity) {
         return Status(Error::OpaeError,
-            "Cannot allocate buffers larger than "
-                + std::to_string(buffer::OpaeAllocator::opae_fixed_capacity)
-                + " bytes.");
+                      "Cannot allocate buffers larger than " +
+                          std::to_string(buffer::OpaeAllocator::opae_fixed_capacity) +
+                          " bytes.");
       }
       BOLSON_ROE(converter->AllocateBuffers(buffer::OpaeAllocator::opae_fixed_capacity));
       break;
     }
   }
-
 
   // Set up the parsers.
   switch (opts.implementation) {
@@ -259,9 +248,8 @@ auto Converter::Make(const Options &opts,
       break;
     }
     case parse::Impl::OPAE_BATTERY: {
-      BOLSON_ROE(parse::OpaeBatteryParserManager::Make(opts.opae_battery,
-          ToPointers(converter->buffers),
-          opts.num_threads,
+      BOLSON_ROE(parse::OpaeBatteryParserManager::Make(
+          opts.opae_battery, ToPointers(converter->buffers), opts.num_threads,
           &converter->opae_battery_manager));
       converter->parsers =
           CastPtrs<parse::Parser>(converter->opae_battery_manager->parsers());
@@ -279,28 +267,24 @@ auto Converter::Make(const Options &opts,
   return Status::OK();
 }
 
-auto Converter::mutable_buffers() -> std::vector<illex::RawJSONBuffer *> {
+auto Converter::mutable_buffers() -> std::vector<illex::RawJSONBuffer*> {
   return ToPointers(buffers);
 }
 
-auto Converter::mutexes() -> std::vector<std::mutex *> {
-  return ToPointers(mutexes_);
-}
+auto Converter::mutexes() -> std::vector<std::mutex*> { return ToPointers(mutexes_); }
 
 void Converter::LockBuffers() {
-  for (auto &mutex : mutexes_) {
+  for (auto& mutex : mutexes_) {
     mutex.lock();
   }
 }
 
 void Converter::UnlockBuffers() {
-  for (auto &mutex : mutexes_) {
+  for (auto& mutex : mutexes_) {
     mutex.unlock();
   }
 }
 
-auto Converter::Statistics() -> std::vector<Stats> {
-  return stats;
-}
+auto Converter::Statistics() -> std::vector<Stats> { return stats; }
 
-}
+}  // namespace bolson::convert

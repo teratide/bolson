@@ -14,9 +14,11 @@
 
 #include "bolson/convert/stats.h"
 
+#include "bolson/log.h"
+
 namespace bolson::convert {
 
-auto Stats::operator+=(const bolson::convert::Stats &r) -> Stats & {
+auto Stats::operator+=(const bolson::convert::Stats& r) -> Stats& {
   num_jsons += r.num_jsons;
   json_bytes += r.json_bytes;
   num_ipc += r.num_ipc;
@@ -30,16 +32,15 @@ auto Stats::operator+=(const bolson::convert::Stats &r) -> Stats & {
   return *this;
 }
 
-auto AggrStats(const std::vector<Stats> &conv_stats) -> Stats {
+auto AggrStats(const std::vector<Stats>& conv_stats) -> Stats {
   Stats all_conv_stats;
-  for (const auto &t : conv_stats) {
+  for (const auto& t : conv_stats) {
     all_conv_stats += t;
   }
   return all_conv_stats;
 }
 
-void LogConvertStats(const Stats &stats, size_t num_threads, const std::string &t) {
-
+void LogConvertStats(const Stats& stats, size_t num_threads, const std::string& t) {
   // Input stats.
   auto json_MiB = static_cast<double>(stats.json_bytes) / (1024 * 1024);
 
@@ -91,4 +92,4 @@ void LogConvertStats(const Stats &stats, size_t num_threads, const std::string &
   spdlog::info("{}  Avg. throughput      : {} MJ/s", t, json_M / enq_tt);
 }
 
-}
+}  // namespace bolson::convert

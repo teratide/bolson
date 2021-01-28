@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
 #include <CLI/CLI.hpp>
+#include <iostream>
 
-#include "bolson/pulsar.h"
-#include "bolson/file.h"
-#include "bolson/stream.h"
 #include "bolson/bench.h"
+#include "bolson/file.h"
+#include "bolson/pulsar.h"
+#include "bolson/stream.h"
 
 #pragma once
 
@@ -26,10 +26,10 @@ namespace bolson {
 
 /// Possible subcommands to run.
 enum class SubCommand {
-  NONE,     ///< Run no subcommand.
-  FILE,     ///< Run the file subcommand.
-  STREAM,   ///< Run the stream subcommand.
-  BENCH     ///< Run the bench subcommand.
+  NONE,    ///< Run no subcommand.
+  FILE,    ///< Run the file subcommand.
+  STREAM,  ///< Run the stream subcommand.
+  BENCH    ///< Run the bench subcommand.
 };
 
 /// \brief Application options.
@@ -37,11 +37,11 @@ struct AppOptions {
   /// The name of the application.
   static constexpr auto name = "bolson";
   /// A description of the application.
-  static constexpr auto
-      desc = "Converts raw JSONs to Arrow RecordBatches and published them to Pulsar.";
+  static constexpr auto desc =
+      "Converts raw JSONs to Arrow RecordBatches and published them to Pulsar.";
 
   /// \brief Populate an instance of the application options based on CLI arguments.
-  static auto FromArguments(int argc, char *argv[], AppOptions *out) -> Status;
+  static auto FromArguments(int argc, char* argv[], AppOptions* out) -> Status;
 
   /// Subcommand to run.
   SubCommand sub = SubCommand::NONE;

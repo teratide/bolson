@@ -16,8 +16,8 @@
 
 #include <arrow/ipc/api.h>
 
-#include "bolson/status.h"
 #include "bolson/convert/resizer.h"
+#include "bolson/status.h"
 
 namespace bolson::convert {
 
@@ -28,10 +28,10 @@ struct SerializedBatch {
 
 using SerializedBatches = std::vector<SerializedBatch>;
 
-auto RecordSizeOf(const SerializedBatch &batch) -> size_t;
-auto RecordSizeOf(const SerializedBatches &batches) -> size_t;
+auto RecordSizeOf(const SerializedBatch& batch) -> size_t;
+auto RecordSizeOf(const SerializedBatches& batches) -> size_t;
 
-auto ByteSizeOf(const SerializedBatches &batches) -> size_t;
+auto ByteSizeOf(const SerializedBatches& batches) -> size_t;
 
 /**
  * \brief Class used to serialize a batch of Arrow RecordBatches into Arrow IPC messages.
@@ -53,10 +53,11 @@ class Serializer {
    * \param out The serialized RecordBatches.
    * \return Status::OK() if successful, some error otherwise.
    */
-  auto Serialize(const ResizedBatches &in, SerializedBatches *out) -> Status;
+  auto Serialize(const ResizedBatches& in, SerializedBatches* out) -> Status;
+
  private:
   arrow::ipc::IpcWriteOptions opts = arrow::ipc::IpcWriteOptions::Defaults();
   size_t max_ipc_size;
 };
 
-}
+}  // namespace bolson::convert

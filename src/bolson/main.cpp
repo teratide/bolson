@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bolson/log.h"
 #include "bolson/cli.h"
 #include "bolson/file.h"
-#include "bolson/stream.h"
+#include "bolson/log.h"
 #include "bolson/status.h"
+#include "bolson/stream.h"
 
-auto main(int argc, char *argv[]) -> int {
+auto main(int argc, char* argv[]) -> int {
   // Set up logger.
   bolson::StartLogger();
 
@@ -29,13 +29,17 @@ auto main(int argc, char *argv[]) -> int {
     // Run sub-programs.
     bolson::Status result;
     switch (opts.sub) {
-      case bolson::SubCommand::FILE: status = bolson::ProduceFromFile(opts.file);
+      case bolson::SubCommand::FILE:
+        status = bolson::ProduceFromFile(opts.file);
         break;
-      case bolson::SubCommand::STREAM:status = bolson::ProduceFromStream(opts.stream);
+      case bolson::SubCommand::STREAM:
+        status = bolson::ProduceFromStream(opts.stream);
         break;
-      case bolson::SubCommand::BENCH: status = bolson::RunBench(opts.bench);
+      case bolson::SubCommand::BENCH:
+        status = bolson::RunBench(opts.bench);
         break;
-      case bolson::SubCommand::NONE: break;
+      case bolson::SubCommand::NONE:
+        break;
     }
   }
 

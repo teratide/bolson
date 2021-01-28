@@ -15,7 +15,6 @@
 #include <putong/timer.h>
 
 #include "bolson/status.h"
-#include "bolson/log.h"
 
 #pragma once
 
@@ -56,7 +55,7 @@ struct Stats {
   /// Status about the conversion.
   Status status = Status::OK();
 
-  auto operator+=(const Stats &r) -> Stats &;
+  auto operator+=(const Stats& r) -> Stats&;
 };
 
 /**
@@ -65,9 +64,9 @@ struct Stats {
  * \param num_threads The number of threads used.
  * \param t Prefix for indenting.
  */
-void LogConvertStats(const Stats &stats, size_t num_threads, const std::string &t = "");
+void LogConvertStats(const Stats& stats, size_t num_threads, const std::string& t = "");
 
 /// \brief Aggregate statistics from multiple threads.
-auto AggrStats(const std::vector<Stats> &conv_stats) -> Stats;
+auto AggrStats(const std::vector<Stats>& conv_stats) -> Stats;
 
-}
+}  // namespace bolson::convert

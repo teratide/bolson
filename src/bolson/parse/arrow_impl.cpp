@@ -12,35 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <memory>
+#include "bolson/parse/arrow_impl.h"
+
 #include <arrow/api.h>
-#include <arrow/json/api.h>
 #include <arrow/io/api.h>
+#include <arrow/json/api.h>
+
+#include <memory>
 
 #include "bolson/parse/parser.h"
-#include "bolson/parse/arrow_impl.h"
 
 namespace bolson::parse {
 
-auto ArrowParser::Parse(illex::RawJSONBuffer *in, ParsedBatch *out) -> Status {
+auto ArrowParser::Parse(illex::RawJSONBuffer* in, ParsedBatch* out) -> Status {
   auto buffer = arrow::Buffer::Wrap(in->data(), in->size());
   auto br = std::make_shared<arrow::io::BufferReader>(buffer);
-  auto tr_make_result = arrow::json::TableReader::Make(arrow::default_memory_pool(),
-      br,
-      opts.read,
-      opts.parse);
+  auto tr_make_result = arrow::json::TableReader::Make(arrow::default_memory_pool(), br,
+                                                       opts.read, opts.parse);
   if (!tr_make_result.ok()) {
-    return Status(Error::ArrowError,
-        "Unable to make JSON Table Reader: "
-            + tr_make_result.status().message());
+    return Status(Error::ArrowError, "Unable to make JSON Table Reader: " +
+                                         tr_make_result.status().message());
   }
   auto t_reader = tr_make_result.ValueOrDie();
 
   auto tr_read_result = t_reader->Read();
   if (!tr_read_result.ok()) {
     return Status(Error::ArrowError,
-        "Unable to read JSON as table: "
-            + tr_read_result.status().message());
+                  "Unable to read JSON as table: " + tr_read_result.status().message());
   }
   auto table = tr_read_result.ValueOrDie();
 
@@ -63,4 +61,4 @@ auto ArrowParser::Parse(illex::RawJSONBuffer *in, ParsedBatch *out) -> Status {
   return Status::OK();
 }
 
-}
+}  // namespace bolson::parse

@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "bolson/buffer/allocator.h"
+
 #include <memory>
 
 #include "bolson/status.h"
-#include "allocator.h"
 
 namespace bolson::buffer {
 
-auto Allocator::Allocate(size_t size, std::byte **out) -> Status {
-  *out = static_cast<std::byte *>(malloc(size));
+auto Allocator::Allocate(size_t size, std::byte** out) -> Status {
+  *out = static_cast<std::byte*>(malloc(size));
   if (*out == nullptr) {
     return Status(Error::GenericError,
                   "Unable to allocate " + std::to_string(size) + " bytes.");
@@ -28,9 +29,9 @@ auto Allocator::Allocate(size_t size, std::byte **out) -> Status {
   return Status::OK();
 }
 
-auto Allocator::Free(std::byte *buffer) -> Status {
+auto Allocator::Free(std::byte* buffer) -> Status {
   free(buffer);
   return Status::OK();
 }
 
-}
+}  // namespace bolson::buffer

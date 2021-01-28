@@ -1,50 +1,66 @@
-#include <gtest/gtest.h>
+// Copyright 2020 Teratide B.V.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <arrow/api.h>
-#include <arrow/ipc/api.h>
 #include <arrow/io/api.h>
+#include <arrow/ipc/api.h>
+#include <gtest/gtest.h>
 #include <illex/document.h>
 
-#include "bolson/log.h"
 #include "bolson/bench.h"
 #include "bolson/convert/converter.h"
+#include "bolson/log.h"
 #include "bolson/parse/opae_battery_impl.h"
 
 #define OPAE_BATTERY_KERNELS 8
 
 namespace bolson::convert {
 
-#define FAIL_ON_ERROR(status) {               \
-  auto __status = (status);                   \
-  if (!__status.ok()) {                       \
-    throw std::runtime_error(__status.msg()); \
-  }                                           \
-}
+#define FAIL_ON_ERROR(status)                   \
+  {                                             \
+    auto __status = (status);                   \
+    if (!__status.ok()) {                       \
+      throw std::runtime_error(__status.msg()); \
+    }                                           \
+  }
 
 auto test_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = fletcher::WithMetaRequired(
-      *arrow::schema({arrow::field("voltage",
-          arrow::list(arrow::field("item", arrow::uint64(), false)
-              ->WithMetadata(arrow::key_value_metadata({"illex_MIN", "ILLEX_MAX"},
-                  {"0", "2047"}))),
-          false)->WithMetadata(arrow::key_value_metadata({"illex_MIN_LENGTH",
-                                                          "ILLEX_MAX_LENGTH"},
-          {"1", "16"}))}), "output", fletcher::Mode::WRITE);
+      *arrow::schema(
+          {arrow::field("voltage",
+                        arrow::list(arrow::field("item", arrow::uint64(), false)
+                                        ->WithMetadata(arrow::key_value_metadata(
+                                            {"illex_MIN", "ILLEX_MAX"}, {"0", "2047"}))),
+                        false)
+               ->WithMetadata(arrow::key_value_metadata(
+                   {"illex_MIN_LENGTH", "ILLEX_MAX_LENGTH"}, {"1", "16"}))}),
+      "output", fletcher::Mode::WRITE);
   return result;
 }
 
-auto GetRecordBatch(const std::shared_ptr<arrow::Schema> &schema,
-                    const std::shared_ptr<arrow::Buffer> &buffer)
--> std::shared_ptr<arrow::RecordBatch> {
+auto GetRecordBatch(const std::shared_ptr<arrow::Schema>& schema,
+                    const std::shared_ptr<arrow::Buffer>& buffer)
+    -> std::shared_ptr<arrow::RecordBatch> {
   auto stream = std::dynamic_pointer_cast<arrow::io::InputStream>(
       std::make_shared<arrow::io::BufferReader>(buffer));
 
   assert(stream != nullptr);
 
-  auto batch = arrow::ipc::ReadRecordBatch(test_schema(),
-      nullptr,
-      arrow::ipc::IpcReadOptions::Defaults(),
-      stream.get()).ValueOrDie();
+  auto batch =
+      arrow::ipc::ReadRecordBatch(test_schema(), nullptr,
+                                  arrow::ipc::IpcReadOptions::Defaults(), stream.get())
+          .ValueOrDie();
 
   return batch;
 }
@@ -54,14 +70,12 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
 
   Status status;
 
-  size_t num_jsons = 1024*1024;
+  size_t num_jsons = 1024 * 1024;
 
   // Generate a bunch of JSONs
   std::vector<illex::JSONQueueItem> jsons_in;
-  auto bytes_largest = GenerateJSONs(num_jsons,
-      *test_schema(),
-      illex::GenerateOptions(0),
-      &jsons_in);
+  auto bytes_largest =
+      GenerateJSONs(num_jsons, *test_schema(), illex::GenerateOptions(0), &jsons_in);
 
   // Set OPAE Converter options.
   Options opae_opts;
@@ -120,7 +134,7 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   // Sort outputs by seq. no.
 
   struct {
-    bool operator()(const IpcQueueItem &a, const IpcQueueItem &b) const {
+    bool operator()(const IpcQueueItem& a, const IpcQueueItem& b) const {
       return a.seq_range.first < b.seq_range.first;
     }
   } item_sort;
@@ -138,4 +152,4 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   }
 }
 
-}
+}  // namespace bolson::convert

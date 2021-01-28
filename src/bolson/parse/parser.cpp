@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bolson/status.h"
 #include "bolson/parse/parser.h"
+
+#include "bolson/status.h"
 
 namespace bolson::parse {
 
-auto ToString(const Impl &impl) -> std::string {
+auto ToString(const Impl& impl) -> std::string {
   switch (impl) {
-    case Impl::ARROW: return "Arrow (CPU)";
-    case Impl::OPAE_BATTERY: return "OPAE Battery (FPGA)";
+    case Impl::ARROW:
+      return "Arrow (CPU)";
+    case Impl::OPAE_BATTERY:
+      return "OPAE Battery (FPGA)";
   }
   throw std::runtime_error("Corrupt impl.");
 }
 
-}
+}  // namespace bolson::parse

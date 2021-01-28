@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "bolson/latency.h"
+
 #include <fstream>
 
-#include "bolson/latency.h"
 #include "bolson/status.h"
 
 namespace bolson {
 
-auto LogLatencyCSV(const std::string &file,
-                   const illex::LatencyTracker &lat_tracker) -> Status {
+auto LogLatencyCSV(const std::string& file, const illex::LatencyTracker& lat_tracker)
+    -> Status {
   if (!file.empty()) {
     auto o = std::ofstream(file);
     if (!o.good()) {
@@ -40,8 +41,7 @@ auto LogLatencyCSV(const std::string &file,
       << " 9. Pulsar message build,"
       << "10. Pulsar send(),"
       << "11. TCP recv to Pulsar send(),"
-      << "12. TCP recv to Publish queue"
-      << std::endl;
+      << "12. TCP recv to Publish queue" << std::endl;
 
     // Dump every sample
     for (size_t t = 0; t < lat_tracker.num_samples(); t++) {
@@ -51,18 +51,18 @@ auto LogLatencyCSV(const std::string &file,
         o << std::fixed << std::setprecision(9) << lat_tracker.GetInterval(t, s) << ",";
       }
       // Get the time after Pulsar send:
-      std::chrono::duration<double>
-          total = lat_tracker.Get(t, BOLSON_LAT_MESSAGE_SENT) - lat_tracker.Get(t, 0);
+      std::chrono::duration<double> total =
+          lat_tracker.Get(t, BOLSON_LAT_MESSAGE_SENT) - lat_tracker.Get(t, 0);
       o << std::fixed << std::setprecision(9) << total.count() << ',';
 
       // Get the time when the IPC message was serialized.
       // This should be very near the time it was put in the publish queue.
-      std::chrono::duration<double>
-          fom = lat_tracker.Get(t, BOLSON_LAT_BATCH_SERIALIZED) - lat_tracker.Get(t, 0);
+      std::chrono::duration<double> fom =
+          lat_tracker.Get(t, BOLSON_LAT_BATCH_SERIALIZED) - lat_tracker.Get(t, 0);
       o << std::fixed << std::setprecision(9) << fom.count() << std::endl;
     }
   }
   return Status::OK();
 }
 
-}
+}  // namespace bolson

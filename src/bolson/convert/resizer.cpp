@@ -18,7 +18,7 @@ namespace bolson::convert {
 
 // TODO: this could also be done based on arrow::ipc::GetRecordBatchSize
 
-auto Resizer::Resize(const parse::ParsedBatch &in, ResizedBatches *out) -> Status {
+auto Resizer::Resize(const parse::ParsedBatch& in, ResizedBatches* out) -> Status {
   ResizedBatches result;
   if (in.batch->num_rows() > max_rows) {
     size_t offset = 0;
@@ -45,4 +45,4 @@ auto Resizer::Resize(const parse::ParsedBatch &in, ResizedBatches *out) -> Statu
   return Status::OK();
 }
 
-}
+}  // namespace bolson::convert

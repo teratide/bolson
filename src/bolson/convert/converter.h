@@ -19,12 +19,12 @@
 #include <utility>
 
 #include "bolson/buffer/allocator.h"
-#include "bolson/parse/parser.h"
-#include "bolson/parse/arrow_impl.h"
-#include "bolson/parse/opae_battery_impl.h"
 #include "bolson/convert/resizer.h"
 #include "bolson/convert/serializer.h"
 #include "bolson/convert/stats.h"
+#include "bolson/parse/arrow_impl.h"
+#include "bolson/parse/opae_battery_impl.h"
+#include "bolson/parse/parser.h"
 #include "bolson/pulsar.h"
 #include "bolson/status.h"
 
@@ -71,24 +71,23 @@ class Converter {
    * \param out         A pointer to a shared pointer to store the converter.
    * \return Status::OK() if successful, some error otherwise.
    */
-  static auto Make(const Options &opts,
-                   IpcQueue *ipc_queue,
-                   std::shared_ptr<Converter> *out) -> Status;
+  static auto Make(const Options& opts, IpcQueue* ipc_queue,
+                   std::shared_ptr<Converter>* out) -> Status;
 
   /**
    * \brief Start the converter, spawning the supplied number of converter threads.
    * \param shutdown Shutdown signal.
    */
-  void Start(std::atomic<bool> *shutdown);
+  void Start(std::atomic<bool>* shutdown);
 
   /// \brief Stop the converter, joining all converter threads.
   auto Finish() -> Status;
 
   /// \brief Return a pointer to the buffers.
-  auto mutable_buffers() -> std::vector<illex::RawJSONBuffer *>;
+  auto mutable_buffers() -> std::vector<illex::RawJSONBuffer*>;
 
   /// \brief Return a pointer to the buffers.
-  auto mutexes() -> std::vector<std::mutex *>;
+  auto mutexes() -> std::vector<std::mutex*>;
 
   /// \brief Lock all mutexes of all buffers.
   void LockBuffers();
@@ -100,10 +99,8 @@ class Converter {
   auto Statistics() -> std::vector<Stats>;
 
  private:
-  Converter(IpcQueue *output_queue,
-            std::shared_ptr<buffer::Allocator> allocator,
-            size_t num_buffers = 1,
-            size_t num_threads = 1)
+  Converter(IpcQueue* output_queue, std::shared_ptr<buffer::Allocator> allocator,
+            size_t num_buffers = 1, size_t num_threads = 1)
       : output_queue_(output_queue),
         allocator_(std::move(allocator)),
         num_buffers_(num_buffers),
@@ -124,11 +121,11 @@ class Converter {
    */
   auto FreeBuffers() -> Status;
 
-  IpcQueue *output_queue_ = nullptr;
+  IpcQueue* output_queue_ = nullptr;
   std::shared_ptr<buffer::Allocator> allocator_ = nullptr;
   size_t num_threads_ = 1;
   size_t num_buffers_ = 1;
-  std::atomic<bool> *shutdown_ = nullptr;
+  std::atomic<bool>* shutdown_ = nullptr;
   std::vector<std::shared_ptr<parse::Parser>> parsers;
   std::vector<convert::Resizer> resizers;
   std::vector<convert::Serializer> serializers;
@@ -142,4 +139,4 @@ class Converter {
   std::shared_ptr<parse::OpaeBatteryParserManager> opae_battery_manager;
 };
 
-}
+}  // namespace bolson::convert

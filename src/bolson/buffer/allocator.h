@@ -35,14 +35,14 @@ class Allocator {
    * \param out A pointer to the pointer of the allocated memory.
    * \return Status::OK() if successful, some error otherwise.
    */
-  virtual auto Allocate(size_t size, std::byte **out) -> Status;
+  virtual auto Allocate(size_t size, std::byte** out) -> Status;
 
   /**
    * \brief Free memory.
    * \param buffer A pointer to the allocated memory.
    * \return Status::OK() if successful, some error otherwise.
    */
-  virtual auto Free(std::byte *buffer) -> Status;
+  virtual auto Free(std::byte* buffer) -> Status;
 };
 
-}
+}  // namespace bolson::buffer

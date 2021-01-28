@@ -12,30 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <algorithm>
+#include "bolson/cli.h"
 
 #include <arrow/api.h>
-#include <arrow/ipc/api.h>
 #include <arrow/io/api.h>
+#include <arrow/ipc/api.h>
 #include <arrow/json/api.h>
 
-#include "bolson/log.h"
-#include "bolson/cli.h"
-#include "bolson/status.h"
-#include "bolson/stream.h"
-#include "bolson/parse/parser.h"
-#include "bolson/parse/arrow_impl.h"
+#include <algorithm>
+
 #include "bolson/convert/converter.h"
+#include "bolson/log.h"
+#include "bolson/parse/parser.h"
+#include "bolson/status.h"
 
 namespace bolson {
 
 /// Function to read schema from a file.
-static auto ReadSchemaFromFile(const std::string &file,
-                               std::shared_ptr<arrow::Schema> *out) -> Status {
+static auto ReadSchemaFromFile(const std::string& file,
+                               std::shared_ptr<arrow::Schema>* out) -> Status {
   // TODO(johanpel): use filesystem lib for path
   auto rfos = arrow::io::ReadableFile::Open(file);
 
-  if (!rfos.ok()) { return Status(Error::IOError, rfos.status().message()); }
+  if (!rfos.ok()) {
+    return Status(Error::IOError, rfos.status().message());
+  }
   auto fis = rfos.ValueOrDie();
 
   // Dictionaries are not supported yet, hence nullptr. If there are actual dictionaries,
@@ -43,8 +44,11 @@ static auto ReadSchemaFromFile(const std::string &file,
   // function.
   auto rsch = arrow::ipc::ReadSchema(fis.get(), nullptr);
 
-  if (rsch.ok()) { *out = rsch.ValueOrDie(); }
-  else { return Status(Error::IOError, rsch.status().message()); }
+  if (rsch.ok()) {
+    *out = rsch.ValueOrDie();
+  } else {
+    return Status(Error::IOError, rsch.status().message());
+  }
 
   auto status = fis->Close();
 
@@ -52,29 +56,33 @@ static auto ReadSchemaFromFile(const std::string &file,
 }
 
 /// Create a mock IPC message to figure out the IPC message header size.
-static auto CreateMockIPC(const std::shared_ptr<arrow::Schema> &schema,
-                          std::shared_ptr<arrow::Buffer> *out) -> Status {
+static auto CreateMockIPC(const std::shared_ptr<arrow::Schema>& schema,
+                          std::shared_ptr<arrow::Buffer>* out) -> Status {
   // Construct an empty RecordBatch from the schema.
   std::unique_ptr<arrow::RecordBatchBuilder> mock_builder;
   std::shared_ptr<arrow::RecordBatch> mock_batch;
   // TODO: Error check the Arrow results and statuses below
-  arrow::Status status = arrow::RecordBatchBuilder::Make(schema,
-                                                         arrow::default_memory_pool(),
-                                                         &mock_builder);
+  arrow::Status status = arrow::RecordBatchBuilder::Make(
+      schema, arrow::default_memory_pool(), &mock_builder);
   // todo: write status converters from arrow, and perhaps the other libs also
-  if (!status.ok()) { return Status(Error::ArrowError, status.message()); }
+  if (!status.ok()) {
+    return Status(Error::ArrowError, status.message());
+  }
   status = mock_builder->Flush(&mock_batch);
-  if (!status.ok()) { return Status(Error::ArrowError, status.message()); }
+  if (!status.ok()) {
+    return Status(Error::ArrowError, status.message());
+  }
   auto result = arrow::ipc::SerializeRecordBatch(*mock_batch,
                                                  arrow::ipc::IpcWriteOptions::Defaults());
-  if (!result.ok()) { return Status(Error::ArrowError, result.status().message()); }
+  if (!result.ok()) {
+    return Status(Error::ArrowError, result.status().message());
+  }
   (*out) = result.ValueOrDie();
   return Status::OK();
 }
 
-static auto CalcThreshold(size_t max_size,
-                          const std::shared_ptr<arrow::Schema> &schema,
-                          size_t *out) -> Status {
+static auto CalcThreshold(size_t max_size, const std::shared_ptr<arrow::Schema>& schema,
+                          size_t* out) -> Status {
   // Create empty IPC message to get an indication of the IPC header size.
   std::shared_ptr<arrow::Buffer> mock_ipc;
   BOLSON_ROE(CreateMockIPC(schema, &mock_ipc));
@@ -96,122 +104,104 @@ static auto CalcThreshold(size_t max_size,
 
 using ParserMap = std::map<std::string, parse::Impl>;
 
-static void AddConvertOpts(CLI::App *sub, convert::Options *opts) {
+static void AddConvertOpts(CLI::App* sub, convert::Options* opts) {
   ParserMap parsers{{"arrow", parse::Impl::ARROW},
                     {"opae-battery", parse::Impl::OPAE_BATTERY}};
   sub->add_option("-p,--parser", opts->implementation, "Parser implementation.")
       ->transform(CLI::CheckedTransformer(parsers, CLI::ignore_case))
       ->default_val(parse::Impl::ARROW);
-  sub->add_option("--max-rows",
-                  opts->max_batch_rows,
+  sub->add_option("--max-rows", opts->max_batch_rows,
                   "Maximum number of rows per RecordBatch.")
       ->default_val(1024);
-  sub->add_option("--max-ipc",
-                  opts->max_ipc_size,
+  sub->add_option("--max-ipc", opts->max_ipc_size,
                   "Maximum size of IPC messages in bytes.")
       ->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
-  sub->add_option("--threads",
-                  opts->num_threads,
+  sub->add_option("--threads", opts->num_threads,
                   "Number of threads to use in conversion.")
       ->default_val(1);
-  sub->add_option("--buffers",
-                  opts->num_buffers,
+  sub->add_option("--buffers", opts->num_buffers,
                   "Number of buffers to use. If not set, equal to number of threads.");
-  sub->add_option("--afuid",
-                  opts->opae_battery.afu_id,
+  sub->add_option("--afuid", opts->opae_battery.afu_id,
                   "OPAE battery implementation AFU ID.");
 }
 
-static void AddStatsOpts(CLI::App *sub, bool *csv) {
+static void AddStatsOpts(CLI::App* sub, bool* csv) {
   sub->add_flag("-c", *csv, "Print output CSV-style.");
 }
 
-static void AddArrowOpts(CLI::App *sub, std::string *schema_file) {
-  sub->add_option("input,-i,--input",
-                  *schema_file,
+static void AddArrowOpts(CLI::App* sub, std::string* schema_file) {
+  sub->add_option("input,-i,--input", *schema_file,
                   "The Arrow schema to generate the JSON from.")
-      ->check(CLI::ExistingFile)->required();
+      ->check(CLI::ExistingFile)
+      ->required();
 }
 
-static void AddPulsarOpts(CLI::App *sub, PulsarOptions *pulsar) {
+static void AddPulsarOpts(CLI::App* sub, PulsarOptions* pulsar) {
   sub->add_option("-u,--pulsar-url", pulsar->url, "Pulsar broker service URL.")
       ->default_str("pulsar://localhost:6650/");
   sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic.")
       ->default_str("non-persistent://public/default/bolson");
 }
 
-static void AddBenchOpts(CLI::App *bench, BenchOptions *out, std::string *schema_file) {
+static void AddBenchOpts(CLI::App* bench, BenchOptions* out, std::string* schema_file) {
   // 'bench client' subcommand.
-  auto *bench_client =
+  auto* bench_client =
       bench->add_subcommand("client", "Run TCP client interface microbenchmark.");
 
   // 'bench convert' subcommand.
-  auto *bench_conv =
+  auto* bench_conv =
       bench->add_subcommand("convert", "Run JSON to Arrow IPC convert microbenchmark.");
   AddConvertOpts(bench_conv, &out->convert.converter);
   bench_conv
-      ->add_option("--num-jsons",
-                   out->convert.num_jsons,
-                   "Number of JSONs to convert.")
+      ->add_option("--num-jsons", out->convert.num_jsons, "Number of JSONs to convert.")
       ->default_val(1024);
-  bench_conv
-      ->add_option("--seed", out->convert.generate.seed, "Generation seed.")
+  bench_conv->add_option("--seed", out->convert.generate.seed, "Generation seed.")
       ->default_val(0);
   AddArrowOpts(bench_conv, schema_file);
 
   // 'bench pulsar' subcommand.
-  auto *bench_pulsar =
-      bench->add_subcommand("pulsar", "Run Pulsar microbenchmark.");
-  bench_pulsar
-      ->add_option("-s",
-                   out->pulsar.message_size,
-                   "Pulsar message size.")
+  auto* bench_pulsar = bench->add_subcommand("pulsar", "Run Pulsar microbenchmark.");
+  bench_pulsar->add_option("-s", out->pulsar.message_size, "Pulsar message size.")
       ->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
-  bench_pulsar
-      ->add_option("-m",
-                   out->pulsar.num_messages,
-                   "Pulsar number of messages.")
+  bench_pulsar->add_option("-m", out->pulsar.num_messages, "Pulsar number of messages.")
       ->default_val(1024);
   AddPulsarOpts(bench_pulsar, &out->pulsar.pulsar);
 
   // 'bench queue' subcommand
-  auto *bench_queue = bench->add_subcommand("queue", "Run queue microbenchmark.");
-  bench_queue->add_option("m,-m,--num-items,", out->queue.num_items)
-      ->default_val(256);
+  auto* bench_queue = bench->add_subcommand("queue", "Run queue microbenchmark.");
+  bench_queue->add_option("m,-m,--num-items,", out->queue.num_items)->default_val(256);
 }
 
-auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status {
+auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status {
   std::string schema_file;
   uint16_t stream_port = 0;
   bool csv = false;
 
-  CLI::App app{"bolson : A JSON stream to Arrow IPC to Pulsar conversion and publish "
-               "tool."};
+  CLI::App app{
+      "bolson : A JSON stream to Arrow IPC to Pulsar conversion and publish "
+      "tool."};
 
   app.require_subcommand();
   app.get_formatter()->column_width(50);
 
   // 'file' subcommand:
-//  auto *file = app.add_subcommand("file", "Produce Pulsar messages from a JSON file.");
-//  file->add_option("f,-f,--file", out->file.input, "Input file with Tweets.")
-//      ->check(CLI::ExistingFile)->required();
-//  AddArrowOpts(file, &schema_file);
-//  AddPulsarOpts(file, &out->file.pulsar);
-
+  //  auto *file = app.add_subcommand("file", "Produce Pulsar messages from a JSON
+  //  file."); file->add_option("f,-f,--file", out->file.input, "Input file with Tweets.")
+  //      ->check(CLI::ExistingFile)->required();
+  //  AddArrowOpts(file, &schema_file);
+  //  AddPulsarOpts(file, &out->file.pulsar);
 
   // 'stream' subcommand:
-  auto *stream = app.add_subcommand("stream",
-                                    "Produce Pulsar messages from a JSON TCP stream.");
-  auto *port_opt = stream->add_option("--port", stream_port, "Port.")
-      ->default_val(illex::RAW_PORT);
-  stream->add_option("--l-samples",
-                     out->stream.latency.num_samples,
-                     "Number of latency samples.")
+  auto* stream =
+      app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
+  auto* port_opt =
+      stream->add_option("--port", stream_port, "Port.")->default_val(illex::RAW_PORT);
+  stream
+      ->add_option("--l-samples", out->stream.latency.num_samples,
+                   "Number of latency samples.")
       ->default_val(1);
-  stream->add_option("--l-interval", out->stream.latency.interval)
-      ->default_val(1024);
-  stream->add_option("--l-out",
-                     out->stream.latency.file,
+  stream->add_option("--l-interval", out->stream.latency.interval)->default_val(1024);
+  stream->add_option("--l-out", out->stream.latency.file,
                      "CSV file to dump latency measurements in. "
                      "If not supplied, no information is dumped.");
   AddConvertOpts(stream, &out->stream.converter);
@@ -219,9 +209,8 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   AddArrowOpts(stream, &schema_file);
   AddPulsarOpts(stream, &out->stream.pulsar);
 
-
   // 'bench' subcommand:
-  auto *bench =
+  auto* bench =
       app.add_subcommand("bench", "Run micro-benchmarks on isolated pipeline stages.")
           ->require_subcommand();
   AddStatsOpts(bench, &csv);
@@ -230,11 +219,11 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   // Attempt to parse the CLI arguments.
   try {
     app.parse(argc, argv);
-  } catch (CLI::CallForHelp &e) {
+  } catch (CLI::CallForHelp& e) {
     // User wants to see help.
     std::cout << app.help() << std::endl;
     return Status::OK();
-  } catch (CLI::Error &e) {
+  } catch (CLI::Error& e) {
     // There is some CLI error.
     std::cerr << app.help() << std::endl;
     return Status(Error::CLIError, "CLI Error: " + e.get_name() + ":" + e.what());
@@ -256,10 +245,10 @@ auto AppOptions::FromArguments(int argc, char **argv, AppOptions *out) -> Status
   read_options.use_threads = false;
   read_options.block_size = 2 * read_options.block_size;
 
-//  if (file->parsed()) {
-//    out->sub = SubCommand::FILE;
-//    out->file.succinct = out->succinct;
-//  } else
+  //  if (file->parsed()) {
+  //    out->sub = SubCommand::FILE;
+  //    out->file.succinct = out->succinct;
+  //  } else
   if (stream->parsed()) {
     out->sub = SubCommand::STREAM;
 

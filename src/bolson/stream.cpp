@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "bolson/stream.h"
+
+#include <putong/timer.h>
+
 #include <iostream>
 #include <memory>
 #include <thread>
 #include <vector>
-#include <putong/timer.h>
 
 #include "bolson/latency.h"
-#include "bolson/status.h"
-#include "bolson/stream.h"
-#include "bolson/pulsar.h"
-#include "bolson/utils.h"
 #include "bolson/parse/arrow_impl.h"
 #include "bolson/parse/opae_battery_impl.h"
+#include "bolson/pulsar.h"
+#include "bolson/status.h"
+#include "bolson/utils.h"
 
 namespace bolson {
 
@@ -51,10 +53,8 @@ struct StreamThreads {
 };
 
 /// \brief Log the statistics.
-static void LogStreamStats(const StreamTimers &timers,
-                           const illex::RawClient &client,
-                           const std::vector<Stats> &conv_stats,
-                           const PublishStats &pub_stats) {
+static void LogStreamStats(const StreamTimers &timers, const illex::RawClient &client,
+                           const std::vector<Stats> &conv_stats, const PublishStats &pub_stats) {
   auto all = AggrStats(conv_stats);
   spdlog::info("Initialization");
   spdlog::info("  Time : {}", timers.init.seconds());
@@ -88,7 +88,6 @@ static void LogStreamStats(const StreamTimers &timers,
   spdlog::info("Timers:");
   spdlog::info("  Steady?         : {}", putong::Timer<>::steady());
   spdlog::info("  Resolution      : {} us", putong::Timer<>::resolution_us());
-
 }
 
 // Macro to shut down threads in ProduceFromStream whenever Illex client returns some
@@ -100,7 +99,8 @@ static void LogStreamStats(const StreamTimers &timers,
       threads.Shutdown(converter);                      \
       return Status(Error::IllexError, __status.msg()); \
     }                                                   \
-  } void()
+  }                                                     \
+  void()
 
 auto ProduceFromStream(const StreamOptions &opt) -> Status {
   // Timers for throughput
@@ -126,7 +126,8 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Select allocator.
     std::shared_ptr<buffer::Allocator> allocator;
     switch (opt.converter.implementation) {
-      case parse::Impl::ARROW:allocator = std::make_shared<buffer::Allocator>();
+      case parse::Impl::ARROW:
+        allocator = std::make_shared<buffer::Allocator>();
         break;
       case parse::Impl::OPAE_BATTERY:
         allocator = std::make_shared<buffer::OpaeAllocator>();
@@ -142,23 +143,16 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
 
     // Spawn the publish thread, which pulls from the IPC queue and publishes the IPC
     // messages in Pulsar.
-    threads.publish_thread = std::make_unique<std::thread>(PublishThread,
-                                                           std::move(pulsar),
-                                                           &ipc_queue,
-                                                           &threads.shutdown,
-                                                           &threads.publish_count,
-                                                           std::move(pub_stats_promise));
+    threads.publish_thread =
+        std::make_unique<std::thread>(PublishThread, std::move(pulsar), &ipc_queue, &threads.shutdown,
+                                      &threads.publish_count, std::move(pub_stats_promise));
 
     // Set up the client that receives incoming JSONs.
     // We must shut down the already spawned threads in case the client returns some
     // errors.
     illex::DirectBufferClient client;
-    SHUTDOWN_ON_FAILURE(illex::DirectBufferClient::Create(std::get<illex::RawProtocol>(opt.protocol),
-                                                          opt.hostname,
-                                                          0,
-                                                          converter->mutable_buffers(),
-                                                          converter->mutexes(),
-                                                          &client));
+    SHUTDOWN_ON_FAILURE(illex::DirectBufferClient::Create(std::get<illex::RawProtocol>(opt.protocol), opt.hostname, 0,
+                                                          converter->mutable_buffers(), converter->mutexes(), &client));
 
     timers.init.Stop();
 
@@ -173,17 +167,14 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
     // Once the server disconnects, we can work towards finishing down this function.
     // Wait until all JSONs have been published, or if either the publish or converter
     // thread have asserted the shutdown signal. The latter indicates some error.
-    while ((client.received() != threads.publish_count.load())
-        && !threads.shutdown.load()) {
+    while ((client.received() != threads.publish_count.load()) && !threads.shutdown.load()) {
       // TODO: use some conditional variable for this
       // Sleep this thread for a bit.
       std::this_thread::sleep_for(std::chrono::milliseconds(BOLSON_QUEUE_WAIT_US));
 #ifndef NDEBUG
       // Sleep a bit longer in debug.
       std::this_thread::sleep_for(std::chrono::milliseconds(100 * BOLSON_QUEUE_WAIT_US));
-      SPDLOG_DEBUG("Received: {}, Published: {}",
-                   client.received(),
-                   threads.publish_count.load());
+      SPDLOG_DEBUG("Received: {}, Published: {}", client.received(), threads.publish_count.load());
 #endif
     }
 

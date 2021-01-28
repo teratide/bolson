@@ -14,19 +14,20 @@
 
 #pragma once
 
-#include <memory>
-#include <future>
 #include <arrow/api.h>
-#include <pulsar/Client.h>
-#include <pulsar/Producer.h>
-#include <putong/timer.h>
 #include <blockingconcurrentqueue.h>
 #include <illex/latency.h>
 #include <illex/protocol.h>
+#include <pulsar/Client.h>
+#include <pulsar/Producer.h>
+#include <putong/timer.h>
 
+#include <future>
+#include <memory>
+
+#include "bolson/convert/serializer.h"
 #include "bolson/log.h"
 #include "bolson/status.h"
-#include "bolson/convert/serializer.h"
 
 namespace bolson {
 
@@ -83,9 +84,8 @@ struct PublishStats {
  * \param out    A context including the client and producer.
  * \return       Status::OK() if successful, some error otherwise.
  */
-auto SetupClientProducer(const std::string &url,
-                         const std::string &topic,
-                         PulsarContext *out) -> Status;
+auto SetupClientProducer(const std::string& url, const std::string& topic,
+                         PulsarContext* out) -> Status;
 
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
@@ -94,7 +94,7 @@ auto SetupClientProducer(const std::string &url,
  * \param size        The size of the buffer.
  * \return            Status::OK() if successful, some error otherwise.
  */
-auto Publish(pulsar::Producer *producer, const uint8_t *buffer, size_t size) -> Status;
+auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> Status;
 
 /**
  * \brief A thread to pull IPC messages from the queue and publish them to a Pulsar queue.
@@ -104,18 +104,15 @@ auto Publish(pulsar::Producer *producer, const uint8_t *buffer, size_t size) -> 
  * \param count         The number of published messages.
  * \param stats         Statistics about this thread.
  */
-void PublishThread(PulsarContext pulsar,
-                   IpcQueue *in,
-                   std::atomic<bool> *shutdown,
-                   std::atomic<size_t> *count,
-                   std::promise<PublishStats> &&stats);
+void PublishThread(PulsarContext pulsar, IpcQueue* in, std::atomic<bool>* shutdown,
+                   std::atomic<size_t>* count, std::promise<PublishStats>&& stats);
 
 /**
  * \brief Factory function for the custom Pulsar logger.
  */
 class bolsonLoggerFactory : public pulsar::LoggerFactory {
  public:
-  auto getLogger(const std::string &file) -> pulsar::Logger * override;
+  auto getLogger(const std::string& file) -> pulsar::Logger* override;
   static auto create() -> std::unique_ptr<bolsonLoggerFactory>;
 };
 

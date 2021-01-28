@@ -12,29 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cmath>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <arrow/ipc/api.h>
+#include "bolson/utils.h"
+
 #include <arrow/io/api.h>
+#include <arrow/ipc/api.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 
-#include "bolson/utils.h"
+#include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+
 #include "bolson/status.h"
 
 namespace bolson {
 
-auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData> &array_data) -> int64_t {
+auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData>& array_data) -> int64_t {
   int64_t result = 0;
 
   // First obtain the size of all children:
-  for (const auto &child : array_data->child_data) {
+  for (const auto& child : array_data->child_data) {
     result += GetArrayDataSize(child);
   }
   // Obtain the size of all buffers at this level of ArrayData
-  for (const auto &buffer : array_data->buffers) {
+  for (const auto& buffer : array_data->buffers) {
     // Buffers can be nullptrs in Arrow, hurray.
     if (buffer != nullptr) {
       result += buffer->size();
@@ -44,29 +46,27 @@ auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData> &array_data) -> in
   return result;
 }
 
-auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch> &batch) -> int64_t {
+auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch>& batch) -> int64_t {
   int64_t batch_size = 0;
-  for (const auto &column : batch->columns()) {
+  for (const auto& column : batch->columns()) {
     batch_size += GetArrayDataSize(column->data());
   }
   return batch_size;
 }
 
-void ReportGBps(const std::string &text, size_t bytes, double s, bool succinct) {
+void ReportGBps(const std::string& text, size_t bytes, double s, bool succinct) {
   double GB = static_cast<double>(bytes) * std::pow(10.0, -9);
   if (succinct) {
     std::cout << s << ", " << (GB / s) << ", ";
   } else {
-    std::cout << std::setw(42) << std::left << text << ": "
-              << std::setw(8) << std::setprecision(3) << s << " s | "
-              << std::setw(8) << std::setprecision(3) << (GB / s) << " GB/s"
-              << std::endl;
+    std::cout << std::setw(42) << std::left << text << ": " << std::setw(8)
+              << std::setprecision(3) << s << " s | " << std::setw(8)
+              << std::setprecision(3) << (GB / s) << " GB/s" << std::endl;
   }
 }
 
-auto LoadFile(const std::string &file_name,
-              size_t num_bytes,
-              std::vector<char> *dest) -> Status {
+auto LoadFile(const std::string& file_name, size_t num_bytes, std::vector<char>* dest)
+    -> Status {
   std::ifstream ifs(file_name, std::ios::binary);
   dest->reserve(num_bytes + 1);
   if (!ifs.read(dest->data(), num_bytes)) {
@@ -76,8 +76,8 @@ auto LoadFile(const std::string &file_name,
   return Status::OK();
 }
 
-auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> arrow::Result<
-    std::shared_ptr<arrow::Buffer>> {
+auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch>& batch)
+    -> arrow::Result<std::shared_ptr<arrow::Buffer>> {
   auto buffer = arrow::io::BufferOutputStream::Create(GetBatchSize(batch));
   if (!buffer.ok()) return arrow::Result<std::shared_ptr<arrow::Buffer>>(buffer.status());
 
@@ -93,15 +93,15 @@ auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch> &batch) -> 
   return buffer.ValueOrDie()->Finish();
 }
 
-auto ConvertParserError(const rapidjson::Document &doc,
-                        const std::vector<char> &file_buffer) -> std::string {
+auto ConvertParserError(const rapidjson::Document& doc,
+                        const std::vector<char>& file_buffer) -> std::string {
   std::stringstream ss;
   auto code = doc.GetParseError();
   auto offset = doc.GetErrorOffset();
   ss << "  Parser error: " << rapidjson::GetParseError_En(code) << std::endl;
   ss << "  Offset: " << offset << std::endl;
-  ss << "  Character: " << file_buffer[offset] << " / 0x"
-     << std::hex << static_cast<uint8_t>(file_buffer[offset]) << std::endl;
+  ss << "  Character: " << file_buffer[offset] << " / 0x" << std::hex
+     << static_cast<uint8_t>(file_buffer[offset]) << std::endl;
   ss << "  Around: "
      << std::string_view(&file_buffer[offset < 40UL ? 0 : offset - 40],
                          std::min(40UL, file_buffer.size()))

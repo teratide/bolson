@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "./pulsar.h"
+#include "bolson/pulsar.h"
 
 namespace bolson {
 
@@ -33,6 +33,6 @@ struct FileOptions {
  * \param opt Options for the file subcommand.
  * \return Status::OK() if successful, some error otherwise.
  */
-auto ProduceFromFile(const FileOptions &opt) -> Status;
+auto ProduceFromFile(const FileOptions& opt) -> Status;
 
 }  // namespace bolson

@@ -30,10 +30,11 @@ class OpaeAllocator : public Allocator {
   // TODO: Temporary work-around for limitations to the OPAE platform.
   static constexpr size_t opae_fixed_capacity = 1024 * 1024 * 1024;
 
-  auto Allocate(size_t size, std::byte **out) -> Status override;
-  auto Free(std::byte *buffer) -> Status override;
+  auto Allocate(size_t size, std::byte** out) -> Status override;
+  auto Free(std::byte* buffer) -> Status override;
+
  private:
-  std::unordered_map<void *, size_t> allocations;
+  std::unordered_map<void*, size_t> allocations;
 };
 
-}
+}  // namespace bolson::buffer

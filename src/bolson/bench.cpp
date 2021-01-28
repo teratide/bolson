@@ -12,33 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <thread>
-#include <memory>
+#include "bolson/bench.h"
 
 #include <blockingconcurrentqueue.h>
-#include <putong/timer.h>
 #include <illex/arrow.h>
+#include <putong/timer.h>
 
-#include "bolson/bench.h"
-#include "bolson/utils.h"
-#include "bolson/status.h"
-#include "bolson/pulsar.h"
+#include <iostream>
+#include <memory>
+#include <thread>
+
 #include "bolson/buffer/allocator.h"
 #include "bolson/buffer/opae_allocator.h"
-#include "bolson/parse/parser.h"
-#include "bolson/parse/opae_battery_impl.h"
-#include "bolson/parse/arrow_impl.h"
 #include "bolson/convert/converter.h"
 #include "bolson/convert/stats.h"
+#include "bolson/parse/arrow_impl.h"
+#include "bolson/parse/opae_battery_impl.h"
+#include "bolson/parse/parser.h"
+#include "bolson/pulsar.h"
+#include "bolson/status.h"
+#include "bolson/utils.h"
 
 namespace bolson {
 
-auto GenerateJSONs(size_t num_jsons,
-                   const arrow::Schema &schema,
-                   const illex::GenerateOptions &gen_opts,
-                   std::vector<illex::JSONQueueItem> *items)
--> std::pair<size_t, size_t> {
+auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
+                   const illex::GenerateOptions& gen_opts,
+                   std::vector<illex::JSONQueueItem>* items)
+    -> std::pair<size_t, size_t> {
   size_t largest = 0;
   // Generate a message with tweets in JSON format.
   auto gen = illex::FromArrowSchema(schema, gen_opts);
@@ -47,15 +47,17 @@ auto GenerateJSONs(size_t num_jsons,
   size_t raw_chars = 0;
   for (size_t i = 0; i < num_jsons; i++) {
     auto json = gen.GetString();
-    if (json.size() > largest) { largest = json.size(); }
+    if (json.size() > largest) {
+      largest = json.size();
+    }
     raw_chars += json.size();
     items->push_back(illex::JSONQueueItem{i, json});
   }
   return {raw_chars, largest};
 }
 
-void FillBuffers(std::vector<illex::RawJSONBuffer *> buffers,
-                 const std::vector<illex::JSONQueueItem> &jsons) {
+void FillBuffers(std::vector<illex::RawJSONBuffer*> buffers,
+                 const std::vector<illex::JSONQueueItem>& jsons) {
   auto items_per_buffer = jsons.size() / buffers.size();
   auto items_first_buf = jsons.size() % buffers.size();
   size_t item = 0;
@@ -65,9 +67,8 @@ void FillBuffers(std::vector<illex::RawJSONBuffer *> buffers,
     auto buffer_num_items = items_per_buffer + (b == 0 ? items_first_buf : 0);
     auto first = item;
     for (size_t j = 0; j < buffer_num_items; j++) {
-      std::memcpy(buffers[b]->mutable_data() + offset,
-          jsons[item].string.data(),
-          jsons[item].string.length());
+      std::memcpy(buffers[b]->mutable_data() + offset, jsons[item].string.data(),
+                  jsons[item].string.length());
       offset += jsons[item].string.length();
       *(buffers[b]->mutable_data() + offset) = static_cast<std::byte>('\n');
       offset++;
@@ -96,7 +97,7 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status {
   t_gen.Stop();
 
   auto gen_bytes = bytes_largest.first;
-  auto max_json = bytes_largest.second + 1; // + 1 for newline.
+  auto max_json = bytes_largest.second + 1;  // + 1 for newline.
 
   spdlog::info("Initializing converter...");
   t_init.Start();
@@ -108,8 +109,8 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status {
 
   if (opt.converter.buf_capacity == 0) {
     // Calculate buffer capacity.
-    opt.converter.buf_capacity = opt.converter.num_threads * max_json
-        + (opt.num_jsons * max_json) / opt.converter.num_threads;
+    opt.converter.buf_capacity = opt.converter.num_threads * max_json +
+                                 (opt.num_jsons * max_json) / opt.converter.num_threads;
   }
 
   // Set up output queue.
@@ -145,10 +146,8 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status {
   // Pull JSON ipc items from the queue to check when we are done.
   while (num_rows != opt.num_jsons) {
     ipc_queue.wait_dequeue(ipc_item);
-    SPDLOG_DEBUG("Popped IPC item of {} rows {}/{}",
-        RecordSizeOf(ipc_item),
-        num_rows,
-        opt.num_jsons);
+    SPDLOG_DEBUG("Popped IPC item of {} rows {}/{}", RecordSizeOf(ipc_item), num_rows,
+                 opt.num_jsons);
     num_rows += RecordSizeOf(ipc_item);
     ipc_size += ipc_item.message->size();
     num_ipc++;
@@ -189,7 +188,7 @@ using Queue = moodycamel::BlockingConcurrentQueue<uint8_t>;
 using QueueTimers = std::vector<putong::SplitTimer<2>>;
 
 // Thread to dequeue
-static void Dequeue(const QueueBenchOptions &opt, Queue *queue, QueueTimers *timers) {
+static void Dequeue(const QueueBenchOptions& opt, Queue* queue, QueueTimers* timers) {
   uint64_t o = 0;
   for (size_t i = 0; i < opt.num_items; i++) {
     queue->wait_dequeue(o);
@@ -197,7 +196,7 @@ static void Dequeue(const QueueBenchOptions &opt, Queue *queue, QueueTimers *tim
   }
 }
 
-auto BenchQueue(const QueueBenchOptions &opt) -> Status {
+auto BenchQueue(const QueueBenchOptions& opt) -> Status {
   // Make a queue
   Queue queue;
   // Make timers.
@@ -218,7 +217,7 @@ auto BenchQueue(const QueueBenchOptions &opt) -> Status {
 
   size_t i = 0;
   std::cout << "Item,Enqueue,Dequeue" << std::endl;
-  for (const auto &t: timers) {
+  for (const auto& t : timers) {
     std::cout << i << ",";
     i++;
     std::cout << std::setprecision(9) << std::fixed << t.seconds()[0] << ",";
@@ -229,7 +228,7 @@ auto BenchQueue(const QueueBenchOptions &opt) -> Status {
   return Status::OK();
 }
 
-auto BenchPulsar(const PulsarBenchOptions &opt) -> Status {
+auto BenchPulsar(const PulsarBenchOptions& opt) -> Status {
   if (!opt.csv) {
     spdlog::info("Number of messages : {}", opt.num_messages);
     spdlog::info("Message size       : {} bytes", opt.message_size);
@@ -243,7 +242,7 @@ auto BenchPulsar(const PulsarBenchOptions &opt) -> Status {
   putong::Timer<> t;
 
   // Allocate some buffer.
-  auto *junk = static_cast<uint8_t *>(std::malloc(opt.message_size));
+  auto* junk = static_cast<uint8_t*>(std::malloc(opt.message_size));
   // Clear the buffer.
   std::memset(junk, 0, opt.message_size);
 
@@ -263,26 +262,30 @@ auto BenchPulsar(const PulsarBenchOptions &opt) -> Status {
   } else {
     // Print stats.
     spdlog::info("Time               : {} s", t.seconds());
-    spdlog::info("Goodput            : {} MB/s",
-        1E-6 * static_cast<double>(opt.num_messages * opt.message_size)
-            / t.seconds());
+    spdlog::info(
+        "Goodput            : {} MB/s",
+        1E-6 * static_cast<double>(opt.num_messages * opt.message_size) / t.seconds());
   }
 
   return Status::OK();
 }
 
-auto BenchClient(const ClientBenchOptions &opt) -> Status {
+auto BenchClient(const ClientBenchOptions& opt) -> Status {
   return Status(Error::GenericError, "Not yet implemented.");
 }
 
-auto RunBench(const BenchOptions &opt) -> Status {
+auto RunBench(const BenchOptions& opt) -> Status {
   switch (opt.bench) {
-    case Bench::CLIENT: return BenchClient(opt.client);
-    case Bench::CONVERT: return BenchConvert(opt.convert);
-    case Bench::PULSAR: return BenchPulsar(opt.pulsar);
-    case Bench::QUEUE: return BenchQueue(opt.queue);
+    case Bench::CLIENT:
+      return BenchClient(opt.client);
+    case Bench::CONVERT:
+      return BenchConvert(opt.convert);
+    case Bench::PULSAR:
+      return BenchPulsar(opt.pulsar);
+    case Bench::QUEUE:
+      return BenchQueue(opt.queue);
   }
   return Status::OK();
 }
 
-}
+}  // namespace bolson

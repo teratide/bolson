@@ -14,30 +14,31 @@
 
 #pragma once
 
-#include <vector>
-#include <putong/timer.h>
 #include <illex/latency.h>
+#include <putong/timer.h>
+
+#include <vector>
 
 #include "bolson/status.h"
 
 // Wait time for queues.
-#define BOLSON_QUEUE_WAIT_US          1
+#define BOLSON_QUEUE_WAIT_US 1
 
 // todo: move this into something better and relate the strings outputted in the csv
 // Time points measured.
 
-#define BOLSON_LAT_TCP_RECV           0 ///< Time point at which a JSON has arrived in the TCP buffer.
-#define BOLSON_LAT_TCP_UNWRAP         1 ///< Time point at which a JSON is unwrapped from the TCP buffer.
-#define BOLSON_LAT_BUFFER_ENTRY       2 ///< Time point at which a JSON enters the JSON buffer in a builder.
-#define BOLSON_LAT_BUFFER_FLUSH       3 ///< Time point at which a JSON is flushed from the buffer.
-#define BOLSON_LAT_BUFFER_PARSED      4 ///< Time point at which a JSON is parsed and converted to Arrow RecordBatch.
-#define BOLSON_LAT_BATCH_CONSTRUCTED  5 ///< Time point at which the batch the JSON is in is constructed with seq nrs.
-#define BOLSON_LAT_BATCH_COMBINED     6 ///< Time point at which the buffered batches are combined into one.
-#define BOLSON_LAT_BATCH_SERIALIZED   7 ///< Time point at which the combined batch is serlized into an IPC message.
-#define BOLSON_LAT_PUBLISH_DEQUEUE    8 ///< Time point at which the combined batch is dequeued in the Pulsar publish thread.
-#define BOLSON_LAT_MESSAGE_BUILT      9 ///< Time point at which the Pulsar message with the batch is constructed.
-#define BOLSON_LAT_MESSAGE_SENT      10 ///< Time point at which the Pulsar message was successfully sent.
-#define BOLSON_LAT_NUM_POINTS        11 ///< Total number of time points for latency measurement.
+#define BOLSON_LAT_TCP_RECV 0           ///< Time point at which a JSON has arrived in the TCP buffer.
+#define BOLSON_LAT_TCP_UNWRAP 1         ///< Time point at which a JSON is unwrapped from the TCP buffer.
+#define BOLSON_LAT_BUFFER_ENTRY 2       ///< Time point at which a JSON enters the JSON buffer in a builder.
+#define BOLSON_LAT_BUFFER_FLUSH 3       ///< Time point at which a JSON is flushed from the buffer.
+#define BOLSON_LAT_BUFFER_PARSED 4      ///< Time point at which a JSON is parsed and converted to Arrow RecordBatch.
+#define BOLSON_LAT_BATCH_CONSTRUCTED 5  ///< Time point at which the batch the JSON is in is constructed with seq nrs.
+#define BOLSON_LAT_BATCH_COMBINED 6     ///< Time point at which the buffered batches are combined into one.
+#define BOLSON_LAT_BATCH_SERIALIZED 7   ///< Time point at which the combined batch is serlized into an IPC message.
+#define BOLSON_LAT_PUBLISH_DEQUEUE 8    ///< Time point at which the combined batch is dequeued in the Pulsar publish thread.
+#define BOLSON_LAT_MESSAGE_BUILT 9      ///< Time point at which the Pulsar message with the batch is constructed.
+#define BOLSON_LAT_MESSAGE_SENT 10      ///< Time point at which the Pulsar message was successfully sent.
+#define BOLSON_LAT_NUM_POINTS 11        ///< Total number of time points for latency measurement.
 
 namespace bolson {
 
@@ -57,7 +58,6 @@ struct LatencyOptions {
  * \param lat_tracker   The latency tracker from which to get the measurements.
  * \return Status::OK() if successful, some error otherwise.
  */
-auto LogLatencyCSV(const std::string &file,
-                   const illex::LatencyTracker &lat_tracker) -> Status;
+auto LogLatencyCSV(const std::string &file, const illex::LatencyTracker &lat_tracker) -> Status;
 
-}
+}  // namespace bolson

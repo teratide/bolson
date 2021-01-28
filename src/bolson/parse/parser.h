@@ -43,7 +43,7 @@ class Parser {
    * \param out The buffer with the parsed data represented as Arrow RecordBatch.
    * \return Status::OK() if successful, some error otherwise.
    */
-  virtual auto Parse(illex::RawJSONBuffer *in, ParsedBatch *out) -> Status = 0;
+  virtual auto Parse(illex::RawJSONBuffer* in, ParsedBatch* out) -> Status = 0;
 };
 
 /// Available parser implementations.
@@ -53,6 +53,6 @@ enum class Impl {
 };
 
 /// \brief Convert an implementation enum to a human-readable string.
-auto ToString(const Impl &impl) -> std::string;
+auto ToString(const Impl& impl) -> std::string;
 
-}
+}  // namespace bolson::parse
