@@ -120,11 +120,4 @@ add_compile_unit(
     bolson::obj
 )
 
-include_directories(include)
-
 compile_units()
-
-option(TRACK_LATENCY ON "Enable internal pipeline latency tracking of single JSONs")
-if (TRACK_LATENCY)
-  target_compile_definitions(bolson PUBLIC BOLSON_WITH_LATENCY)
-endif()

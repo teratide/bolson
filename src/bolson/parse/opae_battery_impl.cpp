@@ -13,7 +13,8 @@
 // limitations under the License.
 
 #include <utility>
-#include <sys/mman.h>
+#include <thread>
+#include <chrono>
 
 #include <arrow/api.h>
 #include <arrow/ipc/api.h>
@@ -27,6 +28,7 @@
 #include "bolson/parse/parser.h"
 #include "bolson/parse/opae_battery_impl.h"
 #include "bolson/latency.h"
+#include "bolson/log.h"
 
 /// Return Bolson error status when Fletcher error status is supplied.
 #define FLETCHER_ROE(s) {                                                               \
@@ -45,8 +47,8 @@ auto OpaeBatteryParserManager::PrepareInputBatches(
     auto array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), buf->capacity(), wrapped);
     batches_in.push_back(arrow::RecordBatch::Make(OpaeBatteryParser::input_schema(),
-                                                  buf->capacity(),
-                                                  {array}));
+        buf->capacity(),
+        {array}));
   }
   return Status::OK();
 }
@@ -65,15 +67,15 @@ auto OpaeBatteryParserManager::PrepareOutputBatches() -> Status {
     auto values_array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, values_buffer);
     auto list_array = std::make_shared<arrow::ListArray>(OpaeBatteryParser::output_type(),
-                                                         0,
-                                                         offset_buffer,
-                                                         values_array);
+        0,
+        offset_buffer,
+        values_array);
     std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
     raw_out_offsets.push_back(offsets);
     raw_out_values.push_back(values);
     batches_out.push_back(arrow::RecordBatch::Make(OpaeBatteryParser::output_schema(),
-                                                   0,
-                                                   arrays));
+        0,
+        arrays));
   }
 
   return Status::OK();
@@ -88,7 +90,7 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
   if (opts.afu_id.empty()) {
     if (num_parsers > 255) {
       return Status(Error::OpaeError,
-                    "Number of parsers larger than 255 is not supported.");
+          "Number of parsers larger than 255 is not supported.");
     }
     std::stringstream ss;
     ss << std::setw(2) << std::setfill('0') << std::hex << num_parsers;
@@ -140,12 +142,13 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
   // Workaround to obtain buffer device address.
   for (size_t i = 0; i < result->context->num_buffers(); i++) {
     const auto *ha =
-        reinterpret_cast<const std::byte *>(result->context->device_buffer(i).host_address);
+        reinterpret_cast<const std::byte *>(result->context->device_buffer(i)
+                                                  .host_address);
     auto da = result->context->device_buffer(i).device_address;
     result->h2d_addr_map[ha] = da;
     SPDLOG_DEBUG("  H: 0x{:016X} <--> D: 0x{:016X}",
-                 reinterpret_cast<uint64_t>(ha),
-                 da);
+        reinterpret_cast<uint64_t>(ha),
+        da);
   }
 
   SPDLOG_DEBUG("Preparing parsers.");
@@ -160,14 +163,14 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions &opts,
 auto OpaeBatteryParserManager::PrepareParsers() -> Status {
   for (size_t i = 0; i < num_parsers_; i++) {
     parsers_.push_back(std::make_shared<OpaeBatteryParser>(platform.get(),
-                                                           context.get(),
-                                                           kernel.get(),
-                                                           &h2d_addr_map,
-                                                           i,
-                                                           num_parsers_,
-                                                           raw_out_offsets[i],
-                                                           raw_out_values[i],
-                                                           &platform_mutex));
+        context.get(),
+        kernel.get(),
+        &h2d_addr_map,
+        i,
+        num_parsers_,
+        raw_out_offsets[i],
+        raw_out_values[i],
+        &platform_mutex));
   }
   return Status::OK();
 }
@@ -216,11 +219,11 @@ static inline auto WriteMMIO(fletcher::Platform *platform,
                              size_t idx,
                              std::string desc = "") -> fletcher::Status {
   SPDLOG_DEBUG("Thread {:2} | MMIO WRITE 0x{:08X} --> [off:{:4}] [@ 0x{:04X}] {}",
-               idx,
-               value,
-               offset,
-               64 + 4 * offset,
-               desc);
+      idx,
+      value,
+      offset,
+      64 + 4 * offset,
+      desc);
   return platform->WriteMMIO(offset, value);
 }
 
@@ -231,16 +234,16 @@ static inline auto ReadMMIO(fletcher::Platform *platform,
                             std::string desc = "") -> fletcher::Status {
   auto status = platform->ReadMMIO(offset, value);
   SPDLOG_DEBUG("Thread {:2} | MMIO READ  0x{:08X} <-- [off:{:4}] [@ 0x{:04X}] {}",
-               idx,
-               *value,
-               offset,
-               64 + 4 * offset,
-               desc);
+      idx,
+      *value,
+      offset,
+      64 + 4 * offset,
+      desc);
   return status;
 }
 
 auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
-                              ParsedBuffer *out) -> Status {
+                              ParsedBatch *out) -> Status {
   platform_mutex->lock();
   SPDLOG_DEBUG("Thread {:2} | Obtained platform lock", idx_);
   SPDLOG_DEBUG("Thread {:2} | Attempting to parse buffer:\n {}", idx_, ToString(*in));
@@ -252,24 +255,24 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
 
   // rewrite the input last index because of opae limitations.
   FLETCHER_ROE(WriteMMIO(platform_,
-                         input_lastidx_offset(idx_),
-                         in->size(),
-                         idx_,
-                         "input last idx"));
+      input_lastidx_offset(idx_),
+      in->size(),
+      idx_,
+      "input last idx"));
 
   dau_t input_addr;
   input_addr.full = h2d_addr_map->at(in->data());
 
   FLETCHER_ROE(WriteMMIO(platform_,
-                         input_values_lo_offset(idx_),
-                         input_addr.lo,
-                         idx_,
-                         "in values addr lo"));
+      input_values_lo_offset(idx_),
+      input_addr.lo,
+      idx_,
+      "in values addr lo"));
   FLETCHER_ROE(WriteMMIO(platform_,
-                         input_values_hi_offset(idx_),
-                         input_addr.hi,
-                         idx_,
-                         "in values addr hi"));
+      input_values_hi_offset(idx_),
+      input_addr.hi,
+      idx_,
+      "in values addr hi"));
 
   //FLETCHER_ROE(kernel_->Start());
   FLETCHER_ROE(WriteMMIO(platform_, ctrl_offset(idx_), ctrl_start, idx_, "ctrl"));
@@ -309,18 +312,19 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer *in,
 
   std::shared_ptr<arrow::RecordBatch> out_batch;
   BOLSON_ROE(WrapOutput(num_rows.full,
-                        reinterpret_cast<uint8_t *>(raw_out_offsets),
-                        reinterpret_cast<uint8_t *>(raw_out_values),
-                        output_schema(),
-                        &out_batch));
+      reinterpret_cast<uint8_t *>(raw_out_offsets),
+      reinterpret_cast<uint8_t *>(raw_out_values),
+      output_schema(),
+      &out_batch));
 
   SPDLOG_DEBUG("Thread {:2} | RecordBatch result:", idx_);
   SPDLOG_DEBUG("  Rows    : {}", out_batch->num_rows());
   SPDLOG_DEBUG("  Content :\n{}", out_batch->ToString());
 
-  ParsedBuffer result;
-  result.parsed_bytes = in->size();
+  ParsedBatch result;
   result.batch = out_batch;
+  result.seq_range = in->range();
+
   *out = result;
 
   return Status::OK();

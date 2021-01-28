@@ -66,8 +66,8 @@ void FillBuffers(std::vector<illex::RawJSONBuffer *> buffers,
     auto first = item;
     for (size_t j = 0; j < buffer_num_items; j++) {
       std::memcpy(buffers[b]->mutable_data() + offset,
-                  jsons[item].string.data(),
-                  jsons[item].string.length());
+          jsons[item].string.data(),
+          jsons[item].string.length());
       offset += jsons[item].string.length();
       *(buffers[b]->mutable_data() + offset) = static_cast<std::byte>('\n');
       offset++;
@@ -146,11 +146,11 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status {
   while (num_rows != opt.num_jsons) {
     ipc_queue.wait_dequeue(ipc_item);
     SPDLOG_DEBUG("Popped IPC item of {} rows {}/{}",
-                 ipc_item.num_rows,
-                 num_rows,
-                 opt.num_jsons);
-    num_rows += ipc_item.num_rows;
-    ipc_size += ipc_item.ipc->size();
+        RecordSizeOf(ipc_item),
+        num_rows,
+        opt.num_jsons);
+    num_rows += RecordSizeOf(ipc_item);
+    ipc_size += ipc_item.message->size();
     num_ipc++;
   }
 
@@ -264,8 +264,8 @@ auto BenchPulsar(const PulsarBenchOptions &opt) -> Status {
     // Print stats.
     spdlog::info("Time               : {} s", t.seconds());
     spdlog::info("Goodput            : {} MB/s",
-                 1E-6 * static_cast<double>(opt.num_messages * opt.message_size)
-                     / t.seconds());
+        1E-6 * static_cast<double>(opt.num_messages * opt.message_size)
+            / t.seconds());
   }
 
   return Status::OK();

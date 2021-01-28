@@ -47,7 +47,7 @@ auto SetupClientProducer(const std::string &url,
 auto Publish(pulsar::Producer *producer, const uint8_t *buffer, size_t size) -> Status {
   pulsar::Message
       msg = pulsar::MessageBuilder().setAllocatedContent(const_cast<uint8_t *>(buffer),
-                                                         size).build();
+      size).build();
   CHECK_PULSAR(producer->send(msg));
 
   return Status::OK();
@@ -68,21 +68,21 @@ void PublishThread(PulsarContext pulsar,
   IpcQueueItem ipc_item;
   while (!shutdown->load()) {
     if (in->wait_dequeue_timed(ipc_item,
-                               std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
+        std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
       // Start measuring time to handle an IPC message on the Pulsar side.
       publish_timer.Start();
 
       auto status = Publish(pulsar.producer.get(),
-                            ipc_item.ipc->data(),
-                            ipc_item.ipc->size());
+          ipc_item.message->data(),
+          ipc_item.message->size());
 
       // Deal with Pulsar errors.
       // In case the Producer causes some error, shut everything down.
       if (!status.ok()) {
         spdlog::error("Pulsar error: {} for message of size {} B with {} rows.",
-                      status.msg(),
-                      ipc_item.ipc->size(),
-                      ipc_item.num_rows);
+            status.msg(),
+            ipc_item.message->size(),
+            ipc_item.seq_range.last - ipc_item.seq_range.first);
         pulsar.producer->close();
         pulsar.client->close();
         // Fulfill the promise.
@@ -94,11 +94,11 @@ void PublishThread(PulsarContext pulsar,
 
       // Add number of rows in IPC message to the count, signaling the main thread how
       // many JSONs are published.
-      count->fetch_add(ipc_item.num_rows);
+      count->fetch_add(RecordSizeOf(ipc_item));
 
       // Update some statistics.
       s.num_ipc_published++;
-      s.num_jsons_published += ipc_item.num_rows;
+      s.num_jsons_published += RecordSizeOf(ipc_item);
       publish_timer.Stop();
       s.publish_time += publish_timer.seconds();
     }

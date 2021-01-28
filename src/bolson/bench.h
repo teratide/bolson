@@ -18,6 +18,7 @@
 #include <putong/timer.h>
 #include <illex/protocol.h>
 #include <illex/document.h>
+#include <illex/client_queued.h>
 
 #include "bolson/pulsar.h"
 #include "bolson/status.h"

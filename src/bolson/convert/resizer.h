@@ -16,15 +16,14 @@
 
 #include <vector>
 #include <arrow/api.h>
+#include <illex/client_buffered.h>
 
 #include "bolson/parse/parser.h"
 #include "bolson/status.h"
 
 namespace bolson::convert {
 
-struct ResizedBatches {
-  std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-};
+using ResizedBatches = std::vector<parse::ParsedBatch>;
 
 /**
  * \brief Resizes RecordBatches to not exceed a specific number of rows.
@@ -42,7 +41,7 @@ class Resizer {
    * \param out The resized RecordBatches.
    * \return Status::OK() if successful, some error otherwise.
    */
-  auto Resize(const parse::ParsedBuffer &in, ResizedBatches *out) -> Status;
+  auto Resize(const parse::ParsedBatch &in, ResizedBatches *out) -> Status;
  private:
   size_t max_rows;
 };

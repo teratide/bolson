@@ -21,13 +21,17 @@
 
 namespace bolson::convert {
 
-/**
- * \brief Structure to hold serialized RecordBatches as Arrow IPC messages.
- */
-struct SerializedBatches {
-  size_t total_bytes = 0;
-  std::vector<std::shared_ptr<arrow::Buffer>> messages;
+struct SerializedBatch {
+  std::shared_ptr<arrow::Buffer> message;
+  illex::SeqRange seq_range;
 };
+
+using SerializedBatches = std::vector<SerializedBatch>;
+
+auto RecordSizeOf(const SerializedBatch &batch) -> size_t;
+auto RecordSizeOf(const SerializedBatches &batches) -> size_t;
+
+auto ByteSizeOf(const SerializedBatches &batches) -> size_t;
 
 /**
  * \brief Class used to serialize a batch of Arrow RecordBatches into Arrow IPC messages.

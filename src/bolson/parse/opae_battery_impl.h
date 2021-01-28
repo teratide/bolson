@@ -62,7 +62,7 @@ class OpaeBatteryParser : public Parser {
         raw_out_values(raw_out_values),
         platform_mutex(platform_mutex) {}
 
-  auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status override;
+  auto Parse(illex::RawJSONBuffer *in, ParsedBatch *out) -> Status override;
 
  private:
   static const uint32_t stat_idle = (1u << 0u);

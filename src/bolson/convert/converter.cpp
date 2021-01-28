@@ -99,7 +99,7 @@ void ConvertThread(size_t id,
       if (TryGetFilledBuffer(buffers, mutexes, &buf, &lock_idx)) {
         t_stages.Start();
         // Prepare intermediate wrappers.
-        parse::ParsedBuffer parsed;
+        parse::ParsedBatch parsed;
         ResizedBatches resized;
         SerializedBatches serialized;
 
@@ -110,7 +110,7 @@ void ConvertThread(size_t id,
         // Reset and unlock the buffer.
         // Add sizes stats before buffer is converted and reset.
         stats->num_jsons += parsed.batch->num_rows();
-        stats->json_bytes += parsed.parsed_bytes;
+        stats->json_bytes += buf->size();
         stats->num_parsed++;
         buf->Reset();
         mutexes[lock_idx]->unlock();
@@ -125,15 +125,13 @@ void ConvertThread(size_t id,
         // Serialize the batch.
         stats->status = serializer->Serialize(resized, &serialized);
         SHUTDOWN_ON_FAILURE();
-        stats->num_ipc += serialized.messages.size();
-        stats->ipc_bytes += serialized.total_bytes;
+        stats->num_ipc += serialized.size();
+        stats->ipc_bytes += ByteSizeOf(serialized);
         t_stages.Split();
 
         // Enqueue IPC items
-        for (size_t i = 0; i < serialized.messages.size(); i++) {
-          IpcQueueItem ipc{static_cast<size_t>(resized.batches[i]->num_rows()),
-                           serialized.messages[i], {}};
-          out->enqueue(ipc);
+        for (const auto sb : serialized) {
+          out->enqueue(sb);
         }
         t_stages.Split();
 
@@ -157,20 +155,20 @@ void ConvertThread(size_t id,
 }
 #undef SHUTDOWN_ON_FAILURE
 
-void Converter::Start(std::atomic<bool> *stop_signal) {
-  shutdown = stop_signal;
+void Converter::Start(std::atomic<bool> *shutdown) {
+  shutdown_ = shutdown;
 
   for (int t = 0; t < num_threads_; t++) {
     threads.emplace_back(ConvertThread,
-                         t,
-                         parsers[t].get(),
-                         &resizers[t],
-                         &serializers[t],
-                         mutable_buffers(),
-                         mutexes(),
-                         output_queue_,
-                         shutdown,
-                         &stats[t]);
+        t,
+        parsers[t].get(),
+        &resizers[t],
+        &serializers[t],
+        mutable_buffers(),
+        mutexes(),
+        output_queue_,
+        shutdown_,
+        &stats[t]);
   }
 }
 
@@ -183,7 +181,7 @@ auto Converter::Finish() -> Status {
       if (!stats[t].status.ok()) {
         // If a thread returned some error status, shut everything down without waiting
         // for the caller to do so.
-        shutdown->store(true);
+        shutdown_->store(true);
       }
     }
   }
@@ -228,11 +226,9 @@ auto Converter::Make(const Options &opts,
   // Set up the Converter.
   size_t num_buffers = opts.num_buffers.value_or(opts.num_threads);
 
-  auto *converter_ptr = new convert::Converter(ipc_queue,
-                                               allocator.get(),
-                                               num_buffers,
-                                               opts.num_threads);
-  auto converter = std::shared_ptr<convert::Converter>(converter_ptr);
+  auto converter = std::shared_ptr<convert::Converter>(
+      new convert::Converter(ipc_queue, allocator, num_buffers, opts.num_threads)
+  );
 
   // Allocate buffers.
   switch (opts.implementation) {
@@ -243,9 +239,9 @@ auto Converter::Make(const Options &opts,
     case parse::Impl::OPAE_BATTERY: {
       if (opts.buf_capacity > buffer::OpaeAllocator::opae_fixed_capacity) {
         return Status(Error::OpaeError,
-                      "Cannot allocate buffers larger than "
-                          + std::to_string(buffer::OpaeAllocator::opae_fixed_capacity)
-                          + " bytes.");
+            "Cannot allocate buffers larger than "
+                + std::to_string(buffer::OpaeAllocator::opae_fixed_capacity)
+                + " bytes.");
       }
       BOLSON_ROE(converter->AllocateBuffers(buffer::OpaeAllocator::opae_fixed_capacity));
       break;
@@ -264,9 +260,9 @@ auto Converter::Make(const Options &opts,
     }
     case parse::Impl::OPAE_BATTERY: {
       BOLSON_ROE(parse::OpaeBatteryParserManager::Make(opts.opae_battery,
-                                                       ToPointers(converter->buffers),
-                                                       opts.num_threads,
-                                                       &converter->opae_battery_manager));
+          ToPointers(converter->buffers),
+          opts.num_threads,
+          &converter->opae_battery_manager));
       converter->parsers =
           CastPtrs<parse::Parser>(converter->opae_battery_manager->parsers());
     }

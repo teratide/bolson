@@ -16,24 +16,29 @@
 
 namespace bolson::convert {
 
-auto Resizer::Resize(const parse::ParsedBuffer &in, ResizedBatches *out) -> Status {
+// TODO: this could also be done based on arrow::ipc::GetRecordBatchSize
+
+auto Resizer::Resize(const parse::ParsedBatch &in, ResizedBatches *out) -> Status {
   ResizedBatches result;
   if (in.batch->num_rows() > max_rows) {
     size_t offset = 0;
     size_t remaining = in.batch->num_rows();
     while (remaining > 0) {
+      auto first = in.seq_range.first + offset;
       if (remaining > max_rows) {
-        result.batches.push_back(in.batch->Slice(offset, max_rows));
+        result.push_back(parse::ParsedBatch{in.batch->Slice(offset, max_rows),
+                                            {first, first + max_rows}});
         offset += max_rows;
         remaining -= max_rows;
       } else {
-        result.batches.push_back(in.batch->Slice(offset, remaining));
+        result.push_back(parse::ParsedBatch{in.batch->Slice(offset, remaining),
+                                            {first, first + remaining}});
         offset += remaining;
         remaining = 0;
       }
     }
   } else {
-    result.batches.push_back(in.batch);
+    result.push_back({in.batch, in.seq_range});
   }
 
   *out = result;

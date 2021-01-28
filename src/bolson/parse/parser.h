@@ -15,15 +15,9 @@
 #pragma once
 
 #include <arrow/api.h>
-#include <illex/latency.h>
-#include <illex/protocol.h>
-#include <illex/client_queued.h>
 #include <illex/client_buffered.h>
 
-#include "bolson/log.h"
 #include "bolson/status.h"
-#include "bolson/pulsar.h"
-#include "bolson/convert/stats.h"
 
 /// Contains all constructs to parse JSONs.
 namespace bolson::parse {
@@ -31,13 +25,11 @@ namespace bolson::parse {
 /**
  * \brief The result of parsing a raw JSON buffer.
  */
-struct ParsedBuffer {
+struct ParsedBatch {
   /// The resulting Arrow RecordBatch
   std::shared_ptr<arrow::RecordBatch> batch;
-  /// The number of bytes parsed.
-  size_t parsed_bytes = 0;
-  /// The sequence number.
-  illex::Seq seq = 0;
+  /// Range of sequence numbers in batch.
+  illex::SeqRange seq_range;
 };
 
 /**
@@ -51,7 +43,7 @@ class Parser {
    * \param out The buffer with the parsed data represented as Arrow RecordBatch.
    * \return Status::OK() if successful, some error otherwise.
    */
-  virtual auto Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status = 0;
+  virtual auto Parse(illex::RawJSONBuffer *in, ParsedBatch *out) -> Status = 0;
 };
 
 /// Available parser implementations.

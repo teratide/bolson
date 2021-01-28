@@ -5,21 +5,24 @@ A JSON stream to Arrow IPC to Pulsar conversion and publish tool.
 # Install
 
 * Requirements
-  * To build:
-    - CMake 3.14+
-    - A C++17 compiler.
-  * Dependencies:
-    - [Arrow 1.0.1](https://github.com/apache/arrow)
-    - [pulsar 2.6.0](https://github.com/apache/pulsar)
+    * To build:
+        - CMake 3.14+
+        - A C++17 compiler.
+    * Dependencies:
+        - [Arrow 3.0.0](https://github.com/apache/arrow)
+            - When building from source, run `cmake` with `-DARROW_JSON ON`.
+        - [Pulsar 2.7.0](https://github.com/apache/pulsar)
 
-## Build
+## Build & run
+
 ```bash
 git clone https://github.com/teratide/bolson.git
 cd bolson
-mkdir build && cd build
+mkdir build
+cd build
 cmake ..
 make
-make install
+./bolson
 ```
 
 # Usage
@@ -30,6 +33,7 @@ Both subcommand require an Arrow schema to be supplied as the first positional
 argument, or through `-i` or `--input`.
 
 More detailed options can be found by running:
+
 ```
 bolson --help <subcommand>
 ```

@@ -22,25 +22,25 @@
 
 namespace bolson::parse {
 
-auto ArrowParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
+auto ArrowParser::Parse(illex::RawJSONBuffer *in, ParsedBatch *out) -> Status {
   auto buffer = arrow::Buffer::Wrap(in->data(), in->size());
   auto br = std::make_shared<arrow::io::BufferReader>(buffer);
   auto tr_make_result = arrow::json::TableReader::Make(arrow::default_memory_pool(),
-                                                       br,
-                                                       opts.read,
-                                                       opts.parse);
+      br,
+      opts.read,
+      opts.parse);
   if (!tr_make_result.ok()) {
     return Status(Error::ArrowError,
-                  "Unable to make JSON Table Reader: "
-                      + tr_make_result.status().message());
+        "Unable to make JSON Table Reader: "
+            + tr_make_result.status().message());
   }
   auto t_reader = tr_make_result.ValueOrDie();
 
   auto tr_read_result = t_reader->Read();
   if (!tr_read_result.ok()) {
     return Status(Error::ArrowError,
-                  "Unable to read JSON as table: "
-                      + tr_read_result.status().message());
+        "Unable to read JSON as table: "
+            + tr_read_result.status().message());
   }
   auto table = tr_read_result.ValueOrDie();
 
@@ -56,8 +56,9 @@ auto ArrowParser::Parse(illex::RawJSONBuffer *in, ParsedBuffer *out) -> Status {
   }
 
   auto final_batch = table_reader_next_result.ValueOrDie();
+
   out->batch = final_batch;
-  out->parsed_bytes = in->size();
+  out->seq_range = in->range();
 
   return Status::OK();
 }

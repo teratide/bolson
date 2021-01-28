@@ -23,26 +23,44 @@ auto Serializer::Serialize(const ResizedBatches &in, SerializedBatches *out) -> 
   std::shared_ptr<arrow::RecordBatch> combined_batch;
 
   // Serialize each batch.
-  for (const auto &batch : in.batches) {
-    auto serialize_result = arrow::ipc::SerializeRecordBatch(*batch, opts);
+  for (const auto &batch : in) {
+    auto serialize_result = arrow::ipc::SerializeRecordBatch(*batch.batch, opts);
     if (!serialize_result.ok()) {
       return Status(Error::ArrowError,
-                    "Could not serialize batch: " + serialize_result.status().message());
+          "Could not serialize batch: " + serialize_result.status().message());
     }
     auto serialized = serialize_result.ValueOrDie();
     if (serialized->size() > max_ipc_size) {
       return Status(Error::GenericError,
-                    "Maximum IPC message size exceeded."
-                    "Reduce max number of rows per batch.");
+          "Maximum IPC message size exceeded."
+          "Reduce max number of rows per batch.");
     }
-    result.total_bytes += serialized->size();
-
-    result.messages.push_back(serialize_result.ValueOrDie());
+    result.push_back({serialize_result.ValueOrDie(), batch.seq_range});
   }
 
   *out = result;
 
   return Status::OK();
+}
+
+auto ByteSizeOf(const SerializedBatches &batches) -> size_t {
+  size_t result = 0;
+  for (const auto &b : batches) {
+    result += b.message->size();
+  }
+  return result;
+}
+
+auto RecordSizeOf(const SerializedBatch &batch) -> size_t {
+  return batch.seq_range.last - batch.seq_range.first + 1;
+}
+
+auto RecordSizeOf(const SerializedBatches &batches) -> size_t {
+  size_t result = 0;
+  for (const auto &b : batches) {
+    result += RecordSizeOf(b);
+  }
+  return result;
 }
 
 }

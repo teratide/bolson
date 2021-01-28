@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <optional>
+#include <utility>
 
 #include "bolson/buffer/allocator.h"
 #include "bolson/parse/parser.h"
@@ -23,6 +24,8 @@
 #include "bolson/parse/opae_battery_impl.h"
 #include "bolson/convert/resizer.h"
 #include "bolson/convert/serializer.h"
+#include "bolson/convert/stats.h"
+#include "bolson/pulsar.h"
 #include "bolson/status.h"
 
 /// Contains all constructs to support JSON to Arrow conversion and serialization.
@@ -98,11 +101,11 @@ class Converter {
 
  private:
   Converter(IpcQueue *output_queue,
-            buffer::Allocator *allocator,
+            std::shared_ptr<buffer::Allocator> allocator,
             size_t num_buffers = 1,
             size_t num_threads = 1)
       : output_queue_(output_queue),
-        allocator_(allocator),
+        allocator_(std::move(allocator)),
         num_buffers_(num_buffers),
         num_threads_(num_threads),
         mutexes_(std::vector<std::mutex>(num_buffers)),
@@ -122,10 +125,10 @@ class Converter {
   auto FreeBuffers() -> Status;
 
   IpcQueue *output_queue_ = nullptr;
-  buffer::Allocator *allocator_ = nullptr;
+  std::shared_ptr<buffer::Allocator> allocator_ = nullptr;
   size_t num_threads_ = 1;
   size_t num_buffers_ = 1;
-  std::atomic<bool> *shutdown = nullptr;
+  std::atomic<bool> *shutdown_ = nullptr;
   std::vector<std::shared_ptr<parse::Parser>> parsers;
   std::vector<convert::Resizer> resizers;
   std::vector<convert::Serializer> serializers;

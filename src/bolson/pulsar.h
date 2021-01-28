@@ -26,18 +26,12 @@
 
 #include "bolson/log.h"
 #include "bolson/status.h"
+#include "bolson/convert/serializer.h"
 
 namespace bolson {
 
 /// An item in the IPC queue.
-struct IpcQueueItem {
-  /// Number of rows (i.e. converted JSONs) contained in the RecordBatch of this message.
-  size_t num_rows;
-  /// The IPC message itself.
-  std::shared_ptr<arrow::Buffer> ipc;
-  /// Sequence numbers for latency timing.
-  std::shared_ptr<std::vector<illex::Seq>> lat;
-};
+using IpcQueueItem = convert::SerializedBatch;
 
 /// A queue with Arrow IPC messages.
 using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;

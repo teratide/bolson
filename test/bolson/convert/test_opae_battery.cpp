@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <arrow/api.h>
+#include <arrow/ipc/api.h>
+#include <arrow/io/api.h>
 #include <illex/document.h>
 
 #include "bolson/log.h"
@@ -18,17 +21,47 @@ namespace bolson::convert {
   }                                           \
 }
 
+auto test_schema() -> std::shared_ptr<arrow::Schema> {
+  static auto result = fletcher::WithMetaRequired(
+      *arrow::schema({arrow::field("voltage",
+          arrow::list(arrow::field("item", arrow::uint64(), false)
+              ->WithMetadata(arrow::key_value_metadata({"illex_MIN", "ILLEX_MAX"},
+                  {"0", "2047"}))),
+          false)->WithMetadata(arrow::key_value_metadata({"illex_MIN_LENGTH",
+                                                          "ILLEX_MAX_LENGTH"},
+          {"1", "16"}))}), "output", fletcher::Mode::WRITE);
+  return result;
+}
+
+auto GetRecordBatch(std::shared_ptr<arrow::Schema> schema,
+                    std::shared_ptr<arrow::Buffer> buffer)
+-> std::shared_ptr<arrow::RecordBatch> {
+  auto stream = std::dynamic_pointer_cast<arrow::io::InputStream>(
+      std::make_shared<arrow::io::BufferReader>(buffer));
+
+  assert(stream != nullptr);
+
+  auto batch = arrow::ipc::ReadRecordBatch(test_schema(),
+      nullptr,
+      arrow::ipc::IpcReadOptions::Defaults(),
+      stream.get()).ValueOrDie();
+
+  return batch;
+}
+
 TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
+  StartLogger();
+
   Status status;
 
-  size_t num_jsons = 1024;
+  size_t num_jsons = 8;
 
   // Generate a bunch of JSONs
   std::vector<illex::JSONQueueItem> jsons_in;
   auto bytes_largest = GenerateJSONs(num_jsons,
-                                     *parse::OpaeBatteryParser::output_schema(),
-                                     illex::GenerateOptions(0),
-                                     &jsons_in);
+      *test_schema(),
+      illex::GenerateOptions(0),
+      &jsons_in);
 
   // Set OPAE Converter options.
   Options opae_opts;
@@ -37,68 +70,69 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   opae_opts.num_buffers = OPAE_BATTERY_KERNELS;
   opae_opts.max_batch_rows = 1024;
   opae_opts.implementation = parse::Impl::OPAE_BATTERY;
+  opae_opts.opae_battery.afu_id = "9ca43fb0-c340-4908-b79b-5c89b4ef5ee8";
+  opae_opts.max_ipc_size = 5 * 1024 * 1024 - 10 * 1024;
 
   // Set Arrow Converter options, using the same options where applicable.
   Options arrow_opts = opae_opts;
   arrow_opts.buf_capacity = 2 * bytes_largest.first;
   arrow_opts.implementation = parse::Impl::ARROW;
   arrow_opts.arrow.read.use_threads = false;
-  arrow_opts.arrow.parse.explicit_schema = parse::OpaeBatteryParser::output_schema();
+  arrow_opts.arrow.parse.explicit_schema = test_schema();
 
-  // Set up IPC queues.
+  // Run Arrow impl.
   IpcQueue arrow_queue;
-  IpcQueue opae_queue;
   std::vector<IpcQueueItem> arrow_out;
-  std::vector<IpcQueueItem> opae_out;
-
-  // Set up converters.
   std::shared_ptr<Converter> arrow_conv;
-  std::shared_ptr<Converter> opae_conv;
-
-  SPDLOG_DEBUG("Setting up converters.");
-
   FAIL_ON_ERROR(Converter::Make(arrow_opts, &arrow_queue, &arrow_conv));
-  FAIL_ON_ERROR(Converter::Make(opae_opts, &opae_queue, &opae_conv));
-
-  // Fill buffers with the same data:
   FillBuffers(arrow_conv->mutable_buffers(), jsons_in);
-  FillBuffers(opae_conv->mutable_buffers(), jsons_in);
-
-  // Start the converters
   std::atomic<bool> arrow_shutdown = false;
-  std::atomic<bool> opae_shutdown = false;
   arrow_conv->Start(&arrow_shutdown);
-  opae_conv->Start(&opae_shutdown);
 
-  // Wait for OPAE to finish.
-  size_t opae_rows = 0;
-  while (opae_rows != num_jsons) {
-    IpcQueueItem item;
-    opae_queue.wait_dequeue(item);
-    SPDLOG_DEBUG("Popped IPC item of {} rows {}/{}", item.num_rows, opae_rows, num_jsons);
-    opae_rows += item.num_rows;
-    opae_out.push_back(item);
-  }
-  opae_shutdown.store(true);
-  FAIL_ON_ERROR(opae_conv->Finish());
-
-  // Wait for Arrow to finish.
   size_t arrow_rows = 0;
-  while (arrow_rows != num_jsons) {
+  while ((arrow_rows != num_jsons) && (arrow_shutdown.load() == false)) {
     IpcQueueItem item;
     arrow_queue.wait_dequeue(item);
-    SPDLOG_DEBUG("Popped IPC item of {} rows {}/{}", item.num_rows, opae_rows, num_jsons);
-    arrow_rows += item.num_rows;
+    arrow_rows += RecordSizeOf(item);
     arrow_out.push_back(item);
   }
   arrow_shutdown.store(true);
   FAIL_ON_ERROR(arrow_conv->Finish());
 
+  // Run OPAE impl.
+  IpcQueue opae_queue;
+  std::vector<IpcQueueItem> opae_out;
+  std::shared_ptr<Converter> opae_conv;
+  FAIL_ON_ERROR(Converter::Make(opae_opts, &opae_queue, &opae_conv));
+  FillBuffers(opae_conv->mutable_buffers(), jsons_in);
+  std::atomic<bool> opae_shutdown = false;
+  opae_conv->Start(&opae_shutdown);
+
+  size_t opae_rows = 0;
+  while ((opae_rows != num_jsons) && (opae_shutdown.load() == false)) {
+    IpcQueueItem item;
+    opae_queue.wait_dequeue(item);
+    opae_rows += RecordSizeOf(item);
+    opae_out.push_back(item);
+  }
+  opae_shutdown.store(true);
+  FAIL_ON_ERROR(opae_conv->Finish());
+
   // Compare outputs.
+
+  ASSERT_EQ(arrow_rows, opae_rows);
+
   for (size_t i = 0; i < num_jsons; i++) {
-    if (!arrow_out[i].ipc->Equals(*opae_out[i].ipc)) {
-      FAIL();
-    }
+    auto arrow_batch = GetRecordBatch(test_schema(), arrow_out[i].message);
+    auto opae_batch = GetRecordBatch(test_schema(), opae_out[i].message);
+
+    std::cout << "Arrow:" << std::endl;
+    std::cout << arrow_batch->ToString() << std::endl;
+    std::cout << "OPAE:" << std::endl;
+    std::cout << opae_batch->ToString() << std::endl;
+
+    ASSERT_TRUE(arrow_batch->Equals(*opae_batch));
   }
 }
+
 }
