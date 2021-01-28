@@ -33,8 +33,8 @@ auto test_schema() -> std::shared_ptr<arrow::Schema> {
   return result;
 }
 
-auto GetRecordBatch(std::shared_ptr<arrow::Schema> schema,
-                    std::shared_ptr<arrow::Buffer> buffer)
+auto GetRecordBatch(const std::shared_ptr<arrow::Schema> &schema,
+                    const std::shared_ptr<arrow::Buffer> &buffer)
 -> std::shared_ptr<arrow::RecordBatch> {
   auto stream = std::dynamic_pointer_cast<arrow::io::InputStream>(
       std::make_shared<arrow::io::BufferReader>(buffer));
@@ -54,7 +54,7 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
 
   Status status;
 
-  size_t num_jsons = 8;
+  size_t num_jsons = 1024*1024;
 
   // Generate a bunch of JSONs
   std::vector<illex::JSONQueueItem> jsons_in;
@@ -70,7 +70,6 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   opae_opts.num_buffers = OPAE_BATTERY_KERNELS;
   opae_opts.max_batch_rows = 1024;
   opae_opts.implementation = parse::Impl::OPAE_BATTERY;
-  opae_opts.opae_battery.afu_id = "9ca43fb0-c340-4908-b79b-5c89b4ef5ee8";
   opae_opts.max_ipc_size = 5 * 1024 * 1024 - 10 * 1024;
 
   // Set Arrow Converter options, using the same options where applicable.
@@ -118,19 +117,23 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   opae_shutdown.store(true);
   FAIL_ON_ERROR(opae_conv->Finish());
 
-  // Compare outputs.
+  // Sort outputs by seq. no.
 
+  struct {
+    bool operator()(const IpcQueueItem &a, const IpcQueueItem &b) const {
+      return a.seq_range.first < b.seq_range.first;
+    }
+  } item_sort;
+
+  std::sort(arrow_out.begin(), arrow_out.end(), item_sort);
+  std::sort(opae_out.begin(), opae_out.end(), item_sort);
+
+  // Compare outputs.
   ASSERT_EQ(arrow_rows, opae_rows);
 
   for (size_t i = 0; i < num_jsons; i++) {
     auto arrow_batch = GetRecordBatch(test_schema(), arrow_out[i].message);
     auto opae_batch = GetRecordBatch(test_schema(), opae_out[i].message);
-
-    std::cout << "Arrow:" << std::endl;
-    std::cout << arrow_batch->ToString() << std::endl;
-    std::cout << "OPAE:" << std::endl;
-    std::cout << opae_batch->ToString() << std::endl;
-
     ASSERT_TRUE(arrow_batch->Equals(*opae_batch));
   }
 }
