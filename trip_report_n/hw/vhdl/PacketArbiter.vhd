@@ -6,7 +6,6 @@ use ieee.std_logic_misc.all;
 library work;
 use work.Stream_pkg.all;
 use work.UtilInt_pkg.all;
-use work.Json_pkg.all;
 
 entity PacketArbiter is
   generic (
@@ -87,7 +86,7 @@ architecture behavioral of PacketArbiter is
 
     end process;
 
-    -- Output ready demux
+    -- Input mux
     inp_mux_proc: process(in_data, in_last, in_strb, lock) is
         variable idx : integer range 0 to 2**INDEX_WIDTH-1;
     begin

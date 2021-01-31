@@ -5,7 +5,6 @@ use work.Stream_pkg.all;
 use work.trip_report_pkg.all;
 use work.trip_report_util_pkg.all;
 
-
 entity trip_report is
   generic (
     INDEX_WIDTH : integer := 32;
@@ -362,9 +361,7 @@ entity trip_report is
     input_firstidx                                : in  std_logic_vector(31 downto 0);
     input_lastidx                                 : in  std_logic_vector(31 downto 0);
     output_firstidx                               : in  std_logic_vector(31 downto 0);
-    output_lastidx                                : in  std_logic_vector(31 downto 0);
-    ext_platform_complete_req                     : out std_logic;
-    ext_platform_complete_ack                     : in  std_logic
+    output_lastidx                                : in  std_logic_vector(31 downto 0)
   );
 end entity;
 
@@ -519,17 +516,12 @@ architecture Implementation of trip_report is
   -- 
   -- STRING FIELD
   --
+
   signal timestamp_valid                  : std_logic;
   signal timestamp_ready                  : std_logic;
-  signal timestamp_data                   : std_logic_vector(8*EPC-1 downto 0);
-  signal timestamp_last                   : std_logic_vector(3*EPC-1 downto 0);
-  signal timestamp_strb                   : std_logic_vector(EPC-1 downto 0);
-
-  signal timestamp_ser_valid              : std_logic;
-  signal timestamp_ser_ready              : std_logic;
-  signal timestamp_ser_data               : std_logic_vector(7 downto 0);
-  signal timestamp_ser_last               : std_logic_vector(2 downto 0);
-  signal timestamp_ser_strb               : std_logic;
+  signal timestamp_data                   : std_logic_vector(7 downto 0);
+  signal timestamp_last                   : std_logic_vector(2 downto 0);
+  signal timestamp_strb                   : std_logic;
 
 
   signal int_input_input_ready            : std_logic;
@@ -551,7 +543,6 @@ architecture Implementation of trip_report is
     STATE_REQ_WRITE,    -- send write request
     STATE_UNLOCK_READ,  -- unlock read
     STATE_UNLOCK_WRITE, -- unlock write
-    STATE_FENCE,        -- write fence
     STATE_DONE          -- done
   );
 
@@ -584,7 +575,7 @@ begin
     is
   begin
     if rising_edge(kcd_clk) then
-      if timestamp_ser_valid = '1' and timestamp_ser_ready = '1' and timestamp_ser_last(1) = '1' then
+      if timestamp_valid = '1' and timestamp_ready = '1' and timestamp_last(1) = '1' then
         record_counter <= record_counter + 1;
       end if;
       if kcd_reset = '1' or reset = '1' then
@@ -791,7 +782,6 @@ begin
     input_input_cmd_ready,
     cmd_ready,
     input_input_unl_valid,
-    ext_platform_complete_ack,
     unl_valid
     ) is
   begin
@@ -812,7 +802,6 @@ begin
     -- internal signal
     input_input_ready           <= int_input_input_ready;
 
-    ext_platform_complete_req   <= '0';
 
     case state is
 
@@ -871,17 +860,6 @@ begin
 
         if unl_valid = '1' then
           unl_ready  <= '1';
-          state_next <= STATE_FENCE;
-        end if;
-
-
-      when STATE_FENCE =>
-        done                      <= '0';
-        busy                      <= '1';
-        idle                      <= '0';
-
-        ext_platform_complete_req <= '1';
-        if ext_platform_complete_ack = '1' then
           state_next <= STATE_DONE;
         end if;
 
@@ -912,9 +890,11 @@ begin
   end process;
 
 
-  trip_report_parser : TripReportParser
+  trip_report_parser : trip_report_sub
   generic map(
     EPC                                              => 8,
+    NUM_PARSERS                                      => 1,
+    TAG_WIDTH                                        => 2,
 
     -- 
     -- INTEGER FIELDS
@@ -1137,7 +1117,10 @@ begin
     timestamp_ready                             => timestamp_ready,
     timestamp_data                              => timestamp_data, 
     timestamp_last                              => timestamp_last, 
-    timestamp_strb                              => timestamp_strb
+    timestamp_strb                              => timestamp_strb,
+
+    tag_ready                                   => '1',
+    tag_cfg                                     => "0100"
 
   );
 
@@ -1662,32 +1645,6 @@ orientation_conv : DropEmpty
   );
 
 
-  -- String field conversion.
-  -- Consists of two steps: serialize the c=8 tydi stream to EPC=1,
-  -- then convert to char and length streams.
-  timestamp_serializer : StreamSerializer
-  generic map(
-    EPC             => EPC,
-    DATA_WIDTH      => 8,
-    DIMENSIONALITY  => 3 
-  ) 
-  port map( 
-    clk             => kcd_clk,
-    reset           => kcd_reset,
-
-    in_valid        => timestamp_valid,
-    in_ready        => timestamp_ready,
-    in_data         => timestamp_data,
-    in_strb         => timestamp_strb, 
-    in_last         => timestamp_last, 
-
-    out_valid       => timestamp_ser_valid,
-    out_ready       => timestamp_ser_ready,
-    out_data        => timestamp_ser_data,
-    out_strb        => timestamp_ser_strb, 
-    out_last        => timestamp_ser_last 
-  );
-
   timestamp_converter : D2ListToVecs
   generic map(
     EPC           => 1,
@@ -1698,11 +1655,11 @@ orientation_conv : DropEmpty
     clk           => kcd_clk,
     reset         => kcd_reset,
 
-    in_valid      => timestamp_ser_valid,
-    in_ready      => timestamp_ser_ready,
-    in_data       => timestamp_ser_data,
-    in_dvalid     => timestamp_ser_strb,
-    in_last       => timestamp_ser_last(2 downto 1),
+    in_valid      => timestamp_valid,
+    in_ready      => timestamp_ready,
+    in_data       => timestamp_data,
+    in_dvalid     => timestamp_strb,
+    in_last       => timestamp_last(2 downto 1),
 
     out_valid     => output_timestamp_chars_valid, 
     out_ready     => output_timestamp_chars_ready,

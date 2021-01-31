@@ -250,6 +250,7 @@ begin
 
     tc_check(pkt_sink.pq_ready, true);
     tc_check(pkt_sink.cq_get_d_nat, 1, "packet_count: 1");
+    pkt_sink.cq_next;
     tc_check(pkt_sink.cq_get_d_nat, 1, "packet_count: 1");
     
     tc_pass;

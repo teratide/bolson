@@ -6,7 +6,6 @@ use ieee.std_logic_misc.all;
 library work;
 use work.Stream_pkg.all;
 use work.UtilInt_pkg.all;
-use work.Json_pkg.all;
 
 entity PacketFIFO is
   generic (
@@ -45,6 +44,8 @@ architecture Implementation of PacketFIFO is
 
   signal buff_in_data          : std_logic_vector(BUFF_WIDTH-1 downto 0);
   signal buff_out_data         : std_logic_vector(BUFF_WIDTH-1 downto 0);
+  
+  signal in_ready_s            : std_logic;
 
   begin
 
@@ -66,12 +67,14 @@ architecture Implementation of PacketFIFO is
       clk                       => clk,
       reset                     => reset,
       in_valid                  => in_valid,
-      in_ready                  => in_ready,
+      in_ready                  => in_ready_s,
       in_data                   => buff_in_data,
       out_valid                 => out_valid,
       out_ready                 => out_ready,
       out_data                  => buff_out_data
     );
+
+    in_ready <= in_ready_s;
 
     pkt_cntr_proc: process (clk) is
       variable cnt : unsigned(PKT_COUNT_WIDTH-1 downto 0) := (others => '0');
@@ -82,7 +85,7 @@ architecture Implementation of PacketFIFO is
 
         -- Increase the packet counter when the last element of a sequence
         -- has been handshaked on the element FIFO input.
-        if in_ready = '1' and in_valid = '1' and in_last(in_last'left) = '1' then
+        if in_ready_s = '1' and in_valid = '1' and in_last(in_last'left) = '1' then
           cnt := cnt + 1;
         end if;
         

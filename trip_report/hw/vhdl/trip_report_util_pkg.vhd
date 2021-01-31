@@ -104,4 +104,6 @@ package trip_report_util_pkg is
       out_last                 : out std_logic_vector(DIMENSIONALITY-1 downto 0) := (others => '0')
   );
   end component;
+  
 end trip_report_util_pkg;
+

@@ -6,7 +6,6 @@ use ieee.std_logic_misc.all;
 library work;
 use work.Stream_pkg.all;
 use work.UtilInt_pkg.all;
-use work.Json_pkg.all;
 
 entity ArbiterController is
   generic (
