@@ -278,7 +278,7 @@ auto OpaeBatteryParser::Parse(illex::RawJSONBuffer* in, ParsedBatch* out) -> Sta
                         reinterpret_cast<uint8_t*>(raw_out_values), output_schema(),
                         &out_batch));
 
-  SPDLOG_DEBUG("Thread {:2} | Parsing {} JSONs completed.", out_batch->num_rows());
+  SPDLOG_DEBUG("Thread {:2} | Parsing {} JSONs completed.", idx_, out_batch->num_rows());
 
   ParsedBatch result;
   result.batch = out_batch;
