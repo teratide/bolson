@@ -39,7 +39,7 @@
 namespace bolson {
 
 auto SetupClientProducer(const std::string& url, const std::string& topic,
-                         PulsarContext* out) -> Status {
+                         PulsarConsumerContext* out) -> Status {
   auto config = pulsar::ClientConfiguration().setLogger(new bolsonLoggerFactory());
   out->client = std::make_unique<pulsar::Client>(url, config);
   out->producer = std::make_unique<pulsar::Producer>();
@@ -51,13 +51,15 @@ auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> 
   pulsar::Message msg = pulsar::MessageBuilder()
                             .setAllocatedContent(const_cast<uint8_t*>(buffer), size)
                             .build();
+  // [IFR06]: The Pulsar messages leave the system through the Pulsar C++ client API call
+  // pulsar::Producer::send().
   CHECK_PULSAR(producer->send(msg));
-
   return Status::OK();
 }
 
-void PublishThread(PulsarContext pulsar, IpcQueue* in, std::atomic<bool>* shutdown,
-                   std::atomic<size_t>* count, std::promise<PublishStats>&& stats) {
+void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
+                   std::atomic<bool>* shutdown, std::atomic<size_t>* count,
+                   std::promise<PublishStats>&& stats) {
   // Set up timers.
   auto thread_timer = putong::Timer(true);
   auto publish_timer = putong::Timer();

@@ -21,12 +21,15 @@
 #include "bolson/convert/converter.h"
 #include "bolson/convert/test_convert.h"
 #include "bolson/parse/opae_battery_impl.h"
-#include "bolson/convert/test_convert.h"
 
 namespace bolson::convert {
 
 /// \brief Opae Battery Status schema
 auto test_schema() -> std::shared_ptr<arrow::Schema> {
+  // FNC04: Number fields of the JSON Object only represent and are converted to unsigned
+  //  integers of 64 bits.
+
+  // This is guaranteed in the consumer by the schema below:
   static auto result = fletcher::WithMetaRequired(
       *arrow::schema(
           {arrow::field("voltage",
@@ -40,12 +43,17 @@ auto test_schema() -> std::shared_ptr<arrow::Schema> {
   return result;
 }
 
-/// Test Arrow impl. vs. Opae FPGA impl. for battery status.
+/// \brief Test Arrow impl. vs. Opae FPGA impl. for battery status.
 TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
+  // [FNC01]: The system performs the Convert JSON objects function, where JSON Objects
+  //  are streamed into the system, aggregated in JSON Objects Messages, and converted to
+  //  Pulsar Messages containing Arrow IPC messages containing Arrow RecordBatches.
+
   StartLogger();
 
-  const size_t opae_battery_parsers_instances = 8;  // Number of parser instances.
-  const size_t num_jsons = 1024 * 1024;             // Number of JSONs to test.
+  const size_t opae_battery_parsers_instances = 8;          // Number of parser instances.
+  const size_t num_jsons = 1024 * 1024;                     // Number of JSONs to test.
+  const size_t max_ipc_size = 5 * 1024 * 1024 - 10 * 1024;  // Max IPC size.
 
   // Generate a bunch of JSONs
   std::vector<illex::JSONQueueItem> jsons_in;
@@ -59,7 +67,7 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   opae_opts.num_threads = opae_battery_parsers_instances;
   opae_opts.num_buffers = opae_battery_parsers_instances;
   opae_opts.max_batch_rows = 1024;
-  opae_opts.max_ipc_size = 5 * 1024 * 1024 - 10 * 1024;
+  opae_opts.max_ipc_size = max_ipc_size;
 
   // Set Arrow Converter options, using the same options where applicable.
   Options arrow_opts = opae_opts;
@@ -78,15 +86,7 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   std::sort(arrow_out.begin(), arrow_out.end(), IpcSortBySeq);
   std::sort(opae_out.begin(), opae_out.end(), IpcSortBySeq);
 
-  // Assert number of output IPC messages is the same for CPU & FPGA impl.
-  ASSERT_EQ(arrow_out.size(), opae_out.size());
-
-  // Assert the contents of each RecordBatch is the same for CPU & FPGA impl.
-  for (size_t i = 0; i < num_jsons; i++) {
-    auto arrow_batch = GetRecordBatch(test_schema(), arrow_out[i].message);
-    auto opae_batch = GetRecordBatch(test_schema(), opae_out[i].message);
-    ASSERT_TRUE(arrow_batch->Equals(*opae_batch));
-  }
+  ConsumeMessages(arrow_out, opae_out, test_schema(), num_jsons, max_ipc_size);
 }
 
 }  // namespace bolson::convert

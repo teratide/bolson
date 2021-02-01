@@ -48,7 +48,7 @@ struct {
 } IpcSortBySeq;
 
 /// A Pulsar context for functions to operate on.
-struct PulsarContext {
+struct PulsarConsumerContext {
   std::unique_ptr<pulsar::Client> client;
   std::unique_ptr<pulsar::Producer> producer;
 };
@@ -92,7 +92,7 @@ struct PublishStats {
  * \return       Status::OK() if successful, some error otherwise.
  */
 auto SetupClientProducer(const std::string& url, const std::string& topic,
-                         PulsarContext* out) -> Status;
+                         PulsarConsumerContext* out) -> Status;
 
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
@@ -111,7 +111,7 @@ auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> 
  * \param count         The number of published messages.
  * \param stats         Statistics about this thread.
  */
-void PublishThread(PulsarContext pulsar, IpcQueue* in, std::atomic<bool>* shutdown,
+void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in, std::atomic<bool>* shutdown,
                    std::atomic<size_t>* count, std::promise<PublishStats>&& stats);
 
 /**

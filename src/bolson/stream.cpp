@@ -109,7 +109,7 @@ auto ProduceFromStream(const StreamOptions &opt) -> Status {
   if (std::holds_alternative<illex::RawProtocol>(opt.protocol)) {
     timers.init.Start();
     // Set up Pulsar client and producer.
-    PulsarContext pulsar;
+    PulsarConsumerContext pulsar;
     BOLSON_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &pulsar));
 
     // Set up output queue.
