@@ -69,14 +69,14 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
                    const std::vector<std::mutex*>& mutexes, IpcQueue* out,
                    std::atomic<bool>* shutdown, Stats* stats) {
   /// Macro to shut this thread and others down when something failed.
-#define SHUTDOWN_ON_FAILURE()                                                     \
-  if (!stats->status.ok()) {                                                      \
-    t_thread.Stop();                                                              \
-    stats->t.thread = t_thread.seconds();                                         \
-    SPDLOG_DEBUG("Drone {} Terminating with error: {}", id, stats->status.msg()); \
-    shutdown->store(true);                                                        \
-    return;                                                                       \
-  }                                                                               \
+#define SHUTDOWN_ON_FAILURE()                                                          \
+  if (!stats->status.ok()) {                                                           \
+    t_thread.Stop();                                                                   \
+    stats->t.thread = t_thread.seconds();                                              \
+    SPDLOG_DEBUG("Thread {:2} | terminating with error: {}", id, stats->status.msg()); \
+    shutdown->store(true);                                                             \
+    return;                                                                            \
+  }                                                                                    \
   void()
 
   // Thread timer.
@@ -88,7 +88,7 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
   // Buffer to unlock.
   size_t lock_idx = 0;
 
-  SPDLOG_DEBUG("Convert thread {} spawned.", id);
+  SPDLOG_DEBUG("Thread {:2} | Spawned.", id);
 
   while (!shutdown->load()) {
     if (try_buffers) {
@@ -148,7 +148,7 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
 
   t_thread.Stop();
   stats->t.thread = t_thread.seconds();
-  SPDLOG_DEBUG("Drone {} Terminating.", id);
+  SPDLOG_DEBUG("Thread {:2} | Terminating.", id);
 }
 #undef SHUTDOWN_ON_FAILURE
 

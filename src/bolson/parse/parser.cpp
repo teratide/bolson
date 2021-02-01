@@ -23,7 +23,7 @@ auto ToString(const Impl& impl) -> std::string {
     case Impl::ARROW:
       return "Arrow (CPU)";
     case Impl::OPAE_BATTERY:
-      return "OPAE Battery (FPGA)";
+      return "OPAE Battery status (FPGA)";
   }
   throw std::runtime_error("Corrupt impl.");
 }

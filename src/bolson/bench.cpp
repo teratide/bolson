@@ -146,8 +146,8 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status {
   // Pull JSON ipc items from the queue to check when we are done.
   while (num_rows != opt.num_jsons) {
     ipc_queue.wait_dequeue(ipc_item);
-    SPDLOG_DEBUG("Popped IPC item of {} rows {}/{}", RecordSizeOf(ipc_item), num_rows,
-                 opt.num_jsons);
+    SPDLOG_DEBUG("Popped IPC item of {} rows. Progress: {}/{}", RecordSizeOf(ipc_item),
+                 num_rows, opt.num_jsons);
     num_rows += RecordSizeOf(ipc_item);
     ipc_size += ipc_item.message->size();
     num_ipc++;
@@ -171,11 +171,11 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status {
   spdlog::info("  Throughput          : {} MJ/s", json_M / t_gen.seconds());
 
   spdlog::info("End-to-end conversion:");
-  spdlog::info("  IPC messages      : {}", num_ipc);
-  spdlog::info("  Time              : {} s", t_conv.seconds());
-  spdlog::info("  Throughput (in)   : {} MB/s", json_MB / t_conv.seconds());
-  spdlog::info("  Throughput (out)  : {} MB/s", ipc_MB / t_conv.seconds());
-  spdlog::info("  Throughput        : {} MJ/s", json_M / t_conv.seconds());
+  spdlog::info("  IPC messages        : {}", num_ipc);
+  spdlog::info("  Time                : {} s", t_conv.seconds());
+  spdlog::info("  Throughput (in)     : {} MB/s", json_MB / t_conv.seconds());
+  spdlog::info("  Throughput (out)    : {} MB/s", ipc_MB / t_conv.seconds());
+  spdlog::info("  Throughput          : {} MJ/s", json_M / t_conv.seconds());
 
   auto a = convert::AggrStats(converter->Statistics());
   spdlog::info("Details:");
