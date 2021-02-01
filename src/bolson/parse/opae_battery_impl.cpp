@@ -83,6 +83,11 @@ auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions& opts,
                                     size_t num_parsers,
                                     std::shared_ptr<OpaeBatteryParserManager>* out)
     -> Status {
+  if (num_parsers != buffers.size()) {
+    return Status(Error::OpaeError,
+                  "OpaeBatteryParser implementation requires number of buffers and "
+                  "parsers to be equal.");
+  }
   // Attempt to auto derive AFU ID if not supplied.
   std::string afu_id_str;
   if (opts.afu_id.empty()) {
