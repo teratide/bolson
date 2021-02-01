@@ -117,8 +117,6 @@ void ConsumeMessages(const std::vector<IpcQueueItem>& ref_data,
         //   supplied, and this test will fail.
         FAIL() << "Fields must be converted to arrow::uint64 or arrow::utf8";
     }
-    ASSERT_TRUE(field->type()->Equals(arrow::uint64()) ||
-                field->type()->Equals(arrow::list(arrow::uint64())));
   }
 
   // Assert number of output IPC messages is the same for CPU & FPGA impl.
@@ -136,8 +134,8 @@ void ConsumeMessages(const std::vector<IpcQueueItem>& ref_data,
     // message size, which is never larger than 100 MiB.
     ASSERT_LT(ref_data[i].message->size(), 100 * 1024 * 1024);
     ASSERT_LT(uut_data[i].message->size(), 100 * 1024 * 1024);
-    ASSERT_LT(ref_data[i].message->size(), max_ipc_size);
-    ASSERT_LT(uut_data[i].message->size(), max_ipc_size);
+    ASSERT_LE(ref_data[i].message->size(), max_ipc_size);
+    ASSERT_LE(uut_data[i].message->size(), max_ipc_size);
 
     // Deserialize batches
     auto ref_batch = GetRecordBatch(schema, ref_data[i].message);
