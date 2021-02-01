@@ -2,6 +2,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.std_logic_misc.all;
 
 library work;
 use work.Stream_pkg.all;
@@ -645,15 +646,18 @@ architecture Implementation of trip_report_sub is
   signal timestamp_ser_last               : std_logic_vector(3*EPC*NUM_PARSERS-1 downto 0);
   signal timestamp_ser_strb               : std_logic_vector(EPC*NUM_PARSERS-1 downto 0);
 
-  type field_hs_array_t is array (0 to NUM_PARSERS-1) of std_logic_vector(19-1 downto 0);
-  signal cmd_valid : field_hs_array_t;
-  signal cmd_ready : field_hs_array_t;
-  signal pkt_valid : field_hs_array_t;
-  signal pkt_ready : field_hs_array_t;
+  type field_cntrl_array_t is array (0 to NUM_PARSERS-1) of std_logic_vector(19-1 downto 0);
+  signal cmd_valid    : field_cntrl_array_t;
+  signal cmd_ready    : field_cntrl_array_t;
+  signal pkt_valid    : field_cntrl_array_t;
+  signal pkt_ready    : field_cntrl_array_t;
+  signal pkt_last     : field_cntrl_array_t;
+  signal pkt_last_red : std_logic_vector(NUM_PARSERS-1 downto 0);
   
   signal cmd_valid_sync                   : std_logic;
   signal cmd_ready_sync                   : std_logic;
   signal cmd_index                        : std_logic_vector(INDEX_WIDTH-1 downto 0);
+  signal cmd_last                         : std_logic;
   
   signal pkt_valid_sync                   : std_logic_vector(NUM_PARSERS-1 downto 0);
   signal pkt_ready_sync                   : std_logic_vector(NUM_PARSERS-1 downto 0);
@@ -876,7 +880,7 @@ begin
     timestamp_ready                              => timestamp_ser_ready(p),
     timestamp_data                               => timestamp_ser_data(8*EPC*(p+1)-1 downto 8*EPC*p),
     timestamp_strb                               => timestamp_ser_strb(EPC*(p+1)-1 downto EPC*p),
-    timestamp_last                               => timestamp_ser_last(3*(p+1)-1 downto 3*p)
+    timestamp_last                               => timestamp_ser_last(3*EPC*(p+1)-1 downto 3*EPC*p)
 
       );
   end generate;
@@ -906,7 +910,8 @@ begin
         out_strb                  => timezone_strb_a(p),
       
         packet_valid              => pkt_valid(p)(0),
-        packet_ready              => pkt_ready(p)(0)
+        packet_ready              => pkt_ready(p)(0),
+        packet_last               => pkt_last(p)(0)
       );
   end generate;
 
@@ -935,7 +940,8 @@ begin
         out_strb                  => vin_strb_a(p),
       
         packet_valid              => pkt_valid(p)(1),
-        packet_ready              => pkt_ready(p)(1)
+        packet_ready              => pkt_ready(p)(1),
+        packet_last               => pkt_last(p)(1)
       );
   end generate;
 
@@ -964,7 +970,8 @@ begin
         out_strb                  => odometer_strb_a(p),
       
         packet_valid              => pkt_valid(p)(2),
-        packet_ready              => pkt_ready(p)(2)
+        packet_ready              => pkt_ready(p)(2),
+        packet_last               => pkt_last(p)(2)
       );
   end generate;
 
@@ -993,7 +1000,8 @@ begin
         out_strb                  => avgspeed_strb_a(p),
       
         packet_valid              => pkt_valid(p)(3),
-        packet_ready              => pkt_ready(p)(3)
+        packet_ready              => pkt_ready(p)(3),
+        packet_last               => pkt_last(p)(3)
       );
   end generate;
 
@@ -1022,7 +1030,8 @@ begin
         out_strb                  => accel_decel_strb_a(p),
       
         packet_valid              => pkt_valid(p)(4),
-        packet_ready              => pkt_ready(p)(4)
+        packet_ready              => pkt_ready(p)(4),
+        packet_last               => pkt_last(p)(4)
       );
   end generate;
 
@@ -1051,7 +1060,8 @@ begin
         out_strb                  => speed_changes_strb_a(p),
       
         packet_valid              => pkt_valid(p)(5),
-        packet_ready              => pkt_ready(p)(5)
+        packet_ready              => pkt_ready(p)(5),
+        packet_last               => pkt_last(p)(5)
       );
   end generate;
 
@@ -1080,7 +1090,8 @@ begin
         out_strb                  => hypermiling_strb_a(p),
       
         packet_valid              => pkt_valid(p)(6),
-        packet_ready              => pkt_ready(p)(6)
+        packet_ready              => pkt_ready(p)(6),
+        packet_last               => pkt_last(p)(6)
       );
   end generate;
 
@@ -1109,7 +1120,8 @@ begin
         out_strb                  => orientation_strb_a(p),
       
         packet_valid              => pkt_valid(p)(7),
-        packet_ready              => pkt_ready(p)(7)
+        packet_ready              => pkt_ready(p)(7),
+        packet_last               => pkt_last(p)(7)
       );
   end generate;
 
@@ -1138,7 +1150,8 @@ begin
         out_strb                  => sec_in_band_strb_a(p),
       
         packet_valid              => pkt_valid(p)(8),
-        packet_ready              => pkt_ready(p)(8)
+        packet_ready              => pkt_ready(p)(8),
+        packet_last               => pkt_last(p)(8)
       );
   end generate;
 
@@ -1167,7 +1180,8 @@ begin
         out_strb                  => miles_in_time_range_strb_a(p),
       
         packet_valid              => pkt_valid(p)(9),
-        packet_ready              => pkt_ready(p)(9)
+        packet_ready              => pkt_ready(p)(9),
+        packet_last               => pkt_last(p)(9)
       );
   end generate;
 
@@ -1196,7 +1210,8 @@ begin
         out_strb                  => const_speed_miles_in_band_strb_a(p),
       
         packet_valid              => pkt_valid(p)(10),
-        packet_ready              => pkt_ready(p)(10)
+        packet_ready              => pkt_ready(p)(10),
+        packet_last               => pkt_last(p)(10)
       );
   end generate;
 
@@ -1225,7 +1240,8 @@ begin
         out_strb                  => vary_speed_miles_in_band_strb_a(p),
       
         packet_valid              => pkt_valid(p)(11),
-        packet_ready              => pkt_ready(p)(11)
+        packet_ready              => pkt_ready(p)(11),
+        packet_last               => pkt_last(p)(11)
       );
   end generate;
 
@@ -1254,7 +1270,8 @@ begin
         out_strb                  => sec_decel_strb_a(p),
       
         packet_valid              => pkt_valid(p)(12),
-        packet_ready              => pkt_ready(p)(12)
+        packet_ready              => pkt_ready(p)(12),
+        packet_last               => pkt_last(p)(12)
       );
   end generate;
 
@@ -1283,7 +1300,8 @@ begin
         out_strb                  => sec_accel_strb_a(p),
       
         packet_valid              => pkt_valid(p)(13),
-        packet_ready              => pkt_ready(p)(13)
+        packet_ready              => pkt_ready(p)(13),
+        packet_last               => pkt_last(p)(13)
       );
   end generate;
 
@@ -1312,7 +1330,8 @@ begin
         out_strb                  => braking_strb_a(p),
       
         packet_valid              => pkt_valid(p)(14),
-        packet_ready              => pkt_ready(p)(14)
+        packet_ready              => pkt_ready(p)(14),
+        packet_last               => pkt_last(p)(14)
       );
   end generate;
 
@@ -1341,7 +1360,8 @@ begin
         out_strb                  => accel_strb_a(p),
       
         packet_valid              => pkt_valid(p)(15),
-        packet_ready              => pkt_ready(p)(15)
+        packet_ready              => pkt_ready(p)(15),
+        packet_last               => pkt_last(p)(15)
       );
   end generate;
 
@@ -1370,7 +1390,8 @@ begin
         out_strb                  => small_speed_var_strb_a(p),
       
         packet_valid              => pkt_valid(p)(16),
-        packet_ready              => pkt_ready(p)(16)
+        packet_ready              => pkt_ready(p)(16),
+        packet_last               => pkt_last(p)(16)
       );
   end generate;
 
@@ -1399,7 +1420,8 @@ begin
         out_strb                  => large_speed_var_strb_a(p),
       
         packet_valid              => pkt_valid(p)(17),
-        packet_ready              => pkt_ready(p)(17)
+        packet_ready              => pkt_ready(p)(17),
+        packet_last               => pkt_last(p)(17)
       );
   end generate;
 
@@ -1428,7 +1450,8 @@ begin
         out_strb                  => timestamp_strb_a(p),
       
         packet_valid              => pkt_valid(p)(18),
-        packet_ready              => pkt_ready(p)(18)
+        packet_ready              => pkt_ready(p)(18),
+        packet_last               => pkt_last(p)(18)
       );
   end generate;
 
@@ -1459,7 +1482,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(0),
         cmd_ready                 => cmd_ready(p)(0),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1489,7 +1513,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(1),
         cmd_ready                 => cmd_ready(p)(1),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1519,7 +1544,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(2),
         cmd_ready                 => cmd_ready(p)(2),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1549,7 +1575,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(3),
         cmd_ready                 => cmd_ready(p)(3),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1579,7 +1606,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(4),
         cmd_ready                 => cmd_ready(p)(4),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1609,7 +1637,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(5),
         cmd_ready                 => cmd_ready(p)(5),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1639,7 +1668,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(6),
         cmd_ready                 => cmd_ready(p)(6),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1669,7 +1699,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(7),
         cmd_ready                 => cmd_ready(p)(7),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1699,7 +1730,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(8),
         cmd_ready                 => cmd_ready(p)(8),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1729,7 +1761,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(9),
         cmd_ready                 => cmd_ready(p)(9),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1759,7 +1792,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(10),
         cmd_ready                 => cmd_ready(p)(10),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1789,7 +1823,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(11),
         cmd_ready                 => cmd_ready(p)(11),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1819,7 +1854,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(12),
         cmd_ready                 => cmd_ready(p)(12),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1849,7 +1885,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(13),
         cmd_ready                 => cmd_ready(p)(13),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1879,7 +1916,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(14),
         cmd_ready                 => cmd_ready(p)(14),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1909,7 +1947,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(15),
         cmd_ready                 => cmd_ready(p)(15),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1939,7 +1978,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(16),
         cmd_ready                 => cmd_ready(p)(16),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1969,7 +2009,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(17),
         cmd_ready                 => cmd_ready(p)(17),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -1999,7 +2040,8 @@ begin
     
         cmd_valid                 => cmd_valid(p)(18),
         cmd_ready                 => cmd_ready(p)(18),
-        cmd_index                 => cmd_index
+        cmd_index                 => cmd_index,
+        cmd_last                  => cmd_last
       );
   end generate;
 
@@ -2022,7 +2064,7 @@ begin
     
         out_valid       => timestamp_valid_f(p),
         out_ready       => timestamp_ready_f(p),
-        out_data        => timestamp_data_f(8*EPC*(p+1)-1 downto 8*EPC*p),
+        out_data        => timestamp_data_f(8*(p+1)-1 downto 8*p),
         out_strb        => timestamp_strb_f(p), 
         out_last        => timestamp_last_f(3*(p+1)-1 downto 3*p) 
       );
@@ -2058,6 +2100,7 @@ begin
         out_valid(0)            => pkt_valid_sync(p),
         out_ready(0)            => pkt_ready_sync(p)
       );
+    pkt_last_red(p) <= or_reduce(pkt_last(p));
   end generate;
   
   arb_cntrl: ArbiterController
@@ -2076,6 +2119,7 @@ begin
       cmd_valid                 => cmd_valid_sync,
       cmd_ready                 => cmd_ready_sync,
       cmd_index                 => cmd_index,
+      cmd_last                  => cmd_last,
 
       tag_valid                 => tag_valid,
       tag_ready                 => tag_ready,

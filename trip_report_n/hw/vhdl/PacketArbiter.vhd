@@ -12,7 +12,9 @@ entity PacketArbiter is
       DATA_WIDTH            : natural := 8;
       NUM_INPUTS            : natural;
       INDEX_WIDTH           : natural;
-      DIMENSIONALITY        : natural := 1
+      DIMENSIONALITY        : natural := 1;
+      PKT_LAST              : natural := 0;
+      TX_LAST               : natural := 0
       );
   port (
       clk                   : in  std_logic;
@@ -32,8 +34,8 @@ entity PacketArbiter is
 
       cmd_valid             : in  std_logic;
       cmd_ready             : out std_logic;
-      cmd_index             : in  std_logic_vector(INDEX_WIDTH-1 downto 0)
-
+      cmd_index             : in  std_logic_vector(INDEX_WIDTH-1 downto 0);
+      cmd_last              : in  std_logic := '0'
   );
 end entity;
 
@@ -47,28 +49,36 @@ architecture behavioral of PacketArbiter is
   begin
 
     cmd_proc: process (clk) is
-      variable cv     : std_logic := '0';
-      variable cr     : std_logic := '0';
-      variable lock_v : std_logic := '0';
+      variable cv       : std_logic := '0';
+      variable cr       : std_logic := '0';
+      variable lock_v   : std_logic := '0';
+      variable last_pkt : std_logic := '0';
     begin 
 
       if rising_edge(clk) then
         
         -- Latch index.
         if to_x01(cr) = '1' then 
-          cv    := cmd_valid;
-          index <= cmd_index;
+          cv       := cmd_valid;
+          index    <= cmd_index;
         end if;
 
         -- Lock on new command.
         if to_x01(cv) = '1' then
-          cv     := '0';
-          lock_v := '1';
+          cv       := '0';
+          last_pkt := cmd_last;
+          lock_v   := '1';
         end if;
 
-        -- Unlock if we received the last transfer in the outermost dimension.
+        -- Unlock if we received the last transfer of the packet or transfer.
+        -- If this is the last command of the transfer, wait until transfer closing 'last'.
+        -- The transfer might be closed after the packet, in a separate cycle.
         if out_valid_s = '1' and out_ready = '1' then
-          lock_v := not out_last_s(out_last_s'left);
+          if to_x01(last_pkt) = '1' then
+            lock_v := not (out_last_s(PKT_LAST) or out_last_s(TX_LAST));
+          else
+            lock_v := not (out_last_s(PKT_LAST) or out_last_s(PKT_LAST));
+          end if;
         end if;
 
         -- Only be ready for a command when a previous one is not in progress.
@@ -87,7 +97,7 @@ architecture behavioral of PacketArbiter is
     end process;
 
     -- Input mux
-    inp_mux_proc: process(in_data, in_last, in_strb, lock) is
+    inp_mux_proc: process(in_data, in_valid, in_last, in_strb, lock) is
         variable idx : integer range 0 to 2**INDEX_WIDTH-1;
     begin
         idx := to_integer(unsigned(index));

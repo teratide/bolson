@@ -110,7 +110,9 @@ package trip_report_util_pkg is
         DATA_WIDTH            : natural := 8;
         NUM_INPUTS            : natural;
         INDEX_WIDTH           : natural;
-        DIMENSIONALITY        : natural := 1
+        DIMENSIONALITY        : natural := 1;
+        PKT_LAST              : natural := 0;
+        TX_LAST               : natural := 0
         );
     port (
         clk                   : in  std_logic;
@@ -130,8 +132,8 @@ package trip_report_util_pkg is
   
         cmd_valid             : in  std_logic;
         cmd_ready             : out std_logic;
-        cmd_index             : in  std_logic_vector(INDEX_WIDTH-1 downto 0)
-  
+        cmd_index             : in  std_logic_vector(INDEX_WIDTH-1 downto 0);
+        cmd_last              : in  std_logic := '0'
     );
   end component;
 
@@ -140,7 +142,9 @@ package trip_report_util_pkg is
         DATA_WIDTH            : natural;
         DEPTH                 : natural;
         PKT_COUNT_WIDTH       : natural := 8;
-        DIMENSIONALITY        : natural := 1
+        DIMENSIONALITY        : natural := 1;
+        PKT_LAST              : natural := 0;
+        TX_LAST               : natural := 0
         );
     port (
         clk                   : in  std_logic;
@@ -160,8 +164,8 @@ package trip_report_util_pkg is
   
         packet_valid          : out std_logic;
         packet_ready          : in  std_logic;
-        packet_count          : out std_logic_vector(PKT_COUNT_WIDTH-1 downto 0)
-  
+        packet_count          : out std_logic_vector(PKT_COUNT_WIDTH-1 downto 0);
+        packet_last           : out std_logic := '0'
     );
   end component;
 
@@ -177,14 +181,17 @@ package trip_report_util_pkg is
   
         pkt_valid             : in  std_logic_vector(NUM_INPUTS-1 downto 0);
         pkt_ready             : out std_logic_vector(NUM_INPUTS-1 downto 0);
+        pkt_last              : in  std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '0');
   
         cmd_valid             : out std_logic;
         cmd_ready             : in  std_logic;
         cmd_index             : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+        cmd_last              : out std_logic;
   
         tag_valid             : out std_logic;
         tag_ready             : in  std_logic;
         tag                   : out std_logic_vector(TAG_WIDTH-1 downto 0);
+        tag_last              : out std_logic;
   
         tag_cfg               : in std_logic_vector(NUM_INPUTS*TAG_WIDTH-1 downto 0)
     );
@@ -291,13 +298,13 @@ package trip_report_util_pkg is
       clk                                         : in  std_logic;
       reset                                       : in  std_logic;
       
-      in_valid                                    : in  std_logic;
-      in_ready                                    : out std_logic;
-      in_data                                     : in  std_logic_vector(8*EPC-1 downto 0);
-      in_last                                     : in  std_logic_vector(2*EPC-1 downto 0);
-      in_stai                                     : in  std_logic_vector(log2ceil(EPC)-1 downto 0) := (others => '0');
-      in_endi                                     : in  std_logic_vector(log2ceil(EPC)-1 downto 0) := (others => '1');
-      in_strb                                     : in  std_logic_vector(EPC-1 downto 0);
+      in_valid                                    : in  std_logic_vector(NUM_PARSERS-1 downto 0);
+      in_ready                                    : out std_logic_vector(NUM_PARSERS-1 downto 0);
+      in_data                                     : in  std_logic_vector(8*EPC*NUM_PARSERS-1 downto 0);
+      in_last                                     : in  std_logic_vector(2*EPC*NUM_PARSERS-1 downto 0);
+      in_stai                                     : in  std_logic_vector(log2ceil(EPC)*NUM_PARSERS-1 downto 0) := (others => '0');
+      in_endi                                     : in  std_logic_vector(log2ceil(EPC)*NUM_PARSERS-1 downto 0) := (others => '1');
+      in_strb                                     : in  std_logic_vector(EPC*NUM_PARSERS-1 downto 0);
       
       end_req                                     : in  std_logic := '0';
       end_ack                                     : out std_logic;
@@ -346,13 +353,13 @@ package trip_report_util_pkg is
       --    
       hypermiling_valid                           : out std_logic;
       hypermiling_ready                           : in  std_logic;
-      hypermiling_data                            : out std_logic;
+      hypermiling_data                            : out std_logic_vector(0 downto 0);
       hypermiling_strb                            : out std_logic;
       hypermiling_last                            : out std_logic_vector(1 downto 0);
   
       orientation_valid                           : out std_logic;
       orientation_ready                           : in  std_logic;
-      orientation_data                            : out std_logic;
+      orientation_data                            : out std_logic_vector(0 downto 0);
       orientation_strb                            : out std_logic;
       orientation_last                            : out std_logic_vector(1 downto 0);
   

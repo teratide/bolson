@@ -19,14 +19,17 @@ entity ArbiterController is
 
       pkt_valid             : in  std_logic_vector(NUM_INPUTS-1 downto 0);
       pkt_ready             : out std_logic_vector(NUM_INPUTS-1 downto 0);
+      pkt_last              : in  std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '0');
 
       cmd_valid             : out std_logic;
       cmd_ready             : in  std_logic;
       cmd_index             : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+      cmd_last              : out std_logic;
 
       tag_valid             : out std_logic;
       tag_ready             : in  std_logic;
       tag                   : out std_logic_vector(TAG_WIDTH-1 downto 0);
+      tag_last              : out std_logic;
 
       tag_cfg               : in  std_logic_vector(NUM_INPUTS*TAG_WIDTH-1 downto 0)
   );
@@ -57,16 +60,23 @@ architecture Implementation of ArbiterController is
     );
 
     cntrl_proc: process (clk) is
-      variable ov     : std_logic := '0';
-      variable index_r: std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
-      variable index  : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
-      variable tag_v  : std_logic_vector(TAG_WIDTH-1 downto 0);
+      variable ov       : std_logic := '0';
+      variable ol       : std_logic := '0';
+      variable cl       : std_logic := '0';
+      variable index_r  : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
+      variable index    : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
+      variable tag_v    : std_logic_vector(TAG_WIDTH-1 downto 0);
+      variable last_pkt : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
     begin 
 
       if rising_edge(clk) then
 
         if out_ready = '1' then
           ov := '0';
+          ol := '0';
+          if to_x01(ol) = '1' then
+            last_pkt := (others => '0');
+          end if;
         end if;
 
         pkt_ready <= (others => '0');
@@ -76,9 +86,12 @@ architecture Implementation of ArbiterController is
           -- Priority init.
           for idx in NUM_INPUTS-1 downto 0 loop
             if pkt_valid(idx) = '1' then
-              index   := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
-              ov      := '1';
-              tag_v   := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
+              index         := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
+              ov            := '1';
+              tag_v         := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
+              last_pkt(idx) := last_pkt(idx) or pkt_last(idx);
+              cl            := pkt_last(idx);
+              ol            := and_reduce(last_pkt);
             end if;
           end loop;
           --Round-robin arbitration.
@@ -86,8 +99,11 @@ architecture Implementation of ArbiterController is
             if pkt_valid(idx) = '1' then
               if idx > to_integer(unsigned(index_r)) then
                 index := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
-                ov    := '1';
-                tag_v := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
+                ov            := '1';
+                tag_v         := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
+                last_pkt(idx) := last_pkt(idx) or pkt_last(idx);
+                cl            := pkt_last(idx);
+                ol            := and_reduce(last_pkt);
               end if;
             end if;
           end loop;
@@ -98,15 +114,18 @@ architecture Implementation of ArbiterController is
 
         -- Handle reset.
         if reset = '1' then
-          index   := (others => '0');
-          index_r := (others => '0');
-          ov      := '0';
+          index     := (others => '0');
+          index_r   := (others => '0');
+          last_pkt  := (others => '0');
+          ov        := '0';
         end if;
 
         index_r   := index;
         cmd_index <= index;
         tag       <= tag_v;
         out_valid <= ov;
+        tag_last  <= ol;
+        cmd_last  <= cl;
       end if;
     end process;
   end architecture;

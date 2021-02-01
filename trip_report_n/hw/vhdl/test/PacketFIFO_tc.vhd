@@ -154,7 +154,9 @@ begin
       DEPTH                     => DEPTH,
       PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
       DATA_WIDTH                => 8,
-      DIMENSIONALITY            => 1
+      DIMENSIONALITY            => 1,
+      PKT_LAST                  => 0,
+      TX_LAST                   => 0
     )
     port map (
       clk                       => clk,

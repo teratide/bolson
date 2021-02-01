@@ -434,7 +434,7 @@ architecture Implementation of trip_report is
   --
   signal hypermiling_valid                : std_logic;
   signal hypermiling_ready                : std_logic;
-  signal hypermiling_data                 : std_logic;
+  signal hypermiling_data                 : std_logic_vector(0 downto 0);
   signal hypermiling_strb                 : std_logic;
   signal hypermiling_last                 : std_logic_vector(1 downto 0);
 
@@ -442,7 +442,7 @@ architecture Implementation of trip_report is
 
   signal orientation_valid                : std_logic;
   signal orientation_ready                : std_logic;
-  signal orientation_data                 : std_logic;
+  signal orientation_data                 : std_logic_vector(0 downto 0);
   signal orientation_strb                 : std_logic;
   signal orientation_last                 : std_logic_vector(1 downto 0);
 
@@ -982,8 +982,8 @@ begin
     clk                                         => kcd_clk,
     reset                                       => kcd_reset,
 
-    in_valid                                    => input_input_valid,
-    in_ready                                    => int_input_input_ready,
+    in_valid(0)                                    => input_input_valid,
+    in_ready(0)                                    => int_input_input_ready,
     in_data                                     => input_input,
     in_last                                     => int_in_last,
     in_stai                                     => (others => '0'),
@@ -1120,7 +1120,7 @@ begin
     timestamp_strb                              => timestamp_strb,
 
     tag_ready                                   => '1',
-    tag_cfg                                     => "0100"
+    tag_cfg                                     => "00"
 
   );
 
@@ -1288,7 +1288,7 @@ speed_changes_conv : DropEmpty
 
     in_valid       => hypermiling_valid,
     in_ready       => hypermiling_ready,
-    in_data(0)     => hypermiling_data,
+    in_data        => hypermiling_data,
     in_dvalid      => hypermiling_strb,
     in_last        => hypermiling_last(1 downto 1),
 
@@ -1312,7 +1312,7 @@ orientation_conv : DropEmpty
 
     in_valid       => orientation_valid,
     in_ready       => orientation_ready,
-    in_data(0)     => orientation_data,
+    in_data        => orientation_data,
     in_dvalid      => orientation_strb,
     in_last        => orientation_last(1 downto 1),
 
