@@ -4,7 +4,7 @@ project(bolson VERSION 0.0.1 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 find_package(Arrow 3.0.0 CONFIG REQUIRED)
-find_library(pulsar 2.7.0 REQUIRED)
+find_library(pulsar 2.7.0)
 
 include(FetchContent)
 
