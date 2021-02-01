@@ -14,27 +14,40 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <putong/status.h>
+
+#include <iostream>
 
 namespace bolson {
 
-#define BOLSON_ROE(s) { \
-  auto status = s;       \
-  if (!s.ok()) return s; \
-}
-
+/// Error types.
 enum class Error {
-  GenericError,
-  CLIError,
-  PulsarError,
-  IllexError,
-  RapidJSONError,
-  ArrowError,
-  IOError
+  GenericError,    ///< Uncategorized errors.
+  CLIError,        ///< Errors related to the command-line interface.
+  PulsarError,     ///< Errors related to Pulsar.
+  IllexError,      ///< Errors related to Illex.
+  RapidJSONError,  ///< Errors related to RapidJSON.
+  ArrowError,      ///< Errors related to Arrow.
+  IOError,         ///< Errors related to input/output.
+  OpaeError        ///< Errors related to FPGA impl.
 };
 
 using Status = putong::Status<Error>;
 
-}
+/// Return on error status.
+#define BOLSON_ROE(s)                    \
+  {                                      \
+    auto __status = (s);                 \
+    if (!__status.ok()) return __status; \
+  }                                      \
+  void()
+
+/// Convert Arrow status and return on error.
+#define ARROW_ROE(s)                                                           \
+  {                                                                            \
+    auto __status = (s);                                                       \
+    if (!__status.ok()) return Status(Error::ArrowError, __status.ToString()); \
+  }                                                                            \
+  void()
+
+}  // namespace bolson

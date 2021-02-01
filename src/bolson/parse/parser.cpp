@@ -12,27 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "bolson/parse/parser.h"
 
-#include "./pulsar.h"
+#include "bolson/status.h"
 
-namespace bolson {
+namespace bolson::parse {
 
-/// Options for the file subcommand.
-struct FileOptions {
-  /// Pulsar options.
-  PulsarOptions pulsar;
-  /// Input file path.
-  std::string input;
-  /// Whether to produce succinct stats.
-  bool succinct = false;
-};
+auto ToString(const Impl& impl) -> std::string {
+  switch (impl) {
+    case Impl::ARROW:
+      return "Arrow (CPU)";
+    case Impl::OPAE_BATTERY:
+      return "OPAE Battery status (FPGA)";
+  }
+  throw std::runtime_error("Corrupt impl.");
+}
 
-/**
- * \brief Produce Pulsar messages from a file with JSONs.
- * \param opt Options for the file subcommand.
- * \return Status::OK() if successful, some error otherwise.
- */
-auto ProduceFromFile(const FileOptions &opt) -> Status;
-
-}  // namespace bolson
+}  // namespace bolson::parse

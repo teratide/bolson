@@ -3,10 +3,8 @@ cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(bolson VERSION 0.0.1 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
-find_package(Arrow 1.0 CONFIG REQUIRED)
-find_library(pulsar 2.6.0 REQUIRED NAMES libpulsar.dylib)
-find_library(zmqpp REQUIRED)
-find_library(zmq REQUIRED)
+find_package(Arrow 3.0.0 CONFIG REQUIRED)
+find_library(pulsar 2.7.0)
 
 include(FetchContent)
 
@@ -21,7 +19,7 @@ include(CompileUnits)
 # RapidJSON
 FetchContent_Declare(rapidjson
   GIT_REPOSITORY  https://github.com/Tencent/rapidjson.git
-  GIT_TAG         master
+  GIT_TAG         v1.1.0
 )
 FetchContent_GetProperties(rapidjson)
 if (NOT rapidjson_POPULATED)
@@ -46,7 +44,7 @@ FetchContent_MakeAvailable(spdlog)
 # concurrentqueue
 FetchContent_Declare(concurrentqueue
   GIT_REPOSITORY  https://github.com/cameron314/concurrentqueue.git
-  GIT_TAG         v1.0.1
+  GIT_TAG         v1.0.2
 )
 FetchContent_GetProperties(concurrentqueue)
 if (NOT concurrentqueue_POPULATED)
@@ -63,10 +61,16 @@ FetchContent_MakeAvailable(putong)
 
 # illex
 FetchContent_Declare(illex
-  GIT_REPOSITORY  https://github.com/abs-tudelft/illex
+  GIT_REPOSITORY  https://github.com/teratide/illex
   GIT_TAG         master
 )
 FetchContent_MakeAvailable(illex)
+
+FetchContent_Declare(fletcher
+  GIT_REPOSITORY  https://github.com/abs-tudelft/fletcher
+  GIT_TAG         arrow-3.0
+)
+FetchContent_MakeAvailable(fletcher)
 
 add_compile_unit(
   NAME bolson::obj
@@ -76,21 +80,31 @@ add_compile_unit(
     CXX_STANDARD_REQUIRED ON
   SRCS
     src/bolson/utils.cpp
-    src/bolson/file.cpp
     src/bolson/pulsar.cpp
     src/bolson/cli.cpp
-    src/bolson/converter.cpp
     src/bolson/stream.cpp
+    src/bolson/bench.cpp
+    src/bolson/latency.cpp
+    src/bolson/buffer/allocator.cpp
+    src/bolson/buffer/opae_allocator.cpp
+    src/bolson/parse/parser.cpp
+    src/bolson/parse/arrow_impl.cpp
+    src/bolson/parse/opae_battery_impl.cpp
+    src/bolson/convert/stats.cpp
+    src/bolson/convert/resizer.cpp
+    src/bolson/convert/serializer.cpp
+    src/bolson/convert/converter.cpp
+  TSTS
+    test/bolson/convert/test_opae_battery.cpp
   DEPS
     arrow_shared
     CLI11::CLI11
     pulsar
-    zmqpp
-    zmq
     spdlog::spdlog
     Threads::Threads
     illex::static
     putong
+    fletcher
 )
 
 add_compile_unit(
@@ -104,7 +118,5 @@ add_compile_unit(
   DEPS
     bolson::obj
 )
-
-include_directories(include)
 
 compile_units()

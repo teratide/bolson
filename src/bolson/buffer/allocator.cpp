@@ -12,24 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "bolson/buffer/allocator.h"
 
-#ifndef NDEBUG
-#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
-#endif
+#include <memory>
 
-#include <spdlog/sinks/stdout_sinks.h>
-#include <spdlog/spdlog.h>
+#include "bolson/status.h"
 
-namespace bolson {
+namespace bolson::buffer {
 
-inline void StartLogger() {
-  auto logger = spdlog::stdout_logger_mt("bolson");
-  logger->set_pattern("[%n] [%l] %v");
-  spdlog::set_default_logger(logger);
-#ifndef NDEBUG
-  spdlog::set_level(spdlog::level::debug);
-#endif
+auto Allocator::Allocate(size_t size, std::byte** out) -> Status {
+  *out = static_cast<std::byte*>(malloc(size));
+  if (*out == nullptr) {
+    return Status(Error::GenericError,
+                  "Unable to allocate " + std::to_string(size) + " bytes.");
+  }
+  return Status::OK();
 }
 
-}  // namespace bolson
+auto Allocator::Free(std::byte* buffer) -> Status {
+  free(buffer);
+  return Status::OK();
+}
+
+}  // namespace bolson::buffer

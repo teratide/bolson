@@ -12,196 +12,213 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-#include <thread>
-#include <memory>
-#include <illex/raw_client.h>
-#include <illex/zmq_client.h>
+#include "bolson/stream.h"
+
 #include <putong/timer.h>
 
-#include "bolson/stream.h"
-#include "bolson/converter.h"
+#include <iostream>
+#include <memory>
+#include <thread>
+#include <vector>
+
+#include "bolson/latency.h"
+#include "bolson/parse/arrow_impl.h"
+#include "bolson/parse/opae_battery_impl.h"
 #include "bolson/pulsar.h"
 #include "bolson/status.h"
+#include "bolson/utils.h"
 
 namespace bolson {
+
+using convert::Stats;
+
+/// Structure to hold timers.
+struct StreamTimers {
+  putong::Timer<> tcp;
+  putong::Timer<> init;
+};
 
 /// Structure to hold threads and atomics
 struct StreamThreads {
   std::unique_ptr<std::thread> publish_thread;
-  std::unique_ptr<std::thread> converter_thread;
   std::atomic<bool> shutdown = false;
   std::atomic<size_t> publish_count = 0;
 
   /// Shut down the threads.
-  void Shutdown() {
+  void Shutdown(const std::shared_ptr<convert::Converter> &converter) {
     shutdown.store(true);
-    converter_thread->join();
+    converter->Finish();
     publish_thread->join();
   }
 };
 
-/// \brief Aggregate statistics for every thread.
-static auto AggrStats(const std::vector<ConversionStats> &conv_stats) -> ConversionStats {
-  ConversionStats all_conv_stats;
-  for (const auto &t : conv_stats) {
-    // TODO: overload +
-    all_conv_stats.num_jsons += t.num_jsons;
-    all_conv_stats.num_ipc += t.num_ipc;
-    all_conv_stats.convert_time += t.convert_time;
-    all_conv_stats.thread_time += t.thread_time;
-    all_conv_stats.total_ipc_bytes += t.total_ipc_bytes;
-  }
-  return all_conv_stats;
-}
-
-/// \brief Stream succinct CSV-like stats to some output stream.
-static void OutputStats(const putong::Timer<> &latency_timer,
-                        const illex::RawClient &client,
-                        const std::vector<ConversionStats> &conv_stats,
-                        const PublishStats &pub_stats,
-                        std::ostream *output) {
-  auto all_conv_stats = AggrStats(conv_stats);
-  (*output) << client.received() << ",";
-  (*output) << all_conv_stats.num_jsons << ",";
-  //(*output) << all_conv_stats.num_ipc << ","; // this one is redundant
-  (*output) << all_conv_stats.total_ipc_bytes << ",";
-  (*output) << static_cast<double>(all_conv_stats.total_ipc_bytes) / all_conv_stats.num_jsons << ",";
-  (*output) << all_conv_stats.convert_time / all_conv_stats.num_jsons << ",";
-  (*output) << all_conv_stats.thread_time / all_conv_stats.num_jsons << ",";
-  (*output) << pub_stats.num_published << ",";
-  (*output) << pub_stats.publish_time / pub_stats.num_published << ",";
-  (*output) << pub_stats.thread_time << ",";
-  (*output) << latency_timer.seconds() << std::endl;
-}
-
 /// \brief Log the statistics.
-static void LogStats(const putong::Timer<> &latency_timer,
-                     const illex::RawClient &client,
-                     const std::vector<ConversionStats> &conv_stats,
-                     const PublishStats &pub_stats) {
-  auto all_conv_stats = AggrStats(conv_stats);
-  spdlog::info("Received {} JSONs over TCP.", client.received());
+static void LogStreamStats(const StreamTimers &timers, const illex::RawClient &client,
+                           const std::vector<Stats> &conv_stats, const PublishStats &pub_stats) {
+  auto all = AggrStats(conv_stats);
+  spdlog::info("Initialization");
+  spdlog::info("  Time : {}", timers.init.seconds());
 
-  spdlog::info("Conversion stats:");
-  spdlog::info("  JSONs converted     : {}", all_conv_stats.num_jsons);
-  spdlog::info("  IPC msgs generated  : {}", all_conv_stats.num_ipc);
-  spdlog::info("  Total IPC bytes     : {}", all_conv_stats.total_ipc_bytes);
-  spdlog::info("  Avg. bytes/msg      : {}",
-               static_cast<double>(all_conv_stats.total_ipc_bytes) / all_conv_stats.num_jsons);
-  spdlog::info("  Avg. conv. time     : {} us.", 1E6 * all_conv_stats.convert_time / all_conv_stats.num_jsons);
-  spdlog::info("  Avg. thread time    : {} s.", all_conv_stats.thread_time / all_conv_stats.num_jsons);
+  // TCP client statistics.
+  auto tcp_MiB = static_cast<double>(client.bytes_received()) / (1024.0 * 1024.0);
+  auto tcp_MB = static_cast<double>(client.bytes_received()) / 1E6;
+  auto tcp_MJs = client.received() / 1E6;
+
+  spdlog::info("TCP client:");
+  spdlog::info("  JSONs received : {}", client.received());
+  spdlog::info("  Bytes received : {} MiB", tcp_MiB);
+  spdlog::info("  Time           : {} s", timers.tcp.seconds());
+  spdlog::info("  Throughput     : {} MJ/s", tcp_MJs / timers.tcp.seconds());
+  spdlog::info("  Throughput     : {} MB/s", tcp_MB / timers.tcp.seconds());
+
+  spdlog::info("JSONs to IPC conversion:");
+  LogConvertStats(all, conv_stats.size(), "  ");
+
+  // Pulsar producer / publishing statistics
+  auto pub_MJs = pub_stats.num_jsons_published / 1E6;
 
   spdlog::info("Publish stats:");
-  spdlog::info("  IPC messages        : {}", pub_stats.num_published);
-  spdlog::info("  Avg. publish time   : {} us.", 1E6 * pub_stats.publish_time / pub_stats.num_published);
-  spdlog::info("  Publish thread time : {} s", pub_stats.thread_time);
+  spdlog::info("  JSONs published : {}", pub_stats.num_jsons_published);
+  spdlog::info("  IPC messages    : {}", pub_stats.num_ipc_published);
+  spdlog::info("  Time            : {} s", pub_stats.publish_time);
+  spdlog::info("    in thread     : {} s", pub_stats.thread_time);
+  spdlog::info("  Throughput      : {} MJ/s.", pub_MJs / pub_stats.publish_time);
 
-  spdlog::info("Latency stats:");
-  spdlog::info("  First latency       : {} us", 1E6 * latency_timer.seconds());
-
-  spdlog::info("Timer steady?         : {}", putong::Timer<>::steady());
-  spdlog::info("Timer resoluion       : {} us", putong::Timer<>::resolution_us());
-
+  // Timer properties
+  spdlog::info("Timers:");
+  spdlog::info("  Steady?         : {}", putong::Timer<>::steady());
+  spdlog::info("  Resolution      : {} us", putong::Timer<>::resolution_us());
 }
 
-// Macro to shut down threads in ProduceFromStream whenever Illex client returns some error.
-#define SHUTDOWN_ON_ERROR(status) \
-  if (!status.ok()) { \
-    threads.Shutdown(); \
-    return Status(Error::IllexError, status.msg()); \
-  }
+// Macro to shut down threads in ProduceFromStream whenever Illex client returns some
+// error.
+#define SHUTDOWN_ON_FAILURE(status)                     \
+  {                                                     \
+    auto __status = status;                             \
+    if (!__status.ok()) {                               \
+      threads.Shutdown(converter);                      \
+      return Status(Error::IllexError, __status.msg()); \
+    }                                                   \
+  }                                                     \
+  void()
 
 auto ProduceFromStream(const StreamOptions &opt) -> Status {
-  putong::Timer<> latency_timer;
-
+  // Timers for throughput
+  StreamTimers timers;
   // Check which protocol to use.
-  if (std::holds_alternative<illex::ZMQProtocol>(opt.protocol)) {
-    return Status(Error::GenericError, "Not implemented.");
-//    illex::Queue output;
-//    illex::ZMQClient client;
-//    illex::ZMQClient::Create(std::get<illex::ZMQProtocol>(opt.protocol), "localhost", &client);
-//    CHECK_ILLEX(client.ReceiveJSONs(&output));
-//    CHECK_ILLEX(client.Close());
-  } else {
+  if (std::holds_alternative<illex::RawProtocol>(opt.protocol)) {
+    timers.init.Start();
     // Set up Pulsar client and producer.
-    PulsarContext pulsar;
+    PulsarConsumerContext pulsar;
     BOLSON_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &pulsar));
+
+    // Set up output queue.
+    IpcQueue ipc_queue(16 * 1024 * 1024);
 
     StreamThreads threads;
 
-    // Set up queues.
-    illex::JSONQueue raw_json_queue;
-    IpcQueue arrow_ipc_queue;
+    // TODO: wrap into a function from down here:
 
     // Set up futures for statistics delivered by threads.
-    std::promise<std::vector<ConversionStats>> conv_stats_promise;
-    auto conv_stats_future = conv_stats_promise.get_future();
     std::promise<PublishStats> pub_stats_promise;
     auto pub_stats_future = pub_stats_promise.get_future();
 
-    // Spawn two threads:
-    // The conversion thread spawns one or multiple drone threads that convert JSONs to Arrow IPC messages and queues
-    // them. The publish thread pull from the Arrow IPC queue, fed by the conversion thread, and publish them in Pulsar.
-    threads.converter_thread = std::make_unique<std::thread>(ConversionHiveThread,
-                                                             &raw_json_queue,
-                                                             &arrow_ipc_queue,
-                                                             &threads.shutdown,
-                                                             opt.num_conversion_drones,
-                                                             opt.parse,
-                                                             opt.batch_threshold,
-                                                             std::move(conv_stats_promise));
+    // Select allocator.
+    std::shared_ptr<buffer::Allocator> allocator;
+    switch (opt.converter.implementation) {
+      case parse::Impl::ARROW:
+        allocator = std::make_shared<buffer::Allocator>();
+        break;
+      case parse::Impl::OPAE_BATTERY:
+        allocator = std::make_shared<buffer::OpaeAllocator>();
+        break;
+    }
 
-    threads.publish_thread = std::make_unique<std::thread>(PublishThread,
-                                                           std::move(pulsar),
-                                                           &arrow_ipc_queue,
-                                                           &threads.shutdown,
-                                                           &threads.publish_count,
-                                                           &latency_timer,
-                                                           std::move(pub_stats_promise));
+    // Set up the Converter.
+    std::shared_ptr<convert::Converter> converter;
+    BOLSON_ROE(convert::Converter::Make(opt.converter, &ipc_queue, &converter));
+
+    // Start the converter threads.
+    converter->Start(&threads.shutdown);
+
+    // Spawn the publish thread, which pulls from the IPC queue and publishes the IPC
+    // messages in Pulsar.
+    threads.publish_thread =
+        std::make_unique<std::thread>(PublishThread, std::move(pulsar), &ipc_queue, &threads.shutdown,
+                                      &threads.publish_count, std::move(pub_stats_promise));
 
     // Set up the client that receives incoming JSONs.
-    // We must shut down the threads in case the client returns some errors.
-    illex::RawClient client;
-    SHUTDOWN_ON_ERROR(illex::RawClient::Create(std::get<illex::RawProtocol>(opt.protocol),
-                                               opt.hostname,
-                                               opt.seq,
-                                               &client));
+    // We must shut down the already spawned threads in case the client returns some
+    // errors.
+    illex::DirectBufferClient client;
+    SHUTDOWN_ON_FAILURE(illex::DirectBufferClient::Create(std::get<illex::RawProtocol>(opt.protocol), opt.hostname, 0,
+                                                          converter->mutable_buffers(), converter->mutexes(), &client));
 
-    // Receive JSONs until the server closes the connection.
+    timers.init.Stop();
+
+    // Receive JSONs (blocking) until the server closes the connection.
     // Concurrently, the conversion and publish thread will do their job.
-    SHUTDOWN_ON_ERROR(client.ReceiveJSONs(&raw_json_queue, &latency_timer));
-    SHUTDOWN_ON_ERROR(client.Close());
+    timers.tcp.Start();
+    SHUTDOWN_ON_FAILURE(client.ReceiveJSONs(nullptr));
+    timers.tcp.Stop();
+    SHUTDOWN_ON_FAILURE(client.Close());
 
     SPDLOG_DEBUG("Waiting to empty JSON queue.");
-    // Once the server disconnects, we can work towards shutting down this function.
-    // Wait until all JSONs have been published.
-    while (client.received() != threads.publish_count.load()) {
+    // Once the server disconnects, we can work towards finishing down this function.
+    // Wait until all JSONs have been published, or if either the publish or converter
+    // thread have asserted the shutdown signal. The latter indicates some error.
+    while ((client.received() != threads.publish_count.load()) && !threads.shutdown.load()) {
+      // TODO: use some conditional variable for this
+      // Sleep this thread for a bit.
+      std::this_thread::sleep_for(std::chrono::milliseconds(BOLSON_QUEUE_WAIT_US));
 #ifndef NDEBUG
-      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      // Sleep a bit longer in debug.
+      std::this_thread::sleep_for(std::chrono::milliseconds(100 * BOLSON_QUEUE_WAIT_US));
       SPDLOG_DEBUG("Received: {}, Published: {}", client.received(), threads.publish_count.load());
 #endif
     }
 
     // We can now shut down all threads and collect futures.
-    threads.Shutdown();
+    threads.Shutdown(converter);
 
-    auto conv_stats = conv_stats_future.get();
+    auto conv_stats = converter->Statistics();
     auto pub_stats = pub_stats_future.get();
 
+    // Check if the publish thread had an error.
     BOLSON_ROE(pub_stats.status);
+
+    // Check if any of the converter threads had an error.
+    for (size_t t = 0; t < conv_stats.size(); t++) {
+      bool produce_error = false;
+      std::stringstream msg;
+      msg << "Convert threads reported the following errors:" << std::endl;
+      if (!conv_stats[t].status.ok()) {
+        msg << "  Thread:" << t << ", error: " << conv_stats[t].status.msg() << std::endl;
+        produce_error = true;
+      }
+      if (produce_error) {
+        return Status(Error::GenericError, msg.str());
+      }
+    }
 
     // Report some statistics.
     if (opt.statistics) {
       if (opt.succinct) {
-        OutputStats(latency_timer, client, conv_stats, pub_stats, &std::cout);
+        return Status(Error::GenericError, "Not implemented.");
       } else {
-        LogStats(latency_timer, client, conv_stats, pub_stats);
+        LogStreamStats(timers, client, conv_stats, pub_stats);
+        opt.pulsar.Log();
+        spdlog::info("Implementation    : {}", ToString(opt.converter.implementation));
+        spdlog::info("Conversion threads: {}", opt.converter.num_threads);
+        spdlog::info("TCP clients       : {}", 1);
+        spdlog::info("Publish threads   : {}", 1);
       }
     }
+  } else {
+    return Status(Error::GenericError, "Not implemented.");
   }
 
-  return Status::OK();
+  return Status(Error::GenericError, "Not implemented.");
 }
 
 }  // namespace bolson

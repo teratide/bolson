@@ -14,39 +14,71 @@
 
 #pragma once
 
-#include <memory>
 #include <arrow/api.h>
+#include <blockingconcurrentqueue.h>
+#include <illex/latency.h>
+#include <illex/protocol.h>
 #include <pulsar/Client.h>
 #include <pulsar/Producer.h>
 #include <putong/timer.h>
 
+#include <future>
+#include <memory>
+
+#include "bolson/convert/serializer.h"
 #include "bolson/log.h"
 #include "bolson/status.h"
-#include "bolson/converter.h"
 
 namespace bolson {
 
+/// An item in the IPC queue.
+using IpcQueueItem = convert::SerializedBatch;
+
+/// A queue with Arrow IPC messages.
+using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;
+
+/// Pulsar default max message size (from an obscure place in the Pulsar sources)
+constexpr size_t PULSAR_DEFAULT_MAX_MESSAGE_SIZE = 5 * 1024 * 1024 - 32 * 1024;
+
+/// Ipc queue item sorting function, sorts by sequence number.
+struct {
+  bool operator()(const IpcQueueItem& a, const IpcQueueItem& b) const {
+    return a.seq_range.first < b.seq_range.first;
+  }
+} IpcSortBySeq;
+
 /// A Pulsar context for functions to operate on.
-struct PulsarContext {
+struct PulsarConsumerContext {
   std::unique_ptr<pulsar::Client> client;
   std::unique_ptr<pulsar::Producer> producer;
 };
 
 /// Pulsar options.
 struct PulsarOptions {
+  /// Pulsar URL.
   std::string url = "pulsar://localhost:6650/";
+  /// Pulsar topic to publish on.
   std::string topic = "bolson";
-  // From an obscure place in the Pulsar sources
-  size_t max_msg_size = (5 * 1024 * 1024 - (10 * 1024));
+  /// Maximum message size.
+  size_t max_msg_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
+
+  inline void Log() const {
+    spdlog::info("Pulsar:");
+    spdlog::info("  URL           : {}", url);
+    spdlog::info("  Topic         : {}", topic);
+    spdlog::info("  Max msg. size : {} B", max_msg_size);
+  }
 };
 
 /// Statistics about publishing
 struct PublishStats {
-  /// Number of messages published.
-  size_t num_published = 0;
+  /// Number of JSONs published.
+  size_t num_jsons_published = 0;
+  /// Number of IPC messages published.
+  size_t num_ipc_published = 0;
   /// Time spent on publishing message.
   double publish_time = 0.;
-  /// Time spent in thread.
+  /// Time spent in publish thread.
   double thread_time = 0.;
   /// Status of the publishing thread.
   Status status = Status::OK();
@@ -59,43 +91,35 @@ struct PublishStats {
  * \param out    A context including the client and producer.
  * \return       Status::OK() if successful, some error otherwise.
  */
-auto SetupClientProducer(const std::string &url,
-                         const std::string &topic,
-                         PulsarContext *out) -> Status;
+auto SetupClientProducer(const std::string& url, const std::string& topic,
+                         PulsarConsumerContext* out) -> Status;
 
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
- * \param producer      The Pulsar producer to publish the message through.
- * \param buffer        The Arrow buffer to publish.
- * \param latency_timer A timer that is stopped by this function just before calling the Pulsar send function.
- * \return         Status::OK() if successful, some error otherwise.
+ * \param producer    The Pulsar producer to publish the message through.
+ * \param buffer      The raw bytes buffer to publish.
+ * \param size        The size of the buffer.
+ * \return            Status::OK() if successful, some error otherwise.
  */
-auto PublishArrowBuffer(pulsar::Producer* producer,
-                        const std::shared_ptr<arrow::Buffer> &buffer,
-                        putong::Timer<> *latency_timer) -> Status;
+auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> Status;
 
 /**
- * \brief A thread to pull IPC messages from the queue and publish them to some Pulsar queue.
- * \param pulsar            Pulsar client and producer.
- * \param in                Incoming queue with IPC messages.
- * \param stop              If this is true, this thread will try to terminate.
- * \param count             The number of published messages.
- * \param latency_timer     An optional latency timer that is stopped just before the first Pulsar message is sent.
- * \param stats             Statistics about this thread.
+ * \brief A thread to pull IPC messages from the queue and publish them to a Pulsar queue.
+ * \param pulsar        Pulsar client and producer.
+ * \param in            Incoming queue with IPC messages.
+ * \param shutdown      If this is true, this thread will try to terminate.
+ * \param count         The number of published messages.
+ * \param stats         Statistics about this thread.
  */
-void PublishThread(PulsarContext pulsar,
-                   IpcQueue *in,
-                   std::atomic<bool> *stop,
-                   std::atomic<size_t> *count,
-                   putong::Timer<> *latency_timer,
-                   std::promise<PublishStats> &&stats);
+void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in, std::atomic<bool>* shutdown,
+                   std::atomic<size_t>* count, std::promise<PublishStats>&& stats);
 
 /**
  * \brief Factory function for the custom Pulsar logger.
  */
 class bolsonLoggerFactory : public pulsar::LoggerFactory {
  public:
-  auto getLogger(const std::string &file) -> pulsar::Logger * override;
+  auto getLogger(const std::string& file) -> pulsar::Logger* override;
   static auto create() -> std::unique_ptr<bolsonLoggerFactory>;
 };
 

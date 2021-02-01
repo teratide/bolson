@@ -14,36 +14,38 @@
 
 #pragma once
 
+#include <arrow/json/api.h>
+#include <blockingconcurrentqueue.h>
+#include <illex/protocol.h>
+
 #include <utility>
 #include <variant>
 
-#include <illex/protocol.h>
-#include <arrow/json/api.h>
-
+#include "bolson/convert/converter.h"
+#include "bolson/latency.h"
+#include "bolson/parse/parser.h"
 #include "bolson/pulsar.h"
 
 namespace bolson {
 
 /// Stream subcommand options.
 struct StreamOptions {
-  /// Enable statistics.
-  bool statistics = true;
   /// The hostname of the stream server.
   std::string hostname = "localhost";
-  /// Starting sequence number
-  uint64_t seq = 0;
   /// The protocol to use.
   illex::StreamProtocol protocol;
   /// The Pulsar options.
   PulsarOptions pulsar;
-  /// The Arrow JSON parsing options.
-  arrow::json::ParseOptions parse;
-  /// Number of conversion drone threads to spawn.
-  size_t num_conversion_drones = 1;
+  /// Enable statistics.
+  bool statistics = true;
   /// Whether to produce succinct statistics.
   bool succinct = false;
-  /// RecordBatch size threshold before constructing an IPC message.
-  size_t batch_threshold = (4 * 1024 * 1024) + (512 * 1024);
+  /// Options related to tracking latency.
+  LatencyOptions latency;
+  /// Options related to conversion.
+  convert::Options converter;
+  /// Size of the TCP buffers.
+  size_t tcp_buffer_capacity = ILLEX_TCP_BUFFER_SIZE;
 };
 
 /**

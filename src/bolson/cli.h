@@ -12,37 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
 #include <CLI/CLI.hpp>
-#include <illex/zmq_protocol.h>
+#include <iostream>
 
+#include "bolson/bench.h"
 #include "bolson/pulsar.h"
-#include "bolson/file.h"
 #include "bolson/stream.h"
 
 #pragma once
 
 namespace bolson {
 
-enum class SubCommand { NONE, FILE, STREAM };
+/// Possible subcommands to run.
+enum class SubCommand {
+  NONE,    ///< Run no subcommand.
+  STREAM,  ///< Run the stream subcommand.
+  BENCH    ///< Run the bench subcommand.
+};
 
 /// \brief Application options.
 struct AppOptions {
   /// The name of the application.
-  constexpr static auto name = "bolson";
+  static constexpr auto name = "bolson";
   /// A description of the application.
-  constexpr static auto desc = "Converting JSONs to Arrow IPC messages that get sent to Pulsar.";
+  static constexpr auto desc =
+      "Converts raw JSONs to Arrow RecordBatches and publishes them to Pulsar.";
 
   /// \brief Populate an instance of the application options based on CLI arguments.
-  static auto FromArguments(int argc, char *argv[], AppOptions *out) -> Status;
+  static auto FromArguments(int argc, char* argv[], AppOptions* out) -> Status;
 
+  /// Subcommand to run.
   SubCommand sub = SubCommand::NONE;
 
-  FileOptions file;
+  /// Options for the stream subcommand.
   StreamOptions stream;
 
-  bool succinct = false;
-  bool exit = false;
+  /// Options for the bench subcommand.
+  BenchOptions bench;
 };
 
 }  // namespace bolson
