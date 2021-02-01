@@ -2,7 +2,7 @@
 
 A JSON stream to Arrow IPC to Pulsar conversion and publish tool.
 
-# Install
+# Build
 
 * Requirements
     * To build:
@@ -13,7 +13,7 @@ A JSON stream to Arrow IPC to Pulsar conversion and publish tool.
             - When building from source, run `cmake` with `-DARROW_JSON ON`.
         - [Pulsar 2.7.0](https://github.com/apache/pulsar)
 
-## Build & run
+To build, use:
 
 ```bash
 git clone https://github.com/teratide/bolson.git
@@ -22,15 +22,11 @@ mkdir build
 cd build
 cmake ..
 make
-./bolson
 ```
 
 # Usage
 
-There are two subcommands, `file` and `stream`.
-
-Both subcommand require an Arrow schema to be supplied as the first positional
-argument, or through `-i` or `--input`.
+There are two subcommands, `stream` and `bench`.
 
 More detailed options can be found by running:
 

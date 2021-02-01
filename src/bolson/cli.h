@@ -16,7 +16,6 @@
 #include <iostream>
 
 #include "bolson/bench.h"
-#include "bolson/file.h"
 #include "bolson/pulsar.h"
 #include "bolson/stream.h"
 
@@ -27,7 +26,6 @@ namespace bolson {
 /// Possible subcommands to run.
 enum class SubCommand {
   NONE,    ///< Run no subcommand.
-  FILE,    ///< Run the file subcommand.
   STREAM,  ///< Run the stream subcommand.
   BENCH    ///< Run the bench subcommand.
 };
@@ -38,16 +36,13 @@ struct AppOptions {
   static constexpr auto name = "bolson";
   /// A description of the application.
   static constexpr auto desc =
-      "Converts raw JSONs to Arrow RecordBatches and published them to Pulsar.";
+      "Converts raw JSONs to Arrow RecordBatches and publishes them to Pulsar.";
 
   /// \brief Populate an instance of the application options based on CLI arguments.
   static auto FromArguments(int argc, char* argv[], AppOptions* out) -> Status;
 
   /// Subcommand to run.
   SubCommand sub = SubCommand::NONE;
-
-  /// Options for the file subcommand.
-  FileOptions file;
 
   /// Options for the stream subcommand.
   StreamOptions stream;

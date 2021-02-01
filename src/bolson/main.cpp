@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "bolson/cli.h"
-#include "bolson/file.h"
 #include "bolson/log.h"
 #include "bolson/status.h"
 #include "bolson/stream.h"
@@ -29,9 +28,6 @@ auto main(int argc, char* argv[]) -> int {
     // Run sub-programs.
     bolson::Status result;
     switch (opts.sub) {
-      case bolson::SubCommand::FILE:
-        status = bolson::ProduceFromFile(opts.file);
-        break;
       case bolson::SubCommand::STREAM:
         status = bolson::ProduceFromStream(opts.stream);
         break;

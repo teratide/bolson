@@ -40,6 +40,13 @@ using IpcQueue = moodycamel::BlockingConcurrentQueue<IpcQueueItem>;
 /// Pulsar default max message size (from an obscure place in the Pulsar sources)
 constexpr size_t PULSAR_DEFAULT_MAX_MESSAGE_SIZE = 5 * 1024 * 1024 - 32 * 1024;
 
+/// Ipc queue item sorting function, sorts by sequence number.
+struct {
+  bool operator()(const IpcQueueItem& a, const IpcQueueItem& b) const {
+    return a.seq_range.first < b.seq_range.first;
+  }
+} IpcSortBySeq;
+
 /// A Pulsar context for functions to operate on.
 struct PulsarContext {
   std::unique_ptr<pulsar::Client> client;

@@ -184,13 +184,6 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   app.require_subcommand();
   app.get_formatter()->column_width(50);
 
-  // 'file' subcommand:
-  //  auto *file = app.add_subcommand("file", "Produce Pulsar messages from a JSON
-  //  file."); file->add_option("f,-f,--file", out->file.input, "Input file with Tweets.")
-  //      ->check(CLI::ExistingFile)->required();
-  //  AddArrowOpts(file, &schema_file);
-  //  AddPulsarOpts(file, &out->file.pulsar);
-
   // 'stream' subcommand:
   auto* stream =
       app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
@@ -245,10 +238,6 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   read_options.use_threads = false;
   read_options.block_size = 2 * read_options.block_size;
 
-  //  if (file->parsed()) {
-  //    out->sub = SubCommand::FILE;
-  //    out->file.succinct = out->succinct;
-  //  } else
   if (stream->parsed()) {
     out->sub = SubCommand::STREAM;
 

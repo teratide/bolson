@@ -15,7 +15,6 @@
 #pragma once
 
 #include <arrow/api.h>
-#include <rapidjson/document.h>
 
 #include <chrono>
 #include <iomanip>
@@ -35,38 +34,6 @@ namespace bolson {
  * \returns The total size of all (nested) buffer contents in bytes.
  */
 auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData>& array_data) -> int64_t;
-
-/**
- * \brief Return the total size in memory of the data in an Arrow RecordBatch. Does not
- * include buffer padding. \param batch The RecordBatch to analyze. \return The total size
- * in bytes.
- */
-auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch>& batch) -> int64_t;
-
-/// \brief Write an Arrow RecordBatch into a file as an Arrow IPC message.
-auto WriteIPCMessageBuffer(const std::shared_ptr<arrow::RecordBatch>& batch)
-    -> arrow::Result<std::shared_ptr<arrow::Buffer>>;
-
-/// \brief Report some gigabytes per second.
-void ReportGBps(const std::string& text, size_t bytes, double s, bool succinct = false);
-
-/**
- * \brief Read num_bytes from a file and buffer it in memory. Appends a C-style string
- * terminator to please rapidjson. \param[in]  file_name    The file to load. \param[in]
- * num_bytes    The number of bytes to read into the buffer. \param[out] dest         The
- * destination buffer. \return The buffer, will be size num_bytes + 1 to accommodate the
- * terminator character.
- */
-auto LoadFile(const std::string& file_name, size_t num_bytes, std::vector<char>* dest)
-    -> Status;
-
-/**
- * \brief Convert a RapidJSON parsing error to a more readible format.
- * \param doc The document that has a presumed error.
- * \param file_buffer The buffer from which the document was attempted to be parsed.
- */
-auto ConvertParserError(const rapidjson::Document& doc,
-                        const std::vector<char>& file_buffer) -> std::string;
 
 /**
  * \brief Convert a vector of T to a vector with pointers to each T.

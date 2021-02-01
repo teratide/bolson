@@ -80,7 +80,6 @@ add_compile_unit(
     CXX_STANDARD_REQUIRED ON
   SRCS
     src/bolson/utils.cpp
-    src/bolson/file.cpp
     src/bolson/pulsar.cpp
     src/bolson/cli.cpp
     src/bolson/stream.cpp
