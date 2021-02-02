@@ -13,20 +13,7 @@ entity trip_report is
   port (
     kcd_clk                                       : in  std_logic;
     kcd_reset                                     : in  std_logic;
-    input_input_valid                             : in  std_logic;
-    input_input_ready                             : out std_logic;
-    input_input_dvalid                            : in  std_logic;
-    input_input_last                              : in  std_logic;
-    input_input                                   : in  std_logic_vector(63 downto 0);
-    input_input_count                             : in  std_logic_vector(3 downto 0);
-    input_input_unl_valid                         : in  std_logic;
-    input_input_unl_ready                         : out std_logic;
-    input_input_unl_tag                           : in  std_logic_vector(TAG_WIDTH-1 downto 0);
-    input_input_cmd_valid                         : out std_logic;
-    input_input_cmd_ready                         : in  std_logic;
-    input_input_cmd_firstIdx                      : out std_logic_vector(INDEX_WIDTH-1 downto 0);
-    input_input_cmd_lastIdx                       : out std_logic_vector(INDEX_WIDTH-1 downto 0);
-    input_input_cmd_tag                           : out std_logic_vector(TAG_WIDTH-1 downto 0);
+{input_ports}
     output_timestamp_valid                        : out std_logic;
     output_timestamp_ready                        : in  std_logic;
     output_timestamp_dvalid                       : out std_logic;
@@ -357,9 +344,9 @@ entity trip_report is
     idle                                          : out std_logic;
     busy                                          : out std_logic;
     done                                          : out std_logic;
+
+{mmio}
     result                                        : out std_logic_vector(63 downto 0);
-    input_firstidx                                : in  std_logic_vector(31 downto 0);
-    input_lastidx                                 : in  std_logic_vector(31 downto 0);
     output_firstidx                               : in  std_logic_vector(31 downto 0);
     output_lastidx                                : in  std_logic_vector(31 downto 0)
   );
@@ -369,6 +356,7 @@ architecture Implementation of trip_report is
   -- elements per cycle of input stream
   -- matches the value set in the schema (generate.py)
   constant EPC : natural := 8;
+  constant NUM_PARSERS : natural := {num_parsers};
 
   -- 
   -- INTEGER FIELDS
@@ -524,17 +512,20 @@ architecture Implementation of trip_report is
   signal timestamp_strb                   : std_logic;
 
 
-  signal int_input_input_ready            : std_logic;
-
-  signal in_strb                          : std_logic_vector(NUM_PARSERS*EPC - 1 downto 0);
-  signal int_in_last                      : std_logic_vector(2 * EPC - 1 downto 0);
+  signal in_strb                          : std_logic_vector(NUM_PARSERS * EPC - 1 downto 0) := (others => '0');
+  signal in_last                          : std_logic_vector(NUM_PARSERS * 2 * EPC - 1 downto 0);
 
   signal record_counter                   : unsigned(63 downto 0);
 
-  signal cmd_valid                        : std_logic;
-  signal cmd_ready                        : std_logic;
-  signal unl_valid                        : std_logic;
-  signal unl_ready                        : std_logic;
+  signal in_cmd_valid                     : std_logic;
+  signal in_cmd_ready                     : std_logic;
+  signal in_unl_valid                     : std_logic;
+  signal in_unl_ready                     : std_logic;
+
+  signal out_cmd_valid                    : std_logic;
+  signal out_cmd_ready                    : std_logic;
+  signal out_unl_valid                    : std_logic;
+  signal out_unl_ready                    : std_logic;
 
 
   type state_t is (
@@ -552,24 +543,9 @@ architecture Implementation of trip_report is
 
 begin
 
-  tydi_strb : process (input_input_dvalid, input_input_count)
-  begin
-    in_strb <= (others => '0');
-    for i in in_strb'range loop
-      if unsigned(input_input_count) = 0 or i < unsigned(input_input_count) then
-        in_strb(i) <= input_input_dvalid;
-      end if;
-    end loop;
-  end process;
+{tydi_strb}
 
-  int_in_last_proc : process (input_input_last)
-  begin
-    int_in_last              <= (others => '0');
-    -- all records are currently sent in one transfer, so there's no difference
-    -- between the two dimensions going into the parser.
-    int_in_last(EPC * 2 - 2) <= input_input_last;
-    int_in_last(EPC * 2 - 1) <= input_input_last;
-  end process;
+{tydi_last}
 
   counter : process (kcd_clk)
     is
@@ -662,9 +638,16 @@ begin
   output_timestamp_cmd_firstIdx                 <= output_firstidx;
   output_timestamp_cmd_lastIdx                  <= output_lastidx;
   output_timestamp_cmd_tag                      <= (others => '0');
+
+
+{read_req_defaults}
+
+{sync_in_unl}
+
+{sync_in_cmd}
   
 
-  sync_unl: StreamSync
+  sync_out_unl: StreamSync
     generic map (
       NUM_INPUTS              => 19,
       NUM_OUTPUTS             => 1
@@ -673,8 +656,8 @@ begin
       clk                     => kcd_clk,
       reset                   => kcd_reset,
 
-      out_valid(0)            => unl_valid,
-      out_ready(0)            => unl_ready,
+      out_valid(0)            => out_unl_valid,
+      out_ready(0)            => out_unl_ready,
 
       in_valid(0)            => output_timezone_unl_valid,
       in_valid(1)            => output_vin_unl_valid,
@@ -719,7 +702,7 @@ begin
 
 
 
-  sync_cmd: StreamSync
+  sync_out_cmd: StreamSync
     generic map (
       NUM_INPUTS              => 1,
       NUM_OUTPUTS             => 19
@@ -728,8 +711,8 @@ begin
       clk                     => kcd_clk,
       reset                   => kcd_reset,
 
-      in_valid(0)             => cmd_valid,
-      in_ready(0)             => cmd_ready,
+      in_valid(0)             => out_cmd_valid,
+      in_ready(0)             => out_cmd_ready,
 
       out_valid(0)            => output_timezone_cmd_valid,
       out_valid(1)            => output_vin_cmd_valid,
@@ -776,32 +759,20 @@ begin
     start,
     reset,
     state,
-    input_firstidx,
-    input_lastidx,
-    int_input_input_ready,
-    input_input_cmd_ready,
-    cmd_ready,
-    input_input_unl_valid,
-    unl_valid
+    in_cmd_ready,
+    out_cmd_ready,
+    in_unl_valid,
+    out_unl_valid
     ) is
   begin
 
-    -- read request defaults
-    input_input_cmd_valid       <= '0';
-    input_input_cmd_firstIdx    <= input_firstidx;
-    input_input_cmd_lastIdx     <= input_lastidx;
-    input_input_cmd_tag         <= (others => '0');
-    input_input_unl_ready       <= '0';
-
-    cmd_valid                   <= '0';
-    unl_ready                   <= '0';
+    in_cmd_valid                   <= '0';
+    in_unl_ready                   <= '0';
+    out_cmd_valid                  <= '0';
+    out_unl_ready                  <= '0';
 
     -- next state is the same if not changed
     state_next                  <= state;
-
-    -- internal signal
-    input_input_ready           <= int_input_input_ready;
-
 
     case state is
 
@@ -821,10 +792,10 @@ begin
         busy                  <= '1';
         idle                  <= '0';
 
-        input_input_cmd_valid <= '1';
+        in_cmd_valid <= '1';
 
         -- handshake
-        if input_input_cmd_ready = '1' then
+        if in_cmd_ready = '1' then
           state_next <= STATE_REQ_WRITE;
         end if;
 
@@ -834,10 +805,10 @@ begin
         busy                     <= '1';
         idle                     <= '0';
 
-        cmd_valid <= '1';
+        out_cmd_valid <= '1';
 
         -- handshake
-        if cmd_ready = '1' then
+        if out_cmd_ready = '1' then
           state_next <= STATE_UNLOCK_READ;
         end if;
 
@@ -847,8 +818,8 @@ begin
         busy <= '1';
         idle <= '0';
 
-        if input_input_unl_valid = '1' then
-          input_input_unl_ready  <= '1';
+        if in_unl_valid = '1' then
+          in_unl_ready  <= '1';
           state_next <= STATE_UNLOCK_WRITE;
         end if;
 
@@ -858,8 +829,8 @@ begin
         busy <= '1';
         idle <= '0';
 
-        if unl_valid = '1' then
-          unl_ready  <= '1';
+        if out_unl_valid = '1' then
+          out_unl_ready  <= '1';
           state_next <= STATE_DONE;
         end if;
 
@@ -892,9 +863,9 @@ begin
 
   trip_report_parser : trip_report_sub
   generic map(
-    EPC                                              => 8,
-    NUM_PARSERS                                      => 1,
-    TAG_WIDTH                                        => 2,
+    EPC                                              => EPC,
+    NUM_PARSERS                                      => NUM_PARSERS,
+    TAG_WIDTH                                        => 32,
 
     -- 
     -- INTEGER FIELDS
@@ -982,10 +953,10 @@ begin
     clk                                         => kcd_clk,
     reset                                       => kcd_reset,
 
-    in_valid(0)                                    => input_input_valid,
-    in_ready(0)                                    => int_input_input_ready,
-    in_data                                     => input_input,
-    in_last                                     => int_in_last,
+{in_valid}
+{in_ready}
+{in_data}
+    in_last                                     => in_last,
     in_stai                                     => (others => '0'),
     in_endi                                     => (others => '1'),
     in_strb                                     => in_strb,
@@ -1120,7 +1091,7 @@ begin
     timestamp_strb                              => timestamp_strb,
 
     tag_ready                                   => '1',
-    tag_cfg                                     => "00"
+{tag_cfg}
 
   );
 
@@ -1675,4 +1646,4 @@ orientation_conv : DropEmpty
     length_data   => output_timestamp_length,
     length_count  => output_timestamp_count
   );
-end architecture;
+end architecture; 

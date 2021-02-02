@@ -11,7 +11,7 @@
 #include <iostream>
 #include <bitset>
 
-#define AFU_GUID "5fcd29a3-1c65-4feb-907f-34c5ba4c8534";
+#define AFU_GUID "9ca43fb0-c340-4908-b79b-5c89b4ef5e01";
 
 #ifdef NDEBUG
 #define PLATFORM "opae"

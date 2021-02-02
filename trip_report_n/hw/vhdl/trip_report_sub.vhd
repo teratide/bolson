@@ -758,11 +758,11 @@ begin
 
         in_valid                                    => in_valid(p),
         in_ready                                    => in_ready(p),
-        in_data                                     => in_data(8*EPC*NUM_PARSERS*(p+1)-1 downto 8*EPC*NUM_PARSERS*p),
-        in_last                                     => in_last(2*EPC*NUM_PARSERS*(p+1)-1 downto EPC*NUM_PARSERS*p),
+        in_data                                     => in_data(8*EPC*(p+1)-1 downto 8*EPC*p),
+        in_last                                     => in_last(2*EPC*(p+1)-1 downto 2*EPC*p),
         in_stai                                     => (others => '0'),
         in_endi                                     => (others => '1'),
-        in_strb                                     => in_strb(EPC*NUM_PARSERS*(p+1)-1 downto EPC*NUM_PARSERS*p),
+        in_strb                                     => in_strb(EPC*(p+1)-1 downto EPC*p),
 
         end_req                                     => '0',
         end_ack                                     => open,
@@ -899,14 +899,14 @@ begin
       
         in_valid                  => timezone_valid_f(p),
         in_ready                  => timezone_ready_f(p),
-        in_data                   => timezone_data_f(TIMEZONE_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto TIMEZONE_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => timezone_last_f(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        in_data                   => timezone_data_f(TIMEZONE_INT_WIDTH*(p+1)-1 downto TIMEZONE_INT_WIDTH*p),
+        in_last                   => timezone_last_f(2*(p+1)-1 downto 2*p),
         in_strb                   => timezone_strb_f(p),
       
         out_valid                 => timezone_valid_a(p),
         out_ready                 => timezone_ready_a(p),
-        out_data                  => timezone_data_a(TIMEZONE_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto TIMEZONE_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => timezone_last_a(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        out_data                  => timezone_data_a(TIMEZONE_INT_WIDTH*(p+1)-1 downto TIMEZONE_INT_WIDTH*p),
+        out_last                  => timezone_last_a(2*(p+1)-1 downto 2*p),
         out_strb                  => timezone_strb_a(p),
       
         packet_valid              => pkt_valid(p)(0),
@@ -929,14 +929,14 @@ begin
       
         in_valid                  => vin_valid_f(p),
         in_ready                  => vin_ready_f(p),
-        in_data                   => vin_data_f(VIN_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto VIN_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => vin_last_f(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        in_data                   => vin_data_f(VIN_INT_WIDTH*(p+1)-1 downto VIN_INT_WIDTH*p),
+        in_last                   => vin_last_f(2*(p+1)-1 downto 2*p),
         in_strb                   => vin_strb_f(p),
       
         out_valid                 => vin_valid_a(p),
         out_ready                 => vin_ready_a(p),
-        out_data                  => vin_data_a(VIN_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto VIN_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => vin_last_a(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        out_data                  => vin_data_a(VIN_INT_WIDTH*(p+1)-1 downto VIN_INT_WIDTH*p),
+        out_last                  => vin_last_a(2*(p+1)-1 downto 2*p),
         out_strb                  => vin_strb_a(p),
       
         packet_valid              => pkt_valid(p)(1),
@@ -959,14 +959,14 @@ begin
       
         in_valid                  => odometer_valid_f(p),
         in_ready                  => odometer_ready_f(p),
-        in_data                   => odometer_data_f(ODOMETER_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto ODOMETER_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => odometer_last_f(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        in_data                   => odometer_data_f(ODOMETER_INT_WIDTH*(p+1)-1 downto ODOMETER_INT_WIDTH*p),
+        in_last                   => odometer_last_f(2*(p+1)-1 downto 2*p),
         in_strb                   => odometer_strb_f(p),
       
         out_valid                 => odometer_valid_a(p),
         out_ready                 => odometer_ready_a(p),
-        out_data                  => odometer_data_a(ODOMETER_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto ODOMETER_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => odometer_last_a(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        out_data                  => odometer_data_a(ODOMETER_INT_WIDTH*(p+1)-1 downto ODOMETER_INT_WIDTH*p),
+        out_last                  => odometer_last_a(2*(p+1)-1 downto 2*p),
         out_strb                  => odometer_strb_a(p),
       
         packet_valid              => pkt_valid(p)(2),
@@ -989,14 +989,14 @@ begin
       
         in_valid                  => avgspeed_valid_f(p),
         in_ready                  => avgspeed_ready_f(p),
-        in_data                   => avgspeed_data_f(AVGSPEED_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto AVGSPEED_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => avgspeed_last_f(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        in_data                   => avgspeed_data_f(AVGSPEED_INT_WIDTH*(p+1)-1 downto AVGSPEED_INT_WIDTH*p),
+        in_last                   => avgspeed_last_f(2*(p+1)-1 downto 2*p),
         in_strb                   => avgspeed_strb_f(p),
       
         out_valid                 => avgspeed_valid_a(p),
         out_ready                 => avgspeed_ready_a(p),
-        out_data                  => avgspeed_data_a(AVGSPEED_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto AVGSPEED_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => avgspeed_last_a(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        out_data                  => avgspeed_data_a(AVGSPEED_INT_WIDTH*(p+1)-1 downto AVGSPEED_INT_WIDTH*p),
+        out_last                  => avgspeed_last_a(2*(p+1)-1 downto 2*p),
         out_strb                  => avgspeed_strb_a(p),
       
         packet_valid              => pkt_valid(p)(3),
@@ -1019,14 +1019,14 @@ begin
       
         in_valid                  => accel_decel_valid_f(p),
         in_ready                  => accel_decel_ready_f(p),
-        in_data                   => accel_decel_data_f(ACCEL_DECEL_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto ACCEL_DECEL_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => accel_decel_last_f(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        in_data                   => accel_decel_data_f(ACCEL_DECEL_INT_WIDTH*(p+1)-1 downto ACCEL_DECEL_INT_WIDTH*p),
+        in_last                   => accel_decel_last_f(2*(p+1)-1 downto 2*p),
         in_strb                   => accel_decel_strb_f(p),
       
         out_valid                 => accel_decel_valid_a(p),
         out_ready                 => accel_decel_ready_a(p),
-        out_data                  => accel_decel_data_a(ACCEL_DECEL_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto ACCEL_DECEL_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => accel_decel_last_a(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        out_data                  => accel_decel_data_a(ACCEL_DECEL_INT_WIDTH*(p+1)-1 downto ACCEL_DECEL_INT_WIDTH*p),
+        out_last                  => accel_decel_last_a(2*(p+1)-1 downto 2*p),
         out_strb                  => accel_decel_strb_a(p),
       
         packet_valid              => pkt_valid(p)(4),
@@ -1049,14 +1049,14 @@ begin
       
         in_valid                  => speed_changes_valid_f(p),
         in_ready                  => speed_changes_ready_f(p),
-        in_data                   => speed_changes_data_f(SPEED_CHANGES_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto SPEED_CHANGES_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => speed_changes_last_f(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        in_data                   => speed_changes_data_f(SPEED_CHANGES_INT_WIDTH*(p+1)-1 downto SPEED_CHANGES_INT_WIDTH*p),
+        in_last                   => speed_changes_last_f(2*(p+1)-1 downto 2*p),
         in_strb                   => speed_changes_strb_f(p),
       
         out_valid                 => speed_changes_valid_a(p),
         out_ready                 => speed_changes_ready_a(p),
-        out_data                  => speed_changes_data_a(SPEED_CHANGES_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto SPEED_CHANGES_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => speed_changes_last_a(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        out_data                  => speed_changes_data_a(SPEED_CHANGES_INT_WIDTH*(p+1)-1 downto SPEED_CHANGES_INT_WIDTH*p),
+        out_last                  => speed_changes_last_a(2*(p+1)-1 downto 2*p),
         out_strb                  => speed_changes_strb_a(p),
       
         packet_valid              => pkt_valid(p)(5),
@@ -1079,14 +1079,14 @@ begin
       
         in_valid                  => hypermiling_valid_f(p),
         in_ready                  => hypermiling_ready_f(p),
-        in_data                   => hypermiling_data_f(1*NUM_PARSERS*(p+1)-1 downto 1*NUM_PARSERS*p),
-        in_last                   => hypermiling_last_f(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        in_data                   => hypermiling_data_f(1*(p+1)-1 downto 1*p),
+        in_last                   => hypermiling_last_f(2*(p+1)-1 downto 2*p),
         in_strb                   => hypermiling_strb_f(p),
       
         out_valid                 => hypermiling_valid_a(p),
         out_ready                 => hypermiling_ready_a(p),
-        out_data                  => hypermiling_data_a(1*NUM_PARSERS*(p+1)-1 downto 1*NUM_PARSERS*p),
-        out_last                  => hypermiling_last_a(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        out_data                  => hypermiling_data_a(1*(p+1)-1 downto 1*p),
+        out_last                  => hypermiling_last_a(2*(p+1)-1 downto 2*p),
         out_strb                  => hypermiling_strb_a(p),
       
         packet_valid              => pkt_valid(p)(6),
@@ -1109,14 +1109,14 @@ begin
       
         in_valid                  => orientation_valid_f(p),
         in_ready                  => orientation_ready_f(p),
-        in_data                   => orientation_data_f(1*NUM_PARSERS*(p+1)-1 downto 1*NUM_PARSERS*p),
-        in_last                   => orientation_last_f(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        in_data                   => orientation_data_f(1*(p+1)-1 downto 1*p),
+        in_last                   => orientation_last_f(2*(p+1)-1 downto 2*p),
         in_strb                   => orientation_strb_f(p),
       
         out_valid                 => orientation_valid_a(p),
         out_ready                 => orientation_ready_a(p),
-        out_data                  => orientation_data_a(1*NUM_PARSERS*(p+1)-1 downto 1*NUM_PARSERS*p),
-        out_last                  => orientation_last_a(2*NUM_PARSERS*(p+1)-1 downto 2*NUM_PARSERS*p),
+        out_data                  => orientation_data_a(1*(p+1)-1 downto 1*p),
+        out_last                  => orientation_last_a(2*(p+1)-1 downto 2*p),
         out_strb                  => orientation_strb_a(p),
       
         packet_valid              => pkt_valid(p)(7),
@@ -1139,14 +1139,14 @@ begin
       
         in_valid                  => sec_in_band_valid_f(p),
         in_ready                  => sec_in_band_ready_f(p),
-        in_data                   => sec_in_band_data_f(SEC_IN_BAND_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto SEC_IN_BAND_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => sec_in_band_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => sec_in_band_data_f(SEC_IN_BAND_INT_WIDTH*(p+1)-1 downto SEC_IN_BAND_INT_WIDTH*p),
+        in_last                   => sec_in_band_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => sec_in_band_strb_f(p),
       
         out_valid                 => sec_in_band_valid_a(p),
         out_ready                 => sec_in_band_ready_a(p),
-        out_data                  => sec_in_band_data_a(SEC_IN_BAND_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto SEC_IN_BAND_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => sec_in_band_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => sec_in_band_data_a(SEC_IN_BAND_INT_WIDTH*(p+1)-1 downto SEC_IN_BAND_INT_WIDTH*p),
+        out_last                  => sec_in_band_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => sec_in_band_strb_a(p),
       
         packet_valid              => pkt_valid(p)(8),
@@ -1169,14 +1169,14 @@ begin
       
         in_valid                  => miles_in_time_range_valid_f(p),
         in_ready                  => miles_in_time_range_ready_f(p),
-        in_data                   => miles_in_time_range_data_f(MILES_IN_TIME_RANGE_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto MILES_IN_TIME_RANGE_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => miles_in_time_range_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => miles_in_time_range_data_f(MILES_IN_TIME_RANGE_INT_WIDTH*(p+1)-1 downto MILES_IN_TIME_RANGE_INT_WIDTH*p),
+        in_last                   => miles_in_time_range_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => miles_in_time_range_strb_f(p),
       
         out_valid                 => miles_in_time_range_valid_a(p),
         out_ready                 => miles_in_time_range_ready_a(p),
-        out_data                  => miles_in_time_range_data_a(MILES_IN_TIME_RANGE_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto MILES_IN_TIME_RANGE_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => miles_in_time_range_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => miles_in_time_range_data_a(MILES_IN_TIME_RANGE_INT_WIDTH*(p+1)-1 downto MILES_IN_TIME_RANGE_INT_WIDTH*p),
+        out_last                  => miles_in_time_range_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => miles_in_time_range_strb_a(p),
       
         packet_valid              => pkt_valid(p)(9),
@@ -1199,14 +1199,14 @@ begin
       
         in_valid                  => const_speed_miles_in_band_valid_f(p),
         in_ready                  => const_speed_miles_in_band_ready_f(p),
-        in_data                   => const_speed_miles_in_band_data_f(CONST_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto CONST_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => const_speed_miles_in_band_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => const_speed_miles_in_band_data_f(CONST_SPEED_MILES_IN_BAND_INT_WIDTH*(p+1)-1 downto CONST_SPEED_MILES_IN_BAND_INT_WIDTH*p),
+        in_last                   => const_speed_miles_in_band_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => const_speed_miles_in_band_strb_f(p),
       
         out_valid                 => const_speed_miles_in_band_valid_a(p),
         out_ready                 => const_speed_miles_in_band_ready_a(p),
-        out_data                  => const_speed_miles_in_band_data_a(CONST_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto CONST_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => const_speed_miles_in_band_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => const_speed_miles_in_band_data_a(CONST_SPEED_MILES_IN_BAND_INT_WIDTH*(p+1)-1 downto CONST_SPEED_MILES_IN_BAND_INT_WIDTH*p),
+        out_last                  => const_speed_miles_in_band_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => const_speed_miles_in_band_strb_a(p),
       
         packet_valid              => pkt_valid(p)(10),
@@ -1229,14 +1229,14 @@ begin
       
         in_valid                  => vary_speed_miles_in_band_valid_f(p),
         in_ready                  => vary_speed_miles_in_band_ready_f(p),
-        in_data                   => vary_speed_miles_in_band_data_f(VARY_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto VARY_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => vary_speed_miles_in_band_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => vary_speed_miles_in_band_data_f(VARY_SPEED_MILES_IN_BAND_INT_WIDTH*(p+1)-1 downto VARY_SPEED_MILES_IN_BAND_INT_WIDTH*p),
+        in_last                   => vary_speed_miles_in_band_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => vary_speed_miles_in_band_strb_f(p),
       
         out_valid                 => vary_speed_miles_in_band_valid_a(p),
         out_ready                 => vary_speed_miles_in_band_ready_a(p),
-        out_data                  => vary_speed_miles_in_band_data_a(VARY_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto VARY_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => vary_speed_miles_in_band_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => vary_speed_miles_in_band_data_a(VARY_SPEED_MILES_IN_BAND_INT_WIDTH*(p+1)-1 downto VARY_SPEED_MILES_IN_BAND_INT_WIDTH*p),
+        out_last                  => vary_speed_miles_in_band_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => vary_speed_miles_in_band_strb_a(p),
       
         packet_valid              => pkt_valid(p)(11),
@@ -1259,14 +1259,14 @@ begin
       
         in_valid                  => sec_decel_valid_f(p),
         in_ready                  => sec_decel_ready_f(p),
-        in_data                   => sec_decel_data_f(SEC_DECEL_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto SEC_DECEL_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => sec_decel_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => sec_decel_data_f(SEC_DECEL_INT_WIDTH*(p+1)-1 downto SEC_DECEL_INT_WIDTH*p),
+        in_last                   => sec_decel_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => sec_decel_strb_f(p),
       
         out_valid                 => sec_decel_valid_a(p),
         out_ready                 => sec_decel_ready_a(p),
-        out_data                  => sec_decel_data_a(SEC_DECEL_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto SEC_DECEL_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => sec_decel_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => sec_decel_data_a(SEC_DECEL_INT_WIDTH*(p+1)-1 downto SEC_DECEL_INT_WIDTH*p),
+        out_last                  => sec_decel_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => sec_decel_strb_a(p),
       
         packet_valid              => pkt_valid(p)(12),
@@ -1289,14 +1289,14 @@ begin
       
         in_valid                  => sec_accel_valid_f(p),
         in_ready                  => sec_accel_ready_f(p),
-        in_data                   => sec_accel_data_f(SEC_ACCEL_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto SEC_ACCEL_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => sec_accel_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => sec_accel_data_f(SEC_ACCEL_INT_WIDTH*(p+1)-1 downto SEC_ACCEL_INT_WIDTH*p),
+        in_last                   => sec_accel_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => sec_accel_strb_f(p),
       
         out_valid                 => sec_accel_valid_a(p),
         out_ready                 => sec_accel_ready_a(p),
-        out_data                  => sec_accel_data_a(SEC_ACCEL_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto SEC_ACCEL_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => sec_accel_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => sec_accel_data_a(SEC_ACCEL_INT_WIDTH*(p+1)-1 downto SEC_ACCEL_INT_WIDTH*p),
+        out_last                  => sec_accel_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => sec_accel_strb_a(p),
       
         packet_valid              => pkt_valid(p)(13),
@@ -1319,14 +1319,14 @@ begin
       
         in_valid                  => braking_valid_f(p),
         in_ready                  => braking_ready_f(p),
-        in_data                   => braking_data_f(BRAKING_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto BRAKING_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => braking_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => braking_data_f(BRAKING_INT_WIDTH*(p+1)-1 downto BRAKING_INT_WIDTH*p),
+        in_last                   => braking_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => braking_strb_f(p),
       
         out_valid                 => braking_valid_a(p),
         out_ready                 => braking_ready_a(p),
-        out_data                  => braking_data_a(BRAKING_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto BRAKING_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => braking_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => braking_data_a(BRAKING_INT_WIDTH*(p+1)-1 downto BRAKING_INT_WIDTH*p),
+        out_last                  => braking_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => braking_strb_a(p),
       
         packet_valid              => pkt_valid(p)(14),
@@ -1349,14 +1349,14 @@ begin
       
         in_valid                  => accel_valid_f(p),
         in_ready                  => accel_ready_f(p),
-        in_data                   => accel_data_f(ACCEL_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto ACCEL_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => accel_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => accel_data_f(ACCEL_INT_WIDTH*(p+1)-1 downto ACCEL_INT_WIDTH*p),
+        in_last                   => accel_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => accel_strb_f(p),
       
         out_valid                 => accel_valid_a(p),
         out_ready                 => accel_ready_a(p),
-        out_data                  => accel_data_a(ACCEL_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto ACCEL_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => accel_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => accel_data_a(ACCEL_INT_WIDTH*(p+1)-1 downto ACCEL_INT_WIDTH*p),
+        out_last                  => accel_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => accel_strb_a(p),
       
         packet_valid              => pkt_valid(p)(15),
@@ -1379,14 +1379,14 @@ begin
       
         in_valid                  => small_speed_var_valid_f(p),
         in_ready                  => small_speed_var_ready_f(p),
-        in_data                   => small_speed_var_data_f(SMALL_SPEED_VAR_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto SMALL_SPEED_VAR_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => small_speed_var_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => small_speed_var_data_f(SMALL_SPEED_VAR_INT_WIDTH*(p+1)-1 downto SMALL_SPEED_VAR_INT_WIDTH*p),
+        in_last                   => small_speed_var_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => small_speed_var_strb_f(p),
       
         out_valid                 => small_speed_var_valid_a(p),
         out_ready                 => small_speed_var_ready_a(p),
-        out_data                  => small_speed_var_data_a(SMALL_SPEED_VAR_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto SMALL_SPEED_VAR_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => small_speed_var_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => small_speed_var_data_a(SMALL_SPEED_VAR_INT_WIDTH*(p+1)-1 downto SMALL_SPEED_VAR_INT_WIDTH*p),
+        out_last                  => small_speed_var_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => small_speed_var_strb_a(p),
       
         packet_valid              => pkt_valid(p)(16),
@@ -1409,14 +1409,14 @@ begin
       
         in_valid                  => large_speed_var_valid_f(p),
         in_ready                  => large_speed_var_ready_f(p),
-        in_data                   => large_speed_var_data_f(LARGE_SPEED_VAR_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto LARGE_SPEED_VAR_INT_WIDTH*NUM_PARSERS*p),
-        in_last                   => large_speed_var_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => large_speed_var_data_f(LARGE_SPEED_VAR_INT_WIDTH*(p+1)-1 downto LARGE_SPEED_VAR_INT_WIDTH*p),
+        in_last                   => large_speed_var_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => large_speed_var_strb_f(p),
       
         out_valid                 => large_speed_var_valid_a(p),
         out_ready                 => large_speed_var_ready_a(p),
-        out_data                  => large_speed_var_data_a(LARGE_SPEED_VAR_INT_WIDTH*NUM_PARSERS*(p+1)-1 downto LARGE_SPEED_VAR_INT_WIDTH*NUM_PARSERS*p),
-        out_last                  => large_speed_var_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => large_speed_var_data_a(LARGE_SPEED_VAR_INT_WIDTH*(p+1)-1 downto LARGE_SPEED_VAR_INT_WIDTH*p),
+        out_last                  => large_speed_var_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => large_speed_var_strb_a(p),
       
         packet_valid              => pkt_valid(p)(17),
@@ -1439,14 +1439,14 @@ begin
       
         in_valid                  => timestamp_valid_f(p),
         in_ready                  => timestamp_ready_f(p),
-        in_data                   => timestamp_data_f(8*NUM_PARSERS*(p+1)-1 downto 8*NUM_PARSERS*p),
-        in_last                   => timestamp_last_f(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        in_data                   => timestamp_data_f(8*(p+1)-1 downto 8*p),
+        in_last                   => timestamp_last_f(3*(p+1)-1 downto 3*p),
         in_strb                   => timestamp_strb_f(p),
       
         out_valid                 => timestamp_valid_a(p),
         out_ready                 => timestamp_ready_a(p),
-        out_data                  => timestamp_data_a(8*NUM_PARSERS*(p+1)-1 downto 8*NUM_PARSERS*p),
-        out_last                  => timestamp_last_a(3*NUM_PARSERS*(p+1)-1 downto 3*NUM_PARSERS*p),
+        out_data                  => timestamp_data_a(8*(p+1)-1 downto 8*p),
+        out_last                  => timestamp_last_a(3*(p+1)-1 downto 3*p),
         out_strb                  => timestamp_strb_a(p),
       
         packet_valid              => pkt_valid(p)(18),
@@ -1459,7 +1459,7 @@ begin
   timezone_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     timezone_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => TIMEZONE_INT_WIDTH,
         DIMENSIONALITY            => 2
@@ -1490,7 +1490,7 @@ begin
   vin_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     vin_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => VIN_INT_WIDTH,
         DIMENSIONALITY            => 2
@@ -1521,7 +1521,7 @@ begin
   odometer_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     odometer_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => ODOMETER_INT_WIDTH,
         DIMENSIONALITY            => 2
@@ -1552,7 +1552,7 @@ begin
   avgspeed_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     avgspeed_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => AVGSPEED_INT_WIDTH,
         DIMENSIONALITY            => 2
@@ -1583,7 +1583,7 @@ begin
   accel_decel_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     accel_decel_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => ACCEL_DECEL_INT_WIDTH,
         DIMENSIONALITY            => 2
@@ -1614,7 +1614,7 @@ begin
   speed_changes_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     speed_changes_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => SPEED_CHANGES_INT_WIDTH,
         DIMENSIONALITY            => 2
@@ -1645,7 +1645,7 @@ begin
   hypermiling_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     hypermiling_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => 1,
         DIMENSIONALITY            => 2
@@ -1676,7 +1676,7 @@ begin
   orientation_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     orientation_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => 1,
         DIMENSIONALITY            => 2
@@ -1707,7 +1707,7 @@ begin
   sec_in_band_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     sec_in_band_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => SEC_IN_BAND_INT_WIDTH,
         DIMENSIONALITY            => 3
@@ -1738,7 +1738,7 @@ begin
   miles_in_time_range_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     miles_in_time_range_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => MILES_IN_TIME_RANGE_INT_WIDTH,
         DIMENSIONALITY            => 3
@@ -1769,7 +1769,7 @@ begin
   const_speed_miles_in_band_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     const_speed_miles_in_band_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => CONST_SPEED_MILES_IN_BAND_INT_WIDTH,
         DIMENSIONALITY            => 3
@@ -1800,7 +1800,7 @@ begin
   vary_speed_miles_in_band_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     vary_speed_miles_in_band_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => VARY_SPEED_MILES_IN_BAND_INT_WIDTH,
         DIMENSIONALITY            => 3
@@ -1831,7 +1831,7 @@ begin
   sec_decel_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     sec_decel_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => SEC_DECEL_INT_WIDTH,
         DIMENSIONALITY            => 3
@@ -1862,7 +1862,7 @@ begin
   sec_accel_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     sec_accel_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => SEC_ACCEL_INT_WIDTH,
         DIMENSIONALITY            => 3
@@ -1893,7 +1893,7 @@ begin
   braking_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     braking_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => BRAKING_INT_WIDTH,
         DIMENSIONALITY            => 3
@@ -1924,7 +1924,7 @@ begin
   accel_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     accel_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => ACCEL_INT_WIDTH,
         DIMENSIONALITY            => 3
@@ -1955,7 +1955,7 @@ begin
   small_speed_var_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     small_speed_var_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => SMALL_SPEED_VAR_INT_WIDTH,
         DIMENSIONALITY            => 3
@@ -1986,7 +1986,7 @@ begin
   large_speed_var_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     large_speed_var_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => LARGE_SPEED_VAR_INT_WIDTH,
         DIMENSIONALITY            => 3
@@ -2017,7 +2017,7 @@ begin
   timestamp_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     timestamp_arb: PacketArbiter
       generic map (
-        NUM_INPUTS                => 1,
+        NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => 8,
         DIMENSIONALITY            => 3
@@ -2115,6 +2115,7 @@ begin
 
       pkt_valid                 => pkt_valid_sync,
       pkt_ready                 => pkt_ready_sync,
+      pkt_last                  => pkt_last_red,
 
       cmd_valid                 => cmd_valid_sync,
       cmd_ready                 => cmd_ready_sync,
