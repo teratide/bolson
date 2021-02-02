@@ -36,8 +36,8 @@ struct StreamOptions {
   PulsarOptions pulsar;
   /// Enable statistics.
   bool statistics = true;
-  /// Latency stats output file.
-  std::string latency_file = "latency.csv";
+  /// Latency stats output file. If empty, no latency stats will be written.
+  std::string latency_file;
   /// Whether to produce succinct statistics.
   bool succinct = false;
   /// Options related to conversion.

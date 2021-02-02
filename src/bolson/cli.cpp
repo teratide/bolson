@@ -132,10 +132,6 @@ static void AddConvertOpts(CLI::App* sub, convert::ConverterOptions* opts) {
                   "OPAE battery implementation AFU ID.");
 }
 
-static void AddStatsOpts(CLI::App* sub, bool* csv) {
-  sub->add_flag("-c", *csv, "Print output CSV-style.");
-}
-
 static void AddArrowOpts(CLI::App* sub, std::string* schema_file) {
   sub->add_option("input,-i,--input", *schema_file,
                   "The Arrow schema to generate the JSON from.")
@@ -193,8 +189,11 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   // 'stream' subcommand:
   auto* stream =
       app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
+  stream
+      ->add_option("--latency", out->stream.latency_file,
+                   "Enable batch latency measurements and write to supplied file.")
+      ->check(CLI::ExistingFile);
   AddConvertOpts(stream, &out->stream.converter);
-  AddStatsOpts(stream, &csv);
   AddArrowOpts(stream, &schema_file);
   AddPulsarOpts(stream, &out->stream.pulsar);
 
@@ -202,7 +201,6 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   auto* bench =
       app.add_subcommand("bench", "Run micro-benchmarks on isolated pipeline stages.")
           ->require_subcommand();
-  AddStatsOpts(bench, &csv);
   AddBenchOpts(bench, &out->bench, &schema_file);
 
   // Attempt to parse the CLI arguments.
