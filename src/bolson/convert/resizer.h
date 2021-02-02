@@ -15,7 +15,7 @@
 #pragma once
 
 #include <arrow/api.h>
-#include <illex/client_buffered.h>
+#include <illex/client_buffering.h>
 
 #include <vector>
 

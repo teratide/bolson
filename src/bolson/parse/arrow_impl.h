@@ -40,7 +40,7 @@ struct ArrowOptions {
 class ArrowParser : public Parser {
  public:
   explicit ArrowParser(ArrowOptions opts) : opts(std::move(opts)) {}
-  auto Parse(illex::RawJSONBuffer* in, ParsedBatch* out) -> Status override;
+  auto Parse(illex::JSONBuffer* in, ParsedBatch* out) -> Status override;
 
  private:
   ArrowOptions opts;

@@ -104,6 +104,13 @@ static auto CalcThreshold(size_t max_size, const std::shared_ptr<arrow::Schema>&
 
 using ParserMap = std::map<std::string, parse::Impl>;
 
+static void AddClientOpts(CLI::App* sub, std::string& host, uint16_t& port) {
+  sub->add_option("--host", host, "JSON source TCP server hostname.")
+      ->default_val("localhost");
+  sub->add_option("--port", port, "JSON source TCP server port.")
+      ->default_val(ILLEX_DEFAULT_PORT);
+}
+
 static void AddConvertOpts(CLI::App* sub, convert::Options* opts) {
   ParserMap parsers{{"arrow", parse::Impl::ARROW},
                     {"opae-battery", parse::Impl::OPAE_BATTERY}};
@@ -147,6 +154,7 @@ static void AddBenchOpts(CLI::App* bench, BenchOptions* out, std::string* schema
   // 'bench client' subcommand.
   auto* bench_client =
       bench->add_subcommand("client", "Run TCP client interface microbenchmark.");
+  AddClientOpts(bench_client, out->client.host, out->client.port);
 
   // 'bench convert' subcommand.
   auto* bench_conv =
@@ -177,9 +185,7 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   uint16_t stream_port = 0;
   bool csv = false;
 
-  CLI::App app{
-      "bolson : A JSON stream to Arrow IPC to Pulsar conversion and publish "
-      "tool."};
+  CLI::App app{"bolson : A JSON to Arrow IPC converter and Pulsar publishing tool."};
 
   app.require_subcommand();
   app.get_formatter()->column_width(50);
@@ -187,8 +193,6 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   // 'stream' subcommand:
   auto* stream =
       app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
-  auto* port_opt =
-      stream->add_option("--port", stream_port, "Port.")->default_val(illex::RAW_PORT);
   stream
       ->add_option("--l-samples", out->stream.latency.num_samples,
                    "Number of latency samples.")
@@ -240,12 +244,6 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
 
   if (stream->parsed()) {
     out->sub = SubCommand::STREAM;
-
-    illex::RawProtocol raw;
-    if (*port_opt) {
-      raw.port = stream_port;
-    }
-    out->stream.protocol = raw;
     out->stream.succinct = csv;
     out->stream.converter.arrow.parse = parse_options;
     out->stream.converter.arrow.read = read_options;

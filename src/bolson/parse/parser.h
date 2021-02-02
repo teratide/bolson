@@ -15,7 +15,7 @@
 #pragma once
 
 #include <arrow/api.h>
-#include <illex/client_buffered.h>
+#include <illex/client_buffering.h>
 
 #include "bolson/status.h"
 
@@ -43,7 +43,7 @@ class Parser {
    * \param out The buffer with the parsed data represented as Arrow RecordBatch.
    * \return Status::OK() if successful, some error otherwise.
    */
-  virtual auto Parse(illex::RawJSONBuffer* in, ParsedBatch* out) -> Status = 0;
+  virtual auto Parse(illex::JSONBuffer* in, ParsedBatch* out) -> Status = 0;
 };
 
 /// Available parser implementations.

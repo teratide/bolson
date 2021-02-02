@@ -30,10 +30,8 @@ namespace bolson {
 
 /// Stream subcommand options.
 struct StreamOptions {
-  /// The hostname of the stream server.
-  std::string hostname = "localhost";
-  /// The protocol to use.
-  illex::StreamProtocol protocol;
+  /// The client options.
+  illex::ClientOptions client;
   /// The Pulsar options.
   PulsarOptions pulsar;
   /// Enable statistics.
@@ -45,7 +43,7 @@ struct StreamOptions {
   /// Options related to conversion.
   convert::Options converter;
   /// Size of the TCP buffers.
-  size_t tcp_buffer_capacity = ILLEX_TCP_BUFFER_SIZE;
+  size_t tcp_buffer_capacity = ILLEX_DEFAULT_TCP_BUFSIZE;
 };
 
 /**
@@ -53,6 +51,6 @@ struct StreamOptions {
  * \param opt The properties of the stream.
  * \return Status::OK() if successful, error otherwise.
  */
-auto ProduceFromStream(const StreamOptions &opt) -> Status;
+auto ProduceFromStream(const StreamOptions& opt) -> Status;
 
 }  // namespace bolson

@@ -15,7 +15,7 @@
 #include "bolson/convert/converter.h"
 
 #include <arrow/api.h>
-#include <illex/client_buffered.h>
+#include <illex/client_buffering.h>
 
 #include <memory>
 #include <thread>
@@ -42,9 +42,9 @@ static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
  * \param lock_idx  The lock index. Is updated in case of lock. Lock attempts start here.
  * \return True if a lock was obtained, false otherwise.
  */
-static auto TryGetFilledBuffer(const std::vector<illex::RawJSONBuffer*>& buffers,
+static auto TryGetFilledBuffer(const std::vector<illex::JSONBuffer*>& buffers,
                                const std::vector<std::mutex*>& mutexes,
-                               illex::RawJSONBuffer** out, size_t* lock_idx) -> bool {
+                               illex::JSONBuffer** out, size_t* lock_idx) -> bool {
   auto b = *lock_idx;
   const size_t num_buffers = buffers.size();
   for (size_t i = 0; i <= num_buffers; i++) {
@@ -65,7 +65,7 @@ static auto TryGetFilledBuffer(const std::vector<illex::RawJSONBuffer*>& buffers
 
 void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
                    Serializer* serializer,
-                   const std::vector<illex::RawJSONBuffer*>& buffers,
+                   const std::vector<illex::JSONBuffer*>& buffers,
                    const std::vector<std::mutex*>& mutexes, IpcQueue* out,
                    std::atomic<bool>* shutdown, Stats* stats) {
   /// Macro to shut this thread and others down when something failed.
@@ -92,7 +92,7 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
 
   while (!shutdown->load()) {
     if (try_buffers) {
-      illex::RawJSONBuffer* buf = nullptr;
+      illex::JSONBuffer* buf = nullptr;
       if (TryGetFilledBuffer(buffers, mutexes, &buf, &lock_idx)) {
         t_stages.Start();
         // Prepare intermediate wrappers.
@@ -186,8 +186,8 @@ auto Converter::AllocateBuffers(size_t capacity) -> Status {
   for (size_t b = 0; b < num_buffers_; b++) {
     std::byte* raw = nullptr;
     BOLSON_ROE(allocator_->Allocate(capacity, &raw));
-    illex::RawJSONBuffer buf;
-    illex::RawJSONBuffer::Create(raw, capacity, &buf);
+    illex::JSONBuffer buf;
+    illex::JSONBuffer::Create(raw, capacity, &buf);
     buffers.push_back(buf);
   }
 
@@ -267,7 +267,7 @@ auto Converter::Make(const Options& opts, IpcQueue* ipc_queue,
   return Status::OK();
 }
 
-auto Converter::mutable_buffers() -> std::vector<illex::RawJSONBuffer*> {
+auto Converter::mutable_buffers() -> std::vector<illex::JSONBuffer*> {
   return ToPointers(buffers);
 }
 

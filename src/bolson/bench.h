@@ -15,7 +15,7 @@
 #pragma once
 
 #include <arrow/json/api.h>
-#include <illex/client_queued.h>
+#include <illex/client_queueing.h>
 #include <illex/document.h>
 #include <illex/protocol.h>
 #include <putong/timer.h>
@@ -28,14 +28,6 @@
 #include "bolson/utils.h"
 
 namespace bolson {
-
-/// Options for the Client interface benchmark
-struct ClientBenchOptions {
-  /// The hostname of the stream server.
-  std::string hostname = "localhost";
-  /// The protocol to use.
-  illex::StreamProtocol protocol;
-};
 
 /// Options for the Convert benchmark
 struct ConvertBenchOptions {
@@ -80,7 +72,7 @@ struct BenchOptions {
   /// Chosen subcommand
   Bench bench = Bench::CONVERT;
   /// Options for client bench
-  ClientBenchOptions client;
+  illex::ClientOptions client;
   /// Options for convert bench
   ConvertBenchOptions convert;
   /// Options for Pulsar bench
@@ -100,7 +92,7 @@ struct BenchOptions {
 auto RunBench(const BenchOptions& opt) -> Status;
 
 /// \brief Run the TCP client benchmark.
-auto BenchClient(const ClientBenchOptions& opt) -> Status;
+auto BenchClient(const illex::ClientOptions& opt) -> Status;
 
 /// \brief Run the Pulsar producer benchmark.
 auto BenchPulsar(const PulsarBenchOptions& opt) -> Status;
@@ -111,14 +103,14 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status;
 /// \brief Generate a bunch of JSONs, returns number of bytes and largest JSON size.
 auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
                    const illex::GenerateOptions& gen_opts,
-                   std::vector<illex::JSONQueueItem>* items) -> std::pair<size_t, size_t>;
+                   std::vector<illex::JSONItem>* items) -> std::pair<size_t, size_t>;
 
 /**
  * \brief Prepare input buffers for benchmarking or testing.
  * \param buffers   The buffers to fill.
  * \param jsons     The JSONs to copy into the buffers.
  */
-void FillBuffers(std::vector<illex::RawJSONBuffer*> buffers,
-                 const std::vector<illex::JSONQueueItem>& jsons);
+void FillBuffers(std::vector<illex::JSONBuffer*> buffers,
+                 const std::vector<illex::JSONItem>& jsons);
 
 }  // namespace bolson

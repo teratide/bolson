@@ -57,7 +57,7 @@ class OpaeBatteryParser : public Parser {
         raw_out_values(raw_out_values),
         platform_mutex(platform_mutex) {}
 
-  auto Parse(illex::RawJSONBuffer* in, ParsedBatch* out) -> Status override;
+  auto Parse(illex::JSONBuffer* in, ParsedBatch* out) -> Status override;
 
  private:
   static const uint32_t stat_idle = (1u << 0u);
@@ -145,14 +145,14 @@ class OpaeBatteryParser : public Parser {
 class OpaeBatteryParserManager {
  public:
   static auto Make(const OpaeBatteryOptions& opts,
-                   const std::vector<illex::RawJSONBuffer*>& buffers, size_t num_parsers,
+                   const std::vector<illex::JSONBuffer*>& buffers, size_t num_parsers,
                    std::shared_ptr<OpaeBatteryParserManager>* out) -> Status;
 
   auto num_parsers() const -> size_t { return num_parsers_; }
   auto parsers() -> std::vector<std::shared_ptr<OpaeBatteryParser>> { return parsers_; }
 
  private:
-  auto PrepareInputBatches(const std::vector<illex::RawJSONBuffer*>& buffers) -> Status;
+  auto PrepareInputBatches(const std::vector<illex::JSONBuffer*>& buffers) -> Status;
   auto PrepareOutputBatches() -> Status;
   auto PrepareParsers() -> Status;
 
@@ -177,7 +177,6 @@ class OpaeBatteryParserManager {
 };
 
 /// \brief Print properties of the buffer in human-readable format.
-auto ToString(const illex::RawJSONBuffer& buffer, bool show_contents = true)
-    -> std::string;
+auto ToString(const illex::JSONBuffer& buffer, bool show_contents = true) -> std::string;
 
 }  // namespace bolson::parse

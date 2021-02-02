@@ -15,7 +15,7 @@
 #include <arrow/api.h>
 #include <arrow/io/api.h>
 #include <gtest/gtest.h>
-#include <illex/document.h>
+#include <illex/client.h>
 
 #include "bolson/bench.h"
 #include "bolson/convert/converter.h"
@@ -49,14 +49,12 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   //  are streamed into the system, aggregated in JSON Objects Messages, and converted to
   //  Pulsar Messages containing Arrow IPC messages containing Arrow RecordBatches.
 
-  StartLogger();
-
   const size_t opae_battery_parsers_instances = 8;          // Number of parser instances.
   const size_t num_jsons = 1024 * 1024;                     // Number of JSONs to test.
   const size_t max_ipc_size = 5 * 1024 * 1024 - 10 * 1024;  // Max IPC size.
 
   // Generate a bunch of JSONs
-  std::vector<illex::JSONQueueItem> jsons_in;
+  std::vector<illex::JSONItem> jsons_in;
   auto bytes_largest =
       GenerateJSONs(num_jsons, *test_schema(), illex::GenerateOptions(0), &jsons_in);
 

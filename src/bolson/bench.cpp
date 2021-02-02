@@ -23,11 +23,8 @@
 #include <thread>
 
 #include "bolson/buffer/allocator.h"
-#include "bolson/buffer/opae_allocator.h"
 #include "bolson/convert/converter.h"
 #include "bolson/convert/stats.h"
-#include "bolson/parse/arrow_impl.h"
-#include "bolson/parse/opae_battery_impl.h"
 #include "bolson/parse/parser.h"
 #include "bolson/pulsar.h"
 #include "bolson/status.h"
@@ -37,8 +34,7 @@ namespace bolson {
 
 auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
                    const illex::GenerateOptions& gen_opts,
-                   std::vector<illex::JSONQueueItem>* items)
-    -> std::pair<size_t, size_t> {
+                   std::vector<illex::JSONItem>* items) -> std::pair<size_t, size_t> {
   size_t largest = 0;
   // Generate a message with tweets in JSON format.
   auto gen = illex::FromArrowSchema(schema, gen_opts);
@@ -51,13 +47,13 @@ auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
       largest = json.size();
     }
     raw_chars += json.size();
-    items->push_back(illex::JSONQueueItem{i, json});
+    items->push_back(illex::JSONItem{i, json});
   }
   return {raw_chars, largest};
 }
 
-void FillBuffers(std::vector<illex::RawJSONBuffer*> buffers,
-                 const std::vector<illex::JSONQueueItem>& jsons) {
+void FillBuffers(std::vector<illex::JSONBuffer*> buffers,
+                 const std::vector<illex::JSONItem>& jsons) {
   auto items_per_buffer = jsons.size() / buffers.size();
   auto items_first_buf = jsons.size() % buffers.size();
   size_t item = 0;
@@ -92,7 +88,7 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status {
   spdlog::info("Generating JSONs...");
 
   t_gen.Start();
-  std::vector<illex::JSONQueueItem> items;
+  std::vector<illex::JSONItem> items;
   auto bytes_largest = GenerateJSONs(opt.num_jsons, *opt.schema, opt.generate, &items);
   t_gen.Stop();
 
@@ -270,7 +266,7 @@ auto BenchPulsar(const PulsarBenchOptions& opt) -> Status {
   return Status::OK();
 }
 
-auto BenchClient(const ClientBenchOptions& opt) -> Status {
+auto BenchClient(const illex::ClientOptions& opt) -> Status {
   return Status(Error::GenericError, "Not yet implemented.");
 }
 
