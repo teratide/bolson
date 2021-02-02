@@ -84,7 +84,7 @@ class Converter {
   auto Finish() -> Status;
 
   /// \brief Return a pointer to the buffers.
-  auto mutable_buffers() -> std::vector<illex::RawJSONBuffer*>;
+  auto mutable_buffers() -> std::vector<illex::JSONBuffer*>;
 
   /// \brief Return a pointer to the buffers.
   auto mutexes() -> std::vector<std::mutex*>;
@@ -129,7 +129,7 @@ class Converter {
   std::vector<std::shared_ptr<parse::Parser>> parsers;
   std::vector<convert::Resizer> resizers;
   std::vector<convert::Serializer> serializers;
-  std::vector<illex::RawJSONBuffer> buffers;
+  std::vector<illex::JSONBuffer> buffers;
   std::vector<std::mutex> mutexes_;
   std::vector<std::thread> threads;
   std::vector<Stats> stats;

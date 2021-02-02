@@ -42,7 +42,7 @@
 namespace bolson::parse {
 
 auto OpaeBatteryParserManager::PrepareInputBatches(
-    const std::vector<illex::RawJSONBuffer*>& buffers) -> Status {
+    const std::vector<illex::JSONBuffer*>& buffers) -> Status {
   for (const auto& buf : buffers) {
     auto wrapped = arrow::Buffer::Wrap(buf->data(), buf->capacity());
     auto array =
@@ -79,7 +79,7 @@ auto OpaeBatteryParserManager::PrepareOutputBatches() -> Status {
 }
 
 auto OpaeBatteryParserManager::Make(const OpaeBatteryOptions& opts,
-                                    const std::vector<illex::RawJSONBuffer*>& buffers,
+                                    const std::vector<illex::JSONBuffer*>& buffers,
                                     size_t num_parsers,
                                     std::shared_ptr<OpaeBatteryParserManager>* out)
     -> Status {
@@ -220,7 +220,7 @@ static inline auto ReadMMIO(fletcher::Platform* platform, uint64_t offset,
   return status;
 }
 
-auto OpaeBatteryParser::Parse(illex::RawJSONBuffer* in, ParsedBatch* out) -> Status {
+auto OpaeBatteryParser::Parse(illex::JSONBuffer* in, ParsedBatch* out) -> Status {
   platform_mutex->lock();
   SPDLOG_DEBUG("Thread {:2} | Obtained platform lock", idx_);
   SPDLOG_DEBUG("Thread {:2} | Attempting to parse buffer:\n {}", idx_,
@@ -313,7 +313,7 @@ auto OpaeBatteryParser::output_schema() -> std::shared_ptr<arrow::Schema> {
   return result;
 }
 
-auto ToString(const illex::RawJSONBuffer& buffer, bool show_contents) -> std::string {
+auto ToString(const illex::JSONBuffer& buffer, bool show_contents) -> std::string {
   std::stringstream ss;
   ss << "Buffer   : " << buffer.data() << "\n"
      << "Capacity : " << buffer.capacity() << "\n"
