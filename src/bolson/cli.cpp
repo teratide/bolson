@@ -185,9 +185,7 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   uint16_t stream_port = 0;
   bool csv = false;
 
-  CLI::App app{
-      "bolson : A JSON stream to Arrow IPC to Pulsar conversion and publish "
-      "tool."};
+  CLI::App app{"bolson : A JSON to Arrow IPC converter and Pulsar publishing tool."};
 
   app.require_subcommand();
   app.get_formatter()->column_width(50);
