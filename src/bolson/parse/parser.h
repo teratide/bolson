@@ -17,6 +17,7 @@
 #include <arrow/api.h>
 #include <illex/client_buffering.h>
 
+#include "bolson/latency.h"
 #include "bolson/status.h"
 
 /// Contains all constructs to parse JSONs.
@@ -26,7 +27,7 @@ namespace bolson::parse {
  * \brief The result of parsing a raw JSON buffer.
  */
 struct ParsedBatch {
-  /// The resulting Arrow RecordBatch
+  /// The resulting Arrow RecordBatch.
   std::shared_ptr<arrow::RecordBatch> batch;
   /// Range of sequence numbers in batch.
   illex::SeqRange seq_range;

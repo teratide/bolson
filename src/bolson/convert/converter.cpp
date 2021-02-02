@@ -64,8 +64,7 @@ static auto TryGetFilledBuffer(const std::vector<illex::JSONBuffer*>& buffers,
 }
 
 void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
-                   Serializer* serializer,
-                   const std::vector<illex::JSONBuffer*>& buffers,
+                   Serializer* serializer, const std::vector<illex::JSONBuffer*>& buffers,
                    const std::vector<std::mutex*>& mutexes, IpcQueue* out,
                    std::atomic<bool>* shutdown, Stats* stats) {
   /// Macro to shut this thread and others down when something failed.
@@ -83,6 +82,8 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
   putong::Timer<> t_thread(true);
   // Workload stage timer.
   putong::SplitTimer<4> t_stages;
+  // Latency time points.
+  TimePoints lat;
   // Whether to try and unlock a buffer or to wait a bit.
   bool try_buffers = true;
   // Buffer to unlock.
@@ -95,36 +96,53 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
       illex::JSONBuffer* buf = nullptr;
       if (TryGetFilledBuffer(buffers, mutexes, &buf, &lock_idx)) {
         t_stages.Start();
+        lat[TimePoints::received] = buf->recv_time();
+
         // Prepare intermediate wrappers.
         parse::ParsedBatch parsed;
         ResizedBatches resized;
         SerializedBatches serialized;
 
         // Parse the buffer.
-        stats->status = parser->Parse(buf, &parsed);
-        SHUTDOWN_ON_FAILURE();
+        {
+          stats->status = parser->Parse(buf, &parsed);
+          SHUTDOWN_ON_FAILURE();
 
-        // Reset and unlock the buffer.
-        // Add sizes stats before buffer is converted and reset.
-        stats->num_jsons += parsed.batch->num_rows();
-        stats->json_bytes += buf->size();
-        stats->num_parsed++;
-        buf->Reset();
-        mutexes[lock_idx]->unlock();
-        lock_idx++;  // start at next buffer next time we try to unlock.
-        t_stages.Split();
+          // Reset and unlock the buffer.
+          // Add sizes stats before buffer is converted and reset.
+          stats->num_jsons += parsed.batch->num_rows();
+          stats->json_bytes += buf->size();
+          stats->num_parsed++;
+          buf->Reset();
+          mutexes[lock_idx]->unlock();
+          lock_idx++;  // start at next buffer next time we try to unlock.
+          lat[TimePoints::parsed] = illex::Timer::now();
+          t_stages.Split();
+        }
 
         // Resize the batch.
-        stats->status = resizer->Resize(parsed, &resized);
-        SHUTDOWN_ON_FAILURE();
-        t_stages.Split();
+        {
+          stats->status = resizer->Resize(parsed, &resized);
+          SHUTDOWN_ON_FAILURE();
+          // Mark time points resized for all batches.
+          lat[TimePoints::resized] = illex::Timer::now();
+          t_stages.Split();
+        }
 
         // Serialize the batch.
-        stats->status = serializer->Serialize(resized, &serialized);
-        SHUTDOWN_ON_FAILURE();
-        stats->num_ipc += serialized.size();
-        stats->ipc_bytes += ByteSizeOf(serialized);
-        t_stages.Split();
+        {
+          stats->status = serializer->Serialize(resized, &serialized);
+          SHUTDOWN_ON_FAILURE();
+          stats->num_ipc += serialized.size();
+          stats->ipc_bytes += ByteSizeOf(serialized);
+          // Mark time points serialized for all batches.
+          lat[TimePoints::serialized] = illex::Timer::now();
+          // Copy the latency statistics to all serialized batches.
+          for (auto& s : serialized) {
+            s.time_points = lat;
+          }
+          t_stages.Split();
+        }
 
         // Enqueue IPC items
         for (const auto sb : serialized) {
@@ -158,7 +176,7 @@ void Converter::Start(std::atomic<bool>* shutdown) {
   for (int t = 0; t < num_threads_; t++) {
     threads.emplace_back(ConvertThread, t, parsers[t].get(), &resizers[t],
                          &serializers[t], mutable_buffers(), mutexes(), output_queue_,
-                         shutdown_, &stats[t]);
+                         shutdown_, &statistics_[t]);
   }
 }
 
@@ -168,7 +186,7 @@ auto Converter::Finish() -> Status {
   for (size_t t = 0; t < num_threads_; t++) {
     if (threads[t].joinable()) {
       threads[t].join();
-      if (!stats[t].status.ok()) {
+      if (!statistics_[t].status.ok()) {
         // If a thread returned some error status, shut everything down without waiting
         // for the caller to do so.
         shutdown_->store(true);
@@ -187,7 +205,7 @@ auto Converter::AllocateBuffers(size_t capacity) -> Status {
     std::byte* raw = nullptr;
     BOLSON_ROE(allocator_->Allocate(capacity, &raw));
     illex::JSONBuffer buf;
-    illex::JSONBuffer::Create(raw, capacity, &buf);
+    BILLEX_ROE(illex::JSONBuffer::Create(raw, capacity, &buf));
     buffers.push_back(buf);
   }
 
@@ -201,7 +219,7 @@ auto Converter::FreeBuffers() -> Status {
   return Status::OK();
 }
 
-auto Converter::Make(const Options& opts, IpcQueue* ipc_queue,
+auto Converter::Make(const ConverterOptions& opts, IpcQueue* ipc_queue,
                      std::shared_ptr<Converter>* out) -> Status {
   // Select allocator.
   std::shared_ptr<buffer::Allocator> allocator;
@@ -285,6 +303,6 @@ void Converter::UnlockBuffers() {
   }
 }
 
-auto Converter::Statistics() -> std::vector<Stats> { return stats; }
+auto Converter::statistics() -> std::vector<Stats> { return statistics_; }
 
 }  // namespace bolson::convert

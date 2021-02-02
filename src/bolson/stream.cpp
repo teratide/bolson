@@ -22,11 +22,8 @@
 #include <vector>
 
 #include "bolson/latency.h"
-#include "bolson/parse/arrow_impl.h"
-#include "bolson/parse/opae_battery_impl.h"
 #include "bolson/pulsar.h"
 #include "bolson/status.h"
-#include "bolson/utils.h"
 
 namespace bolson {
 
@@ -117,22 +114,12 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
 
   StreamThreads threads;
 
-  // TODO: wrap into a function from down here:
-
   // Set up futures for statistics delivered by threads.
   std::promise<PublishStats> pub_stats_promise;
   auto pub_stats_future = pub_stats_promise.get_future();
 
-  // Select allocator.
-  std::shared_ptr<buffer::Allocator> allocator;
-  switch (opt.converter.implementation) {
-    case parse::Impl::ARROW:
-      allocator = std::make_shared<buffer::Allocator>();
-      break;
-    case parse::Impl::OPAE_BATTERY:
-      allocator = std::make_shared<buffer::OpaeAllocator>();
-      break;
-  }
+  std::promise<LatencyMeasurements> pub_lat_promise;
+  auto pub_lat_future = pub_lat_promise.get_future();
 
   // Set up the Converter.
   std::shared_ptr<convert::Converter> converter;
@@ -145,7 +132,7 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
   // messages in Pulsar.
   threads.publish_thread = std::make_unique<std::thread>(
       PublishThread, std::move(pulsar), &ipc_queue, &threads.shutdown,
-      &threads.publish_count, std::move(pub_stats_promise));
+      &threads.publish_count, std::move(pub_stats_promise), std::move(pub_lat_promise));
 
   // Set up the client that receives incoming JSONs.
   // We must shut down the already spawned threads in case the client returns some
@@ -159,17 +146,16 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
   // Receive JSONs (blocking) until the server closes the connection.
   // Concurrently, the conversion and publish thread will do their job.
   timers.tcp.Start();
-  SHUTDOWN_ON_FAILURE(client.ReceiveJSONs(nullptr));
+  SHUTDOWN_ON_FAILURE(client.ReceiveJSONs());
   timers.tcp.Stop();
   SHUTDOWN_ON_FAILURE(client.Close());
 
   SPDLOG_DEBUG("Waiting to empty JSON queue.");
-  // Once the server disconnects, we can work towards finishing down this function.
+  // Once the server disconnects, we can work towards finishing this function.
   // Wait until all JSONs have been published, or if either the publish or converter
-  // thread have asserted the shutdown signal. The latter indicates some error.
+  // thread have asserted the shutdown signal, the latter indicating some error.
   while ((client.jsons_received() != threads.publish_count.load()) &&
          !threads.shutdown.load()) {
-    // TODO: use some conditional variable for this
     // Sleep this thread for a bit.
     std::this_thread::sleep_for(std::chrono::milliseconds(BOLSON_QUEUE_WAIT_US));
 #ifndef NDEBUG
@@ -183,8 +169,9 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
   // We can now shut down all threads and collect futures.
   threads.Shutdown(converter);
 
-  auto conv_stats = converter->Statistics();
+  auto conv_stats = converter->statistics();
   auto pub_stats = pub_stats_future.get();
+  auto lat_stats = pub_lat_future.get();
 
   // Check if the publish thread had an error.
   BOLSON_ROE(pub_stats.status);
@@ -214,10 +201,11 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
       spdlog::info("Conversion threads: {}", opt.converter.num_threads);
       spdlog::info("TCP clients       : {}", 1);
       spdlog::info("Publish threads   : {}", 1);
+      DumpLatencyStats(lat_stats, opt.latency_file);
     }
   }
 
-  return Status(Error::GenericError, "Not implemented.");
+  return Status::OK();
 }
 
 }  // namespace bolson

@@ -25,7 +25,6 @@
 
 #include "bolson/log.h"
 #include "bolson/status.h"
-#include "bolson/stream.h"
 
 #define CHECK_PULSAR(result)                                                 \
   {                                                                          \
@@ -59,10 +58,12 @@ auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> 
 
 void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
                    std::atomic<bool>* shutdown, std::atomic<size_t>* count,
-                   std::promise<PublishStats>&& stats) {
+                   std::promise<PublishStats>&& stats,
+                   std::promise<LatencyMeasurements>&& latencies) {
   // Set up timers.
   auto thread_timer = putong::Timer(true);
   auto publish_timer = putong::Timer();
+  LatencyMeasurements lat;
 
   PublishStats s;
 
@@ -74,6 +75,7 @@ void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
       // Start measuring time to handle an IPC message on the Pulsar side.
       publish_timer.Start();
 
+      // Publish the message
       auto status = Publish(pulsar.producer.get(), ipc_item.message->data(),
                             ipc_item.message->size());
 
@@ -92,6 +94,9 @@ void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
         return;
       }
 
+      // Measure point in time after publishing the batch.
+      ipc_item.time_points[TimePoints::published] = illex::Timer::now();
+
       // Add number of rows in IPC message to the count, signaling the main thread how
       // many JSONs are published.
       count->fetch_add(RecordSizeOf(ipc_item));
@@ -101,6 +106,8 @@ void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
       s.num_jsons_published += RecordSizeOf(ipc_item);
       publish_timer.Stop();
       s.publish_time += publish_timer.seconds();
+      // Dump the latency stats.
+      lat.push_back({ipc_item.seq_range, ipc_item.time_points});
     }
   }
   // Stop thread timer.
@@ -111,6 +118,7 @@ void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
   pulsar.client->close();
   // Fulfill the promise.
   stats.set_value(s);
+  latencies.set_value(lat);
 }
 
 /// A custom logger to redirect Pulsar client log messages to the Bolson logger.

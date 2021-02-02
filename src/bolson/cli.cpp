@@ -111,7 +111,7 @@ static void AddClientOpts(CLI::App* sub, std::string& host, uint16_t& port) {
       ->default_val(ILLEX_DEFAULT_PORT);
 }
 
-static void AddConvertOpts(CLI::App* sub, convert::Options* opts) {
+static void AddConvertOpts(CLI::App* sub, convert::ConverterOptions* opts) {
   ParserMap parsers{{"arrow", parse::Impl::ARROW},
                     {"opae-battery", parse::Impl::OPAE_BATTERY}};
   sub->add_option("-p,--parser", opts->implementation, "Parser implementation.")
@@ -193,14 +193,6 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   // 'stream' subcommand:
   auto* stream =
       app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
-  stream
-      ->add_option("--l-samples", out->stream.latency.num_samples,
-                   "Number of latency samples.")
-      ->default_val(1);
-  stream->add_option("--l-interval", out->stream.latency.interval)->default_val(1024);
-  stream->add_option("--l-out", out->stream.latency.file,
-                     "CSV file to dump latency measurements in. "
-                     "If not supplied, no information is dumped.");
   AddConvertOpts(stream, &out->stream.converter);
   AddStatsOpts(stream, &csv);
   AddArrowOpts(stream, &schema_file);

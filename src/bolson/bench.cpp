@@ -173,7 +173,7 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status {
   spdlog::info("  Throughput (out)    : {} MB/s", ipc_MB / t_conv.seconds());
   spdlog::info("  Throughput          : {} MJ/s", json_M / t_conv.seconds());
 
-  auto a = convert::AggrStats(converter->Statistics());
+  auto a = convert::AggrStats(converter->statistics());
   spdlog::info("Details:");
   LogConvertStats(a, opt.converter.num_threads, "  ");
 

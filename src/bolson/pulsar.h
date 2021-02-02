@@ -110,9 +110,12 @@ auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> 
  * \param shutdown      If this is true, this thread will try to terminate.
  * \param count         The number of published messages.
  * \param stats         Statistics about this thread.
+ * \param latencies     Latency statistics for batches.
  */
-void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in, std::atomic<bool>* shutdown,
-                   std::atomic<size_t>* count, std::promise<PublishStats>&& stats);
+void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
+                   std::atomic<bool>* shutdown, std::atomic<size_t>* count,
+                   std::promise<PublishStats>&& stats,
+                   std::promise<LatencyMeasurements>&& latencies);
 
 /**
  * \brief Factory function for the custom Pulsar logger.

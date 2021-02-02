@@ -24,11 +24,13 @@ namespace bolson::convert {
 struct SerializedBatch {
   std::shared_ptr<arrow::Buffer> message;
   illex::SeqRange seq_range;
+  TimePoints time_points;
 };
 
 using SerializedBatches = std::vector<SerializedBatch>;
 
 auto RecordSizeOf(const SerializedBatch& batch) -> size_t;
+
 auto RecordSizeOf(const SerializedBatches& batches) -> size_t;
 
 auto ByteSizeOf(const SerializedBatches& batches) -> size_t;

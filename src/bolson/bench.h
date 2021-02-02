@@ -35,7 +35,7 @@ struct ConvertBenchOptions {
   illex::GenerateOptions generate;
   bool csv = false;
   size_t num_jsons = 1024;
-  convert::Options converter;
+  convert::ConverterOptions converter;
 };
 
 /// Options for Pulsar interface benchmark.

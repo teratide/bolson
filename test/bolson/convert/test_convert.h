@@ -56,7 +56,7 @@ auto GetRecordBatch(const std::shared_ptr<arrow::Schema>& schema,
  * \param out   JSON output.
  * \return Status::OK() if successful, some error otherwise.
  */
-auto Convert(const Options& opts, const std::vector<illex::JSONItem>& in,
+auto Convert(const ConverterOptions& opts, const std::vector<illex::JSONItem>& in,
              std::vector<IpcQueueItem>* out) -> Status {
   // Set up the output queue.
   IpcQueue out_queue;

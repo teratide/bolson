@@ -36,12 +36,12 @@ struct StreamOptions {
   PulsarOptions pulsar;
   /// Enable statistics.
   bool statistics = true;
+  /// Latency stats output file.
+  std::string latency_file = "latency.csv";
   /// Whether to produce succinct statistics.
   bool succinct = false;
-  /// Options related to tracking latency.
-  LatencyOptions latency;
   /// Options related to conversion.
-  convert::Options converter;
+  convert::ConverterOptions converter;
   /// Size of the TCP buffers.
   size_t tcp_buffer_capacity = ILLEX_DEFAULT_TCP_BUFSIZE;
 };
