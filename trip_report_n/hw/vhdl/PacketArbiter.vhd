@@ -75,14 +75,14 @@ architecture behavioral of PacketArbiter is
         -- The transfer might be closed after the packet, in a separate cycle.
         if out_valid_s = '1' and out_ready = '1' then
           if to_x01(last_pkt) = '1' then
-            lock_v := not (out_last_s(PKT_LAST) or out_last_s(TX_LAST));
+            lock_v := not out_last_s(TX_LAST);
           else
-            lock_v := not (out_last_s(PKT_LAST) or out_last_s(PKT_LAST));
+            lock_v := not out_last_s(PKT_LAST);
           end if;
         end if;
 
         -- Only be ready for a command when a previous one is not in progress.
-        cr := not cv and not lock_v and not reset;
+        cr := (not cv) and (not lock_v) and (not reset);
         cmd_ready <= cr;
         lock <= lock_v;
 
@@ -93,7 +93,6 @@ architecture behavioral of PacketArbiter is
         index  <= (others => '0');
         lock   <= '0';
       end if;
-
     end process;
 
     -- Input mux

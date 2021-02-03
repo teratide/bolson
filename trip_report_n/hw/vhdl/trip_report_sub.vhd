@@ -264,6 +264,7 @@ entity trip_report_sub is
     tag_valid                                   : out std_logic;
     tag_ready                                   : in  std_logic;
     tag                                         : out std_logic_vector(TAG_WIDTH-1 downto 0);
+    tag_last                                    : out std_logic;
     
     tag_cfg                                     : in std_logic_vector(TAG_WIDTH*NUM_PARSERS-1 downto 0)
   );
@@ -1462,7 +1463,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => TIMEZONE_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        PKT_LAST                  => 2-2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1493,7 +1496,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => VIN_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        PKT_LAST                  => 2-2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1524,7 +1529,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => ODOMETER_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        PKT_LAST                  => 2-2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1555,7 +1562,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => AVGSPEED_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        PKT_LAST                  => 2-2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1586,7 +1595,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => ACCEL_DECEL_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        PKT_LAST                  => 2-2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1617,7 +1628,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => SPEED_CHANGES_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        PKT_LAST                  => 2-2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1648,7 +1661,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => 1,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        PKT_LAST                  => 2-2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1679,7 +1694,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => 1,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        PKT_LAST                  => 2-2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1710,7 +1727,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => SEC_IN_BAND_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1741,7 +1760,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => MILES_IN_TIME_RANGE_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1772,7 +1793,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => CONST_SPEED_MILES_IN_BAND_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1803,7 +1826,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => VARY_SPEED_MILES_IN_BAND_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1834,7 +1859,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => SEC_DECEL_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1865,7 +1892,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => SEC_ACCEL_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1896,7 +1925,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => BRAKING_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1927,7 +1958,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => ACCEL_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1958,7 +1991,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => SMALL_SPEED_VAR_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1989,7 +2024,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => LARGE_SPEED_VAR_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -2020,7 +2057,9 @@ begin
         NUM_INPUTS                => NUM_PARSERS,
         INDEX_WIDTH               => INDEX_WIDTH,
         DATA_WIDTH                => 8,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        PKT_LAST                  => 3-2,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -2125,6 +2164,7 @@ begin
       tag_valid                 => tag_valid,
       tag_ready                 => tag_ready,
       tag                       => tag,
+      tag_last                  => tag_last,
 
       tag_cfg                   => tag_cfg
     );

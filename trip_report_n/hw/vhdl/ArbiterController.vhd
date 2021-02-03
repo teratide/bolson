@@ -36,8 +36,9 @@ entity ArbiterController is
 end entity;
 
 architecture Implementation of ArbiterController is
-    signal out_valid : std_logic;
-    signal out_ready : std_logic;
+    signal out_valid   : std_logic;
+    signal out_ready   : std_logic;
+    signal pkt_ready_s : std_logic_vector(NUM_INPUTS-1 downto 0); 
   begin
 
     sync_out: StreamSync
@@ -70,48 +71,59 @@ architecture Implementation of ArbiterController is
     begin 
 
       if rising_edge(clk) then
-
+     
+        
         if out_ready = '1' then
           ov := '0';
-          ol := '0';
           if to_x01(ol) = '1' then
             last_pkt := (others => '0');
           end if;
         end if;
 
-        pkt_ready <= (others => '0');
+        pkt_ready_s <= (others => '0');
+
 
         -- Select the next index (RR)
         if to_x01(ov) /= '1' then
           -- Priority init.
           for idx in NUM_INPUTS-1 downto 0 loop
             if pkt_valid(idx) = '1' then
-              index         := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
-              ov            := '1';
-              tag_v         := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
-              last_pkt(idx) := last_pkt(idx) or pkt_last(idx);
-              cl            := pkt_last(idx);
-              ol            := and_reduce(last_pkt);
+              index          := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
+              if pkt_ready_s(idx) = '1' then
+                ov             := '1';
+                tag_v          := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
+                last_pkt(idx)  := last_pkt(idx) or pkt_last(idx);
+                cl             := pkt_last(idx);
+                ol             := and_reduce(last_pkt);
+              end if;
             end if;
           end loop;
           --Round-robin arbitration.
           for idx in NUM_INPUTS-1 downto 0 loop
-            if pkt_valid(idx) = '1' then
+            if pkt_valid(idx) = '1' and pkt_ready_s(idx) = '1' then
               if idx > to_integer(unsigned(index_r)) then
-                index := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
-                ov            := '1';
-                tag_v         := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
-                last_pkt(idx) := last_pkt(idx) or pkt_last(idx);
-                cl            := pkt_last(idx);
-                ol            := and_reduce(last_pkt);
+                index          := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
+                if pkt_ready_s(idx) = '1' then
+                  ov             := '1';
+                  tag_v          := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
+                  last_pkt(idx)  := last_pkt(idx) or pkt_last(idx);
+                  cl             := pkt_last(idx);
+                  ol             := and_reduce(last_pkt);
+                end if;
               end if;
             end if;
           end loop;
-          if pkt_valid(to_integer(unsigned(index))) = '1' then
-            pkt_ready(to_integer(unsigned(index))) <= '1';
-          end if;
         end if;
 
+        for idx in NUM_INPUTS-1 downto 0 loop
+          if to_x01(ov) /= '1' and idx = to_integer(unsigned(index_r)) then
+            pkt_ready_s(idx) <= '1';
+          else
+          pkt_ready_s(idx) <= '0';
+          end if;
+        end loop;
+
+    
         -- Handle reset.
         if reset = '1' then
           index     := (others => '0');
@@ -120,12 +132,13 @@ architecture Implementation of ArbiterController is
           ov        := '0';
         end if;
 
-        index_r   := index;
-        cmd_index <= index;
-        tag       <= tag_v;
-        out_valid <= ov;
-        tag_last  <= ol;
-        cmd_last  <= cl;
+        index_r        := index;
+        cmd_index      <= index;
+        tag            <= tag_v;
+        out_valid      <= ov and not reset;
+        pkt_ready      <= pkt_ready_s;
+        tag_last       <= ol;
+        cmd_last       <= cl;
       end if;
     end process;
   end architecture;

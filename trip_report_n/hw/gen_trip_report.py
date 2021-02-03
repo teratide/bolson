@@ -92,7 +92,7 @@ def input_schema(idx):
 output_schema = pa.schema([pa.field("timestamp", pa.utf8(), False).with_metadata({
     b'fletcher_epc': b'1'
 }),
-    #pa.field("tag", pa.uint8(), False),
+    pa.field("tag", pa.uint64(), False),
     pa.field("timezone", pa.uint64(), False),
     pa.field("vin", pa.uint64(), False),
     pa.field("odometer", pa.uint64(), False),

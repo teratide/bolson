@@ -26,6 +26,11 @@ entity trip_report is
     output_timestamp_chars_last                   : out std_logic;
     output_timestamp_chars                        : out std_logic_vector(7 downto 0);
     output_timestamp_chars_count                  : out std_logic_vector(0 downto 0);
+    output_tag_valid                              : out std_logic;
+    output_tag_ready                              : in  std_logic;
+    output_tag_dvalid                             : out std_logic;
+    output_tag_last                               : out std_logic;
+    output_tag                                    : out std_logic_vector(63 downto 0);
     output_timezone_valid                         : out std_logic;
     output_timezone_ready                         : in  std_logic;
     output_timezone_dvalid                        : out std_logic;
@@ -189,6 +194,9 @@ entity trip_report is
     output_timestamp_unl_valid                    : in  std_logic;
     output_timestamp_unl_ready                    : out std_logic;
     output_timestamp_unl_tag                      : in  std_logic_vector(TAG_WIDTH-1 downto 0);
+    output_tag_unl_valid                          : in  std_logic;
+    output_tag_unl_ready                          : out std_logic;
+    output_tag_unl_tag                            : in  std_logic_vector(TAG_WIDTH-1 downto 0);
     output_timezone_unl_valid                     : in  std_logic;
     output_timezone_unl_ready                     : out std_logic;
     output_timezone_unl_tag                       : in  std_logic_vector(TAG_WIDTH-1 downto 0);
@@ -248,6 +256,11 @@ entity trip_report is
     output_timestamp_cmd_firstIdx                 : out std_logic_vector(INDEX_WIDTH-1 downto 0);
     output_timestamp_cmd_lastIdx                  : out std_logic_vector(INDEX_WIDTH-1 downto 0);
     output_timestamp_cmd_tag                      : out std_logic_vector(TAG_WIDTH-1 downto 0);
+    output_tag_cmd_valid                          : out std_logic;
+    output_tag_cmd_ready                          : in  std_logic;
+    output_tag_cmd_firstIdx                       : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+    output_tag_cmd_lastIdx                        : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+    output_tag_cmd_tag                            : out std_logic_vector(TAG_WIDTH-1 downto 0);
     output_timezone_cmd_valid                     : out std_logic;
     output_timezone_cmd_ready                     : in  std_logic;
     output_timezone_cmd_firstIdx                  : out std_logic_vector(INDEX_WIDTH-1 downto 0);
@@ -516,6 +529,7 @@ architecture Implementation of trip_report is
   signal in_last                          : std_logic_vector(NUM_PARSERS * 2 * EPC - 1 downto 0);
 
   signal record_counter                   : unsigned(63 downto 0);
+  signal tag                              : std_logic_vector(31 downto 0);
 
   signal in_cmd_valid                     : std_logic;
   signal in_cmd_ready                     : std_logic;
@@ -639,6 +653,10 @@ begin
   output_timestamp_cmd_lastIdx                  <= output_lastidx;
   output_timestamp_cmd_tag                      <= (others => '0');
 
+  output_tag_cmd_firstIdx                       <= output_firstidx;
+  output_tag_cmd_lastIdx                        <= output_lastidx;
+  output_tag_cmd_tag                            <= (others => '0');
+
 
 {read_req_defaults}
 
@@ -649,7 +667,7 @@ begin
 
   sync_out_unl: StreamSync
     generic map (
-      NUM_INPUTS              => 19,
+      NUM_INPUTS              => 20,
       NUM_OUTPUTS             => 1
     )
     port map (
@@ -678,6 +696,7 @@ begin
       in_valid(16)           => output_hypermiling_unl_valid,
       in_valid(17)           => output_orientation_unl_valid,
       in_valid(18)           => output_timestamp_unl_valid,
+      in_valid(19)           => output_tag_unl_valid,
 
       in_ready(0)            => output_timezone_unl_ready,
       in_ready(1)            => output_vin_unl_ready,
@@ -697,7 +716,8 @@ begin
       in_ready(15)           => output_large_speed_var_unl_ready,
       in_ready(16)           => output_hypermiling_unl_ready,
       in_ready(17)           => output_orientation_unl_ready,
-      in_ready(18)           => output_timestamp_unl_ready
+      in_ready(18)           => output_timestamp_unl_ready,
+      in_ready(19)           => output_tag_unl_ready
   );
 
 
@@ -705,7 +725,7 @@ begin
   sync_out_cmd: StreamSync
     generic map (
       NUM_INPUTS              => 1,
-      NUM_OUTPUTS             => 19
+      NUM_OUTPUTS             => 20
     )
     port map (
       clk                     => kcd_clk,
@@ -733,6 +753,7 @@ begin
       out_valid(16)           => output_hypermiling_cmd_valid,
       out_valid(17)           => output_orientation_cmd_valid,
       out_valid(18)           => output_timestamp_cmd_valid,
+      out_valid(19)           => output_tag_cmd_valid,
 
       out_ready(0)            => output_timezone_cmd_ready,
       out_ready(1)            => output_vin_cmd_ready,
@@ -752,7 +773,8 @@ begin
       out_ready(15)           => output_large_speed_var_cmd_ready,
       out_ready(16)           => output_hypermiling_cmd_ready,
       out_ready(17)           => output_orientation_cmd_ready,
-      out_ready(18)           => output_timestamp_cmd_ready
+      out_ready(18)           => output_timestamp_cmd_ready,
+      out_ready(19)           => output_tag_cmd_ready
   );
 
   comb : process (
@@ -1090,12 +1112,20 @@ begin
     timestamp_last                              => timestamp_last, 
     timestamp_strb                              => timestamp_strb,
 
-    tag_ready                                   => '1',
+    tag_valid                                   => output_tag_valid,
+    tag_ready                                   => output_tag_ready,
+    tag                                         => tag,
+    tag_last                                    => output_tag_last,
+
 {tag_cfg}
 
   );
 
   -- Some interfacing
+
+  output_tag_dvalid <= '1';
+  output_tag(31 downto 0)  <= tag;
+  output_tag(63 downto 32) <= (others => '0');
 
   -- 
   -- Converters for the integer fields

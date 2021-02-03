@@ -157,6 +157,7 @@ architecture Implementation of PacketFIFO is
       -- Handle reset.
       if reset = '1' then
         cnt      := (others => '0');
+        last_pkt := (others => '0');
         ov       := '0';
       end if;
 

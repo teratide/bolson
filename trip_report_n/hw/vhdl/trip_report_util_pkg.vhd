@@ -449,6 +449,7 @@ package trip_report_util_pkg is
       tag_valid                                   : out std_logic;
       tag_ready                                   : in  std_logic;
       tag                                         : out std_logic_vector(TAG_WIDTH-1 downto 0);
+      tag_last                                    : out std_logic;
       
       tag_cfg                                     : in std_logic_vector(TAG_WIDTH*NUM_PARSERS-1 downto 0)
     );
