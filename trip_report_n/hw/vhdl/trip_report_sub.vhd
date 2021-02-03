@@ -648,12 +648,14 @@ architecture Implementation of trip_report_sub is
   signal timestamp_ser_strb               : std_logic_vector(EPC*NUM_PARSERS-1 downto 0);
 
   type field_cntrl_array_t is array (0 to NUM_PARSERS-1) of std_logic_vector(19-1 downto 0);
-  signal cmd_valid    : field_cntrl_array_t;
-  signal cmd_ready    : field_cntrl_array_t;
   signal pkt_valid    : field_cntrl_array_t;
   signal pkt_ready    : field_cntrl_array_t;
   signal pkt_last     : field_cntrl_array_t;
   signal pkt_last_red : std_logic_vector(NUM_PARSERS-1 downto 0);
+  
+  signal cmd_valid    : std_logic_vector(19-1 downto 0);
+  signal cmd_ready    : std_logic_vector(19-1 downto 0);
+  
   
   signal cmd_valid_sync                   : std_logic;
   signal cmd_ready_sync                   : std_logic;
@@ -1457,7 +1459,6 @@ begin
   end generate;
 
 
-  timezone_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     timezone_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1483,14 +1484,12 @@ begin
         out_strb                  => timezone_strb,
         out_last                  => timezone_last,
     
-        cmd_valid                 => cmd_valid(p)(0),
-        cmd_ready                 => cmd_ready(p)(0),
+        cmd_valid                 => cmd_valid(0),
+        cmd_ready                 => cmd_ready(0),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  vin_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     vin_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1516,14 +1515,12 @@ begin
         out_strb                  => vin_strb,
         out_last                  => vin_last,
     
-        cmd_valid                 => cmd_valid(p)(1),
-        cmd_ready                 => cmd_ready(p)(1),
+        cmd_valid                 => cmd_valid(1),
+        cmd_ready                 => cmd_ready(1),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  odometer_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     odometer_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1549,14 +1546,12 @@ begin
         out_strb                  => odometer_strb,
         out_last                  => odometer_last,
     
-        cmd_valid                 => cmd_valid(p)(2),
-        cmd_ready                 => cmd_ready(p)(2),
+        cmd_valid                 => cmd_valid(2),
+        cmd_ready                 => cmd_ready(2),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  avgspeed_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     avgspeed_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1582,14 +1577,12 @@ begin
         out_strb                  => avgspeed_strb,
         out_last                  => avgspeed_last,
     
-        cmd_valid                 => cmd_valid(p)(3),
-        cmd_ready                 => cmd_ready(p)(3),
+        cmd_valid                 => cmd_valid(3),
+        cmd_ready                 => cmd_ready(3),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  accel_decel_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     accel_decel_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1615,14 +1608,12 @@ begin
         out_strb                  => accel_decel_strb,
         out_last                  => accel_decel_last,
     
-        cmd_valid                 => cmd_valid(p)(4),
-        cmd_ready                 => cmd_ready(p)(4),
+        cmd_valid                 => cmd_valid(4),
+        cmd_ready                 => cmd_ready(4),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  speed_changes_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     speed_changes_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1648,14 +1639,12 @@ begin
         out_strb                  => speed_changes_strb,
         out_last                  => speed_changes_last,
     
-        cmd_valid                 => cmd_valid(p)(5),
-        cmd_ready                 => cmd_ready(p)(5),
+        cmd_valid                 => cmd_valid(5),
+        cmd_ready                 => cmd_ready(5),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  hypermiling_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     hypermiling_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1681,14 +1670,12 @@ begin
         out_strb                  => hypermiling_strb,
         out_last                  => hypermiling_last,
     
-        cmd_valid                 => cmd_valid(p)(6),
-        cmd_ready                 => cmd_ready(p)(6),
+        cmd_valid                 => cmd_valid(6),
+        cmd_ready                 => cmd_ready(6),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  orientation_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     orientation_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1714,14 +1701,12 @@ begin
         out_strb                  => orientation_strb,
         out_last                  => orientation_last,
     
-        cmd_valid                 => cmd_valid(p)(7),
-        cmd_ready                 => cmd_ready(p)(7),
+        cmd_valid                 => cmd_valid(7),
+        cmd_ready                 => cmd_ready(7),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  sec_in_band_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     sec_in_band_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1747,14 +1732,12 @@ begin
         out_strb                  => sec_in_band_strb,
         out_last                  => sec_in_band_last,
     
-        cmd_valid                 => cmd_valid(p)(8),
-        cmd_ready                 => cmd_ready(p)(8),
+        cmd_valid                 => cmd_valid(8),
+        cmd_ready                 => cmd_ready(8),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  miles_in_time_range_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     miles_in_time_range_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1780,14 +1763,12 @@ begin
         out_strb                  => miles_in_time_range_strb,
         out_last                  => miles_in_time_range_last,
     
-        cmd_valid                 => cmd_valid(p)(9),
-        cmd_ready                 => cmd_ready(p)(9),
+        cmd_valid                 => cmd_valid(9),
+        cmd_ready                 => cmd_ready(9),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  const_speed_miles_in_band_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     const_speed_miles_in_band_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1813,14 +1794,12 @@ begin
         out_strb                  => const_speed_miles_in_band_strb,
         out_last                  => const_speed_miles_in_band_last,
     
-        cmd_valid                 => cmd_valid(p)(10),
-        cmd_ready                 => cmd_ready(p)(10),
+        cmd_valid                 => cmd_valid(10),
+        cmd_ready                 => cmd_ready(10),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  vary_speed_miles_in_band_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     vary_speed_miles_in_band_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1846,14 +1825,12 @@ begin
         out_strb                  => vary_speed_miles_in_band_strb,
         out_last                  => vary_speed_miles_in_band_last,
     
-        cmd_valid                 => cmd_valid(p)(11),
-        cmd_ready                 => cmd_ready(p)(11),
+        cmd_valid                 => cmd_valid(11),
+        cmd_ready                 => cmd_ready(11),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  sec_decel_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     sec_decel_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1879,14 +1856,12 @@ begin
         out_strb                  => sec_decel_strb,
         out_last                  => sec_decel_last,
     
-        cmd_valid                 => cmd_valid(p)(12),
-        cmd_ready                 => cmd_ready(p)(12),
+        cmd_valid                 => cmd_valid(12),
+        cmd_ready                 => cmd_ready(12),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  sec_accel_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     sec_accel_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1912,14 +1887,12 @@ begin
         out_strb                  => sec_accel_strb,
         out_last                  => sec_accel_last,
     
-        cmd_valid                 => cmd_valid(p)(13),
-        cmd_ready                 => cmd_ready(p)(13),
+        cmd_valid                 => cmd_valid(13),
+        cmd_ready                 => cmd_ready(13),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  braking_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     braking_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1945,14 +1918,12 @@ begin
         out_strb                  => braking_strb,
         out_last                  => braking_last,
     
-        cmd_valid                 => cmd_valid(p)(14),
-        cmd_ready                 => cmd_ready(p)(14),
+        cmd_valid                 => cmd_valid(14),
+        cmd_ready                 => cmd_ready(14),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  accel_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     accel_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -1978,14 +1949,12 @@ begin
         out_strb                  => accel_strb,
         out_last                  => accel_last,
     
-        cmd_valid                 => cmd_valid(p)(15),
-        cmd_ready                 => cmd_ready(p)(15),
+        cmd_valid                 => cmd_valid(15),
+        cmd_ready                 => cmd_ready(15),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  small_speed_var_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     small_speed_var_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -2011,14 +1980,12 @@ begin
         out_strb                  => small_speed_var_strb,
         out_last                  => small_speed_var_last,
     
-        cmd_valid                 => cmd_valid(p)(16),
-        cmd_ready                 => cmd_ready(p)(16),
+        cmd_valid                 => cmd_valid(16),
+        cmd_ready                 => cmd_ready(16),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  large_speed_var_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     large_speed_var_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -2044,14 +2011,12 @@ begin
         out_strb                  => large_speed_var_strb,
         out_last                  => large_speed_var_last,
     
-        cmd_valid                 => cmd_valid(p)(17),
-        cmd_ready                 => cmd_ready(p)(17),
+        cmd_valid                 => cmd_valid(17),
+        cmd_ready                 => cmd_ready(17),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
-  timestamp_gen_arbiters : for p in 0 to NUM_PARSERS-1 generate
     timestamp_arb: PacketArbiter
       generic map (
         NUM_INPUTS                => NUM_PARSERS,
@@ -2077,12 +2042,11 @@ begin
         out_strb                  => timestamp_strb,
         out_last                  => timestamp_last,
     
-        cmd_valid                 => cmd_valid(p)(18),
-        cmd_ready                 => cmd_ready(p)(18),
+        cmd_valid                 => cmd_valid(18),
+        cmd_ready                 => cmd_ready(18),
         cmd_index                 => cmd_index,
         cmd_last                  => cmd_last
       );
-  end generate;
 
   gen_timestamp_ser : for p in 0 to NUM_PARSERS-1 generate
     timestamp_serializer : StreamSerializer
@@ -2109,7 +2073,6 @@ begin
       );
   end generate;
   
-  gen_cmd_sync : for p in 0 to NUM_PARSERS-1 generate
     cmd_sync: StreamSync
       generic map (
         NUM_INPUTS              => 1,
@@ -2120,10 +2083,9 @@ begin
         reset                   => reset,
         in_valid(0)             => cmd_valid_sync,
         in_ready(0)             => cmd_ready_sync,
-        out_valid               => cmd_valid(p),
-        out_ready               => cmd_ready(p)
+        out_valid               => cmd_valid,
+        out_ready               => cmd_ready
       );
-  end generate;
       
   gen_pkt_sync : for p in 0 to NUM_PARSERS-1 generate
     pkt_sync: StreamSync
