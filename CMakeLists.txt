@@ -52,23 +52,24 @@ if (NOT concurrentqueue_POPULATED)
 endif ()
 include_directories("${concurrentqueue_SOURCE_DIR}")
 
-# putong
+# Putong
 FetchContent_Declare(putong
   GIT_REPOSITORY  https://github.com/abs-tudelft/putong
   GIT_TAG         master
 )
 FetchContent_MakeAvailable(putong)
 
-# illex
+# Illex
 FetchContent_Declare(illex
   GIT_REPOSITORY  https://github.com/teratide/illex
   GIT_TAG         master
 )
 FetchContent_MakeAvailable(illex)
 
+# Fletcher
 FetchContent_Declare(fletcher
   GIT_REPOSITORY  https://github.com/abs-tudelft/fletcher
-  GIT_TAG         arrow-3.0
+  GIT_TAG         develop
 )
 FetchContent_MakeAvailable(fletcher)
 
