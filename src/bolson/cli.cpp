@@ -189,10 +189,8 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   // 'stream' subcommand:
   auto* stream =
       app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
-  stream
-      ->add_option("--latency", out->stream.latency_file,
-                   "Enable batch latency measurements and write to supplied file.")
-      ->check(CLI::ExistingFile);
+  stream->add_option("--latency", out->stream.latency_file,
+                     "Enable batch latency measurements and write to supplied file.");
   AddConvertOpts(stream, &out->stream.converter);
   AddArrowOpts(stream, &schema_file);
   AddPulsarOpts(stream, &out->stream.pulsar);
