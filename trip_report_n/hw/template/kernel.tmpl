@@ -14,6 +14,8 @@ entity trip_report is
     kcd_clk                                       : in  std_logic;
     kcd_reset                                     : in  std_logic;
 {input_ports}
+
+
     output_timestamp_valid                        : out std_logic;
     output_timestamp_ready                        : in  std_logic;
     output_timestamp_dvalid                       : out std_logic;
@@ -60,98 +62,42 @@ entity trip_report is
     output_sec_in_band_ready                      : in  std_logic;
     output_sec_in_band_dvalid                     : out std_logic;
     output_sec_in_band_last                       : out std_logic;
-    output_sec_in_band_length                     : out std_logic_vector(31 downto 0);
-    output_sec_in_band_count                      : out std_logic_vector(0 downto 0);
-    output_sec_in_band_item_valid                 : out std_logic;
-    output_sec_in_band_item_ready                 : in  std_logic;
-    output_sec_in_band_item_dvalid                : out std_logic;
-    output_sec_in_band_item_last                  : out std_logic;
-    output_sec_in_band_item                       : out std_logic_vector(63 downto 0);
-    output_sec_in_band_item_count                 : out std_logic_vector(0 downto 0);
+    output_sec_in_band                            : out std_logic_vector(63 downto 0);
     output_miles_in_time_range_valid              : out std_logic;
     output_miles_in_time_range_ready              : in  std_logic;
     output_miles_in_time_range_dvalid             : out std_logic;
     output_miles_in_time_range_last               : out std_logic;
-    output_miles_in_time_range_length             : out std_logic_vector(31 downto 0);
-    output_miles_in_time_range_count              : out std_logic_vector(0 downto 0);
-    output_miles_in_time_range_item_valid         : out std_logic;
-    output_miles_in_time_range_item_ready         : in  std_logic;
-    output_miles_in_time_range_item_dvalid        : out std_logic;
-    output_miles_in_time_range_item_last          : out std_logic;
-    output_miles_in_time_range_item               : out std_logic_vector(63 downto 0);
-    output_miles_in_time_range_item_count         : out std_logic_vector(0 downto 0);
+    output_miles_in_time_range                    : out std_logic_vector(63 downto 0);
     output_const_speed_miles_in_band_valid        : out std_logic;
     output_const_speed_miles_in_band_ready        : in  std_logic;
     output_const_speed_miles_in_band_dvalid       : out std_logic;
     output_const_speed_miles_in_band_last         : out std_logic;
-    output_const_speed_miles_in_band_length       : out std_logic_vector(31 downto 0);
-    output_const_speed_miles_in_band_count        : out std_logic_vector(0 downto 0);
-    output_const_speed_miles_in_band_item_valid   : out std_logic;
-    output_const_speed_miles_in_band_item_ready   : in  std_logic;
-    output_const_speed_miles_in_band_item_dvalid  : out std_logic;
-    output_const_speed_miles_in_band_item_last    : out std_logic;
-    output_const_speed_miles_in_band_item         : out std_logic_vector(63 downto 0);
-    output_const_speed_miles_in_band_item_count   : out std_logic_vector(0 downto 0);
+    output_const_speed_miles_in_band              : out std_logic_vector(63 downto 0);
     output_vary_speed_miles_in_band_valid         : out std_logic;
     output_vary_speed_miles_in_band_ready         : in  std_logic;
     output_vary_speed_miles_in_band_dvalid        : out std_logic;
     output_vary_speed_miles_in_band_last          : out std_logic;
-    output_vary_speed_miles_in_band_length        : out std_logic_vector(31 downto 0);
-    output_vary_speed_miles_in_band_count         : out std_logic_vector(0 downto 0);
-    output_vary_speed_miles_in_band_item_valid    : out std_logic;
-    output_vary_speed_miles_in_band_item_ready    : in  std_logic;
-    output_vary_speed_miles_in_band_item_dvalid   : out std_logic;
-    output_vary_speed_miles_in_band_item_last     : out std_logic;
-    output_vary_speed_miles_in_band_item          : out std_logic_vector(63 downto 0);
-    output_vary_speed_miles_in_band_item_count    : out std_logic_vector(0 downto 0);
+    output_vary_speed_miles_in_band               : out std_logic_vector(63 downto 0);
     output_sec_decel_valid                        : out std_logic;
     output_sec_decel_ready                        : in  std_logic;
     output_sec_decel_dvalid                       : out std_logic;
     output_sec_decel_last                         : out std_logic;
-    output_sec_decel_length                       : out std_logic_vector(31 downto 0);
-    output_sec_decel_count                        : out std_logic_vector(0 downto 0);
-    output_sec_decel_item_valid                   : out std_logic;
-    output_sec_decel_item_ready                   : in  std_logic;
-    output_sec_decel_item_dvalid                  : out std_logic;
-    output_sec_decel_item_last                    : out std_logic;
-    output_sec_decel_item                         : out std_logic_vector(63 downto 0);
-    output_sec_decel_item_count                   : out std_logic_vector(0 downto 0);
+    output_sec_decel                              : out std_logic_vector(63 downto 0);
     output_sec_accel_valid                        : out std_logic;
     output_sec_accel_ready                        : in  std_logic;
     output_sec_accel_dvalid                       : out std_logic;
     output_sec_accel_last                         : out std_logic;
-    output_sec_accel_length                       : out std_logic_vector(31 downto 0);
-    output_sec_accel_count                        : out std_logic_vector(0 downto 0);
-    output_sec_accel_item_valid                   : out std_logic;
-    output_sec_accel_item_ready                   : in  std_logic;
-    output_sec_accel_item_dvalid                  : out std_logic;
-    output_sec_accel_item_last                    : out std_logic;
-    output_sec_accel_item                         : out std_logic_vector(63 downto 0);
-    output_sec_accel_item_count                   : out std_logic_vector(0 downto 0);
+    output_sec_accel                              : out std_logic_vector(63 downto 0);
     output_braking_valid                          : out std_logic;
     output_braking_ready                          : in  std_logic;
     output_braking_dvalid                         : out std_logic;
     output_braking_last                           : out std_logic;
-    output_braking_length                         : out std_logic_vector(31 downto 0);
-    output_braking_count                          : out std_logic_vector(0 downto 0);
-    output_braking_item_valid                     : out std_logic;
-    output_braking_item_ready                     : in  std_logic;
-    output_braking_item_dvalid                    : out std_logic;
-    output_braking_item_last                      : out std_logic;
-    output_braking_item                           : out std_logic_vector(63 downto 0);
-    output_braking_item_count                     : out std_logic_vector(0 downto 0);
+    output_braking                                : out std_logic_vector(63 downto 0);
     output_accel_valid                            : out std_logic;
     output_accel_ready                            : in  std_logic;
     output_accel_dvalid                           : out std_logic;
     output_accel_last                             : out std_logic;
-    output_accel_length                           : out std_logic_vector(31 downto 0);
-    output_accel_count                            : out std_logic_vector(0 downto 0);
-    output_accel_item_valid                       : out std_logic;
-    output_accel_item_ready                       : in  std_logic;
-    output_accel_item_dvalid                      : out std_logic;
-    output_accel_item_last                        : out std_logic;
-    output_accel_item                             : out std_logic_vector(63 downto 0);
-    output_accel_item_count                       : out std_logic_vector(0 downto 0);
+    output_accel                                  : out std_logic_vector(63 downto 0);
     output_orientation_valid                      : out std_logic;
     output_orientation_ready                      : in  std_logic;
     output_orientation_dvalid                     : out std_logic;
@@ -161,26 +107,12 @@ entity trip_report is
     output_small_speed_var_ready                  : in  std_logic;
     output_small_speed_var_dvalid                 : out std_logic;
     output_small_speed_var_last                   : out std_logic;
-    output_small_speed_var_length                 : out std_logic_vector(31 downto 0);
-    output_small_speed_var_count                  : out std_logic_vector(0 downto 0);
-    output_small_speed_var_item_valid             : out std_logic;
-    output_small_speed_var_item_ready             : in  std_logic;
-    output_small_speed_var_item_dvalid            : out std_logic;
-    output_small_speed_var_item_last              : out std_logic;
-    output_small_speed_var_item                   : out std_logic_vector(63 downto 0);
-    output_small_speed_var_item_count             : out std_logic_vector(0 downto 0);
+    output_small_speed_var                        : out std_logic_vector(63 downto 0);
     output_large_speed_var_valid                  : out std_logic;
     output_large_speed_var_ready                  : in  std_logic;
     output_large_speed_var_dvalid                 : out std_logic;
     output_large_speed_var_last                   : out std_logic;
-    output_large_speed_var_length                 : out std_logic_vector(31 downto 0);
-    output_large_speed_var_count                  : out std_logic_vector(0 downto 0);
-    output_large_speed_var_item_valid             : out std_logic;
-    output_large_speed_var_item_ready             : in  std_logic;
-    output_large_speed_var_item_dvalid            : out std_logic;
-    output_large_speed_var_item_last              : out std_logic;
-    output_large_speed_var_item                   : out std_logic_vector(63 downto 0);
-    output_large_speed_var_item_count             : out std_logic_vector(0 downto 0);
+    output_large_speed_var                        : out std_logic_vector(63 downto 0);
     output_accel_decel_valid                      : out std_logic;
     output_accel_decel_ready                      : in  std_logic;
     output_accel_decel_dvalid                     : out std_logic;
@@ -191,6 +123,7 @@ entity trip_report is
     output_speed_changes_dvalid                   : out std_logic;
     output_speed_changes_last                     : out std_logic;
     output_speed_changes                          : out std_logic_vector(63 downto 0);
+
     output_timestamp_unl_valid                    : in  std_logic;
     output_timestamp_unl_ready                    : out std_logic;
     output_timestamp_unl_tag                      : in  std_logic_vector(TAG_WIDTH-1 downto 0);
@@ -351,6 +284,8 @@ entity trip_report is
     output_speed_changes_cmd_firstIdx             : out std_logic_vector(INDEX_WIDTH-1 downto 0);
     output_speed_changes_cmd_lastIdx              : out std_logic_vector(INDEX_WIDTH-1 downto 0);
     output_speed_changes_cmd_tag                  : out std_logic_vector(TAG_WIDTH-1 downto 0);
+
+
     start                                         : in  std_logic;
     stop                                          : in  std_logic;
     reset                                         : in  std_logic;
@@ -1325,325 +1260,252 @@ orientation_conv : DropEmpty
 
   );
 
+
+  sec_in_band_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => SEC_IN_BAND_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => sec_in_band_valid,
+    in_ready       => sec_in_band_ready,
+    in_data        => sec_in_band_data,
+    in_dvalid      => sec_in_band_strb,
+    in_last        => sec_in_band_last(1 downto 1),
+
+    out_valid      => output_sec_in_band_valid,
+    out_ready      => output_sec_in_band_ready,
+    out_data       => output_sec_in_band,
+    out_dvalid     => output_sec_in_band_dvalid,
+    out_last(0)    => output_sec_in_band_last
+
+  );
+
+miles_in_time_range_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => MILES_IN_TIME_RANGE_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => miles_in_time_range_valid,
+    in_ready       => miles_in_time_range_ready,
+    in_data        => miles_in_time_range_data,
+    in_dvalid      => miles_in_time_range_strb,
+    in_last        => miles_in_time_range_last(1 downto 1),
+
+    out_valid      => output_miles_in_time_range_valid,
+    out_ready      => output_miles_in_time_range_ready,
+    out_data       => output_miles_in_time_range,
+    out_dvalid     => output_miles_in_time_range_dvalid,
+    out_last(0)    => output_miles_in_time_range_last
+
+  );
+
+const_speed_miles_in_band_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => CONST_SPEED_MILES_IN_BAND_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => const_speed_miles_in_band_valid,
+    in_ready       => const_speed_miles_in_band_ready,
+    in_data        => const_speed_miles_in_band_data,
+    in_dvalid      => const_speed_miles_in_band_strb,
+    in_last        => const_speed_miles_in_band_last(1 downto 1),
+
+    out_valid      => output_const_speed_miles_in_band_valid,
+    out_ready      => output_const_speed_miles_in_band_ready,
+    out_data       => output_const_speed_miles_in_band,
+    out_dvalid     => output_const_speed_miles_in_band_dvalid,
+    out_last(0)    => output_const_speed_miles_in_band_last
+
+  );
+
+vary_speed_miles_in_band_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => VARY_SPEED_MILES_IN_BAND_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => vary_speed_miles_in_band_valid,
+    in_ready       => vary_speed_miles_in_band_ready,
+    in_data        => vary_speed_miles_in_band_data,
+    in_dvalid      => vary_speed_miles_in_band_strb,
+    in_last        => vary_speed_miles_in_band_last(1 downto 1),
+
+    out_valid      => output_vary_speed_miles_in_band_valid,
+    out_ready      => output_vary_speed_miles_in_band_ready,
+    out_data       => output_vary_speed_miles_in_band,
+    out_dvalid     => output_vary_speed_miles_in_band_dvalid,
+    out_last(0)    => output_vary_speed_miles_in_band_last
+
+  );
+
+sec_decel_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => SEC_DECEL_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => sec_decel_valid,
+    in_ready       => sec_decel_ready,
+    in_data        => sec_decel_data,
+    in_dvalid      => sec_decel_strb,
+    in_last        => sec_decel_last(1 downto 1),
+
+    out_valid      => output_sec_decel_valid,
+    out_ready      => output_sec_decel_ready,
+    out_data       => output_sec_decel,
+    out_dvalid     => output_sec_decel_dvalid,
+    out_last(0)    => output_sec_decel_last
+
+  );
+
+sec_accel_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => SEC_ACCEL_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => sec_accel_valid,
+    in_ready       => sec_accel_ready,
+    in_data        => sec_accel_data,
+    in_dvalid      => sec_accel_strb,
+    in_last        => sec_accel_last(1 downto 1),
+
+    out_valid      => output_sec_accel_valid,
+    out_ready      => output_sec_accel_ready,
+    out_data       => output_sec_accel,
+    out_dvalid     => output_sec_accel_dvalid,
+    out_last(0)    => output_sec_accel_last
+
+  );
+
+braking_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => BRAKING_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => braking_valid,
+    in_ready       => braking_ready,
+    in_data        => braking_data,
+    in_dvalid      => braking_strb,
+    in_last        => braking_last(1 downto 1),
+
+    out_valid      => output_braking_valid,
+    out_ready      => output_braking_ready,
+    out_data       => output_braking,
+    out_dvalid     => output_braking_dvalid,
+    out_last(0)    => output_braking_last
+
+  );
+
+accel_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => ACCEL_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => accel_valid,
+    in_ready       => accel_ready,
+    in_data        => accel_data,
+    in_dvalid      => accel_strb,
+    in_last        => accel_last(1 downto 1),
+
+    out_valid      => output_accel_valid,
+    out_ready      => output_accel_ready,
+    out_data       => output_accel,
+    out_dvalid     => output_accel_dvalid,
+    out_last(0)    => output_accel_last
+
+  );
+
+small_speed_var_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => SMALL_SPEED_VAR_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => small_speed_var_valid,
+    in_ready       => small_speed_var_ready,
+    in_data        => small_speed_var_data,
+    in_dvalid      => small_speed_var_strb,
+    in_last        => small_speed_var_last(1 downto 1),
+
+    out_valid      => output_small_speed_var_valid,
+    out_ready      => output_small_speed_var_ready,
+    out_data       => output_small_speed_var,
+    out_dvalid     => output_small_speed_var_dvalid,
+    out_last(0)    => output_small_speed_var_last
+
+  );
+
+large_speed_var_conv : DropEmpty
+  generic map(
+    EPC            => 1,
+    DATA_WIDTH     => LARGE_SPEED_VAR_INT_WIDTH,
+    DIMENSIONALITY => 1
+  )
+  port map(
+    clk            => kcd_clk,
+    reset          => kcd_reset,
+
+    in_valid       => large_speed_var_valid,
+    in_ready       => large_speed_var_ready,
+    in_data        => large_speed_var_data,
+    in_dvalid      => large_speed_var_strb,
+    in_last        => large_speed_var_last(1 downto 1),
+
+    out_valid      => output_large_speed_var_valid,
+    out_ready      => output_large_speed_var_ready,
+    out_data       => output_large_speed_var,
+    out_dvalid     => output_large_speed_var_dvalid,
+    out_last(0)    => output_large_speed_var_last
+
+  );
+
   --
   -- Data conversion for boolean fields
   --
   output_orientation <= "0000000" & orientation_data_f;
   output_hypermiling <= "0000000" & hypermiling_data_f;
-
-
-  --
-  -- Converters for the array fields
-  --
-  sec_in_band_converter : D2ListToVecs
-  generic map(
-    EPC           => 1,
-    DATA_WIDTH    => SEC_IN_BAND_INT_WIDTH,
-    LENGTH_WIDTH  => INDEX_WIDTH
-  )
-  port map(
-    clk           => kcd_clk,
-    reset         => kcd_reset,
-
-    in_valid      => sec_in_band_valid,
-    in_ready      => sec_in_band_ready,
-    in_data       => sec_in_band_data,
-    in_dvalid     => sec_in_band_strb,
-    in_last       => sec_in_band_last(2 downto 1),
-
-    out_valid     => output_sec_in_band_item_valid,
-    out_ready     => output_sec_in_band_item_ready,
-    out_data      => output_sec_in_band_item,
-    out_count     => output_sec_in_band_item_count,
-    out_dvalid    => output_sec_in_band_item_dvalid,
-    out_last      => output_sec_in_band_item_last,
-
-    length_valid  => output_sec_in_band_valid,
-    length_ready  => output_sec_in_band_ready,
-    length_data   => output_sec_in_band_length,
-    length_last   => output_sec_in_band_last,
-    length_dvalid => output_sec_in_band_dvalid,
-    length_count  => output_sec_in_band_count
-  );
-
-  miles_in_time_range_converter : D2ListToVecs
-  generic map(
-    EPC           => 1,
-    DATA_WIDTH    => MILES_IN_TIME_RANGE_INT_WIDTH,
-    LENGTH_WIDTH  => INDEX_WIDTH
-  )
-  port map(
-    clk           => kcd_clk,
-    reset         => kcd_reset,
-
-    in_valid      => miles_in_time_range_valid,
-    in_ready      => miles_in_time_range_ready,
-    in_data       => miles_in_time_range_data,
-    in_dvalid     => miles_in_time_range_strb,
-    in_last       => miles_in_time_range_last(2 downto 1),
-
-    out_valid     => output_miles_in_time_range_item_valid,
-    out_ready     => output_miles_in_time_range_item_ready,
-    out_data      => output_miles_in_time_range_item,
-    out_count     => output_miles_in_time_range_item_count,
-    out_dvalid    => output_miles_in_time_range_item_dvalid,
-    out_last      => output_miles_in_time_range_item_last,
-
-    length_valid  => output_miles_in_time_range_valid,
-    length_ready  => output_miles_in_time_range_ready,
-    length_data   => output_miles_in_time_range_length,
-    length_last   => output_miles_in_time_range_last,
-    length_dvalid => output_miles_in_time_range_dvalid,
-    length_count  => output_miles_in_time_range_count
-  );
-
-  const_speed_miles_in_band_converter : D2ListToVecs
-  generic map(
-    EPC           => 1,
-    DATA_WIDTH    => CONST_SPEED_MILES_IN_BAND_INT_WIDTH,
-    LENGTH_WIDTH  => INDEX_WIDTH
-  )
-  port map(
-    clk           => kcd_clk,
-    reset         => kcd_reset,
-
-    in_valid      => const_speed_miles_in_band_valid,
-    in_ready      => const_speed_miles_in_band_ready,
-    in_data       => const_speed_miles_in_band_data,
-    in_dvalid     => const_speed_miles_in_band_strb,
-    in_last       => const_speed_miles_in_band_last(2 downto 1),
-
-    out_valid     => output_const_speed_miles_in_band_item_valid,
-    out_ready     => output_const_speed_miles_in_band_item_ready,
-    out_data      => output_const_speed_miles_in_band_item,
-    out_count     => output_const_speed_miles_in_band_item_count,
-    out_dvalid    => output_const_speed_miles_in_band_item_dvalid,
-    out_last      => output_const_speed_miles_in_band_item_last,
-
-    length_valid  => output_const_speed_miles_in_band_valid,
-    length_ready  => output_const_speed_miles_in_band_ready,
-    length_data   => output_const_speed_miles_in_band_length,
-    length_last   => output_const_speed_miles_in_band_last,
-    length_dvalid => output_const_speed_miles_in_band_dvalid,
-    length_count  => output_const_speed_miles_in_band_count
-  );
-
-  vary_speed_miles_in_band_converter : D2ListToVecs
-  generic map(
-    EPC           => 1,
-    DATA_WIDTH    => VARY_SPEED_MILES_IN_BAND_INT_WIDTH,
-    LENGTH_WIDTH  => INDEX_WIDTH
-  )
-  port map(
-    clk           => kcd_clk,
-    reset         => kcd_reset,
-
-    in_valid      => vary_speed_miles_in_band_valid,
-    in_ready      => vary_speed_miles_in_band_ready,
-    in_data       => vary_speed_miles_in_band_data,
-    in_dvalid     => vary_speed_miles_in_band_strb,
-    in_last       => vary_speed_miles_in_band_last(2 downto 1),
-
-    out_valid     => output_vary_speed_miles_in_band_item_valid,
-    out_ready     => output_vary_speed_miles_in_band_item_ready,
-    out_data      => output_vary_speed_miles_in_band_item,
-    out_count     => output_vary_speed_miles_in_band_item_count,
-    out_dvalid    => output_vary_speed_miles_in_band_item_dvalid,
-    out_last      => output_vary_speed_miles_in_band_item_last,
-
-    length_valid  => output_vary_speed_miles_in_band_valid,
-    length_ready  => output_vary_speed_miles_in_band_ready,
-    length_data   => output_vary_speed_miles_in_band_length,
-    length_last   => output_vary_speed_miles_in_band_last,
-    length_dvalid => output_vary_speed_miles_in_band_dvalid,
-    length_count  => output_vary_speed_miles_in_band_count
-  );
-
-  sec_decel_converter : D2ListToVecs
-  generic map(
-    EPC           => 1,
-    DATA_WIDTH    => SEC_DECEL_INT_WIDTH,
-    LENGTH_WIDTH  => INDEX_WIDTH
-  )
-  port map(
-    clk           => kcd_clk,
-    reset         => kcd_reset,
-
-    in_valid      => sec_decel_valid,
-    in_ready      => sec_decel_ready,
-    in_data       => sec_decel_data,
-    in_dvalid     => sec_decel_strb,
-    in_last       => sec_decel_last(2 downto 1),
-
-    out_valid     => output_sec_decel_item_valid,
-    out_ready     => output_sec_decel_item_ready,
-    out_data      => output_sec_decel_item,
-    out_count     => output_sec_decel_item_count,
-    out_dvalid    => output_sec_decel_item_dvalid,
-    out_last      => output_sec_decel_item_last,
-
-    length_valid  => output_sec_decel_valid,
-    length_ready  => output_sec_decel_ready,
-    length_data   => output_sec_decel_length,
-    length_last   => output_sec_decel_last,
-    length_dvalid => output_sec_decel_dvalid,
-    length_count  => output_sec_decel_count
-  );
-
-  sec_accel_converter : D2ListToVecs
-  generic map(
-    EPC           => 1,
-    DATA_WIDTH    => SEC_ACCEL_INT_WIDTH,
-    LENGTH_WIDTH  => INDEX_WIDTH
-  )
-  port map(
-    clk           => kcd_clk,
-    reset         => kcd_reset,
-
-    in_valid      => sec_accel_valid,
-    in_ready      => sec_accel_ready,
-    in_data       => sec_accel_data,
-    in_dvalid     => sec_accel_strb,
-    in_last       => sec_accel_last(2 downto 1),
-
-    out_valid     => output_sec_accel_item_valid,
-    out_ready     => output_sec_accel_item_ready,
-    out_data      => output_sec_accel_item,
-    out_count     => output_sec_accel_item_count,
-    out_dvalid    => output_sec_accel_item_dvalid,
-    out_last      => output_sec_accel_item_last,
-
-    length_valid  => output_sec_accel_valid,
-    length_ready  => output_sec_accel_ready,
-    length_data   => output_sec_accel_length,
-    length_last   => output_sec_accel_last,
-    length_dvalid => output_sec_accel_dvalid,
-    length_count  => output_sec_accel_count
-  );
-
-  braking_converter : D2ListToVecs
-  generic map(
-    EPC           => 1,
-    DATA_WIDTH    => BRAKING_INT_WIDTH,
-    LENGTH_WIDTH  => INDEX_WIDTH
-  )
-  port map(
-    clk           => kcd_clk,
-    reset         => kcd_reset,
-
-    in_valid      => braking_valid,
-    in_ready      => braking_ready,
-    in_data       => braking_data,
-    in_dvalid     => braking_strb,
-    in_last       => braking_last(2 downto 1),
-
-    out_valid     => output_braking_item_valid,
-    out_ready     => output_braking_item_ready,
-    out_data      => output_braking_item,
-    out_count     => output_braking_item_count,
-    out_dvalid    => output_braking_item_dvalid,
-    out_last      => output_braking_item_last,
-
-    length_valid  => output_braking_valid,
-    length_ready  => output_braking_ready,
-    length_data   => output_braking_length,
-    length_last   => output_braking_last,
-    length_dvalid => output_braking_dvalid,
-    length_count  => output_braking_count
-  );
-
-  accel_converter : D2ListToVecs
-  generic map(
-    EPC           => 1,
-    DATA_WIDTH    => ACCEL_INT_WIDTH,
-    LENGTH_WIDTH  => INDEX_WIDTH
-  )
-  port map(
-    clk           => kcd_clk,
-    reset         => kcd_reset,
-
-    in_valid      => accel_valid,
-    in_ready      => accel_ready,
-    in_data       => accel_data,
-    in_dvalid     => accel_strb,
-    in_last       => accel_last(2 downto 1),
-
-    out_valid     => output_accel_item_valid,
-    out_ready     => output_accel_item_ready,
-    out_data      => output_accel_item,
-    out_count     => output_accel_item_count,
-    out_dvalid    => output_accel_item_dvalid,
-    out_last      => output_accel_item_last,
-
-    length_valid  => output_accel_valid,
-    length_ready  => output_accel_ready,
-    length_data   => output_accel_length,
-    length_last   => output_accel_last,
-    length_dvalid => output_accel_dvalid,
-    length_count  => output_accel_count
-  );
-
-  small_speed_var_converter : D2ListToVecs
-  generic map(
-    EPC           => 1,
-    DATA_WIDTH    => SMALL_SPEED_VAR_INT_WIDTH,
-    LENGTH_WIDTH  => INDEX_WIDTH
-  )
-  port map(
-    clk           => kcd_clk,
-    reset         => kcd_reset,
-
-    in_valid      => small_speed_var_valid,
-    in_ready      => small_speed_var_ready,
-    in_data       => small_speed_var_data,
-    in_dvalid     => small_speed_var_strb,
-    in_last       => small_speed_var_last(2 downto 1),
-
-    out_valid     => output_small_speed_var_item_valid,
-    out_ready     => output_small_speed_var_item_ready,
-    out_data      => output_small_speed_var_item,
-    out_count     => output_small_speed_var_item_count,
-    out_dvalid    => output_small_speed_var_item_dvalid,
-    out_last      => output_small_speed_var_item_last,
-
-    length_valid  => output_small_speed_var_valid,
-    length_ready  => output_small_speed_var_ready,
-    length_data   => output_small_speed_var_length,
-    length_last   => output_small_speed_var_last,
-    length_dvalid => output_small_speed_var_dvalid,
-    length_count  => output_small_speed_var_count
-  );
-
-  large_speed_var_converter : D2ListToVecs
-  generic map(
-    EPC           => 1,
-    DATA_WIDTH    => LARGE_SPEED_VAR_INT_WIDTH,
-    LENGTH_WIDTH  => INDEX_WIDTH
-  )
-  port map(
-    clk           => kcd_clk,
-    reset         => kcd_reset,
-
-    in_valid      => large_speed_var_valid,
-    in_ready      => large_speed_var_ready,
-    in_data       => large_speed_var_data,
-    in_dvalid     => large_speed_var_strb,
-    in_last       => large_speed_var_last(2 downto 1),
-
-    out_valid     => output_large_speed_var_item_valid,
-    out_ready     => output_large_speed_var_item_ready,
-    out_data      => output_large_speed_var_item,
-    out_count     => output_large_speed_var_item_count,
-    out_dvalid    => output_large_speed_var_item_dvalid,
-    out_last      => output_large_speed_var_item_last,
-
-    length_valid  => output_large_speed_var_valid,
-    length_ready  => output_large_speed_var_ready,
-    length_data   => output_large_speed_var_length,
-    length_last   => output_large_speed_var_last,
-    length_dvalid => output_large_speed_var_dvalid,
-    length_count  => output_large_speed_var_count
-  );
 
 
   timestamp_converter : D2ListToVecs

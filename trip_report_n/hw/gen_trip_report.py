@@ -89,7 +89,7 @@ def input_schema(idx):
     })
 
 
-output_schema = pa.schema([pa.field("timestamp", pa.utf8(), False).with_metadata({
+hw_output_schema = pa.schema([pa.field("timestamp", pa.utf8(), False).with_metadata({
     b'fletcher_epc': b'1'
 }),
     pa.field("tag", pa.uint64(), False),
@@ -98,17 +98,17 @@ output_schema = pa.schema([pa.field("timestamp", pa.utf8(), False).with_metadata
     pa.field("odometer", pa.uint64(), False),
     pa.field("hypermiling", pa.uint8(), False),
     pa.field("avgspeed", pa.uint64(), False),
-    pa.field("sec_in_band", pa.list_(pa.field("item", pa.uint64(), False)), False),
-    pa.field("miles_in_time_range", pa.list_(pa.field("item", pa.uint64(), False)), False),
-    pa.field("const_speed_miles_in_band", pa.list_(pa.field("item", pa.uint64(), False)), False),
-    pa.field("vary_speed_miles_in_band", pa.list_(pa.field("item", pa.uint64(), False)), False),
-    pa.field("sec_decel", pa.list_(pa.field("item", pa.uint64(), False)), False),
-    pa.field("sec_accel", pa.list_(pa.field("item", pa.uint64(), False)), False),
-    pa.field("braking", pa.list_(pa.field("item", pa.uint64(), False)), False),
-    pa.field("accel", pa.list_(pa.field("item", pa.uint64(), False)), False),
+    pa.field("sec_in_band", pa.uint64(), False),
+    pa.field("miles_in_time_range", pa.uint64(), False),
+    pa.field("const_speed_miles_in_band", pa.uint64(), False),
+    pa.field("vary_speed_miles_in_band", pa.uint64(), False),
+    pa.field("sec_decel", pa.uint64(), False),
+    pa.field("sec_accel", pa.uint64(), False),
+    pa.field("braking", pa.uint64(), False),
+    pa.field("accel", pa.uint64(), False),
     pa.field("orientation", pa.uint8(), False),
-    pa.field("small_speed_var", pa.list_(pa.field("item", pa.uint64(), False)), False),
-    pa.field("large_speed_var", pa.list_(pa.field("item", pa.uint64(), False)), False),
+    pa.field("small_speed_var", pa.uint64(), False),
+    pa.field("large_speed_var", pa.uint64(), False),
     pa.field("accel_decel", pa.uint64(), False),
     pa.field("speed_changes", pa.uint64(), False)
 
@@ -117,12 +117,42 @@ output_schema = pa.schema([pa.field("timestamp", pa.utf8(), False).with_metadata
     b'fletcher_name': b'output'
 })
 
+sw_output_schema = pa.schema([pa.field("timestamp", pa.utf8(), False).with_metadata({
+    b'fletcher_epc': b'1'
+    }),
+    pa.field("tag", pa.uint64(), False),
+    pa.field("timezone", pa.uint64(), False),
+    pa.field("vin", pa.uint64(), False),
+    pa.field("odometer", pa.uint64(), False),
+    pa.field("hypermiling", pa.uint8(), False),
+    pa.field("avgspeed", pa.uint64(), False),
+    pa.field("sec_in_band", pa.list_(pa.field("item", pa.uint64(), False), 12), False),
+    pa.field("miles_in_time_range", pa.list_(pa.field("item", pa.uint64(), False), 24), False),
+    pa.field("const_speed_miles_in_band", pa.list_(pa.field("item", pa.uint64(), False), 0), False),
+    pa.field("vary_speed_miles_in_band", pa.list_(pa.field("item",pa.uint64(), False), 12), False),
+    pa.field("sec_decel", pa.list_(pa.field("item", pa.uint64(), False), 10), False),
+    pa.field("sec_accel", pa.list_(pa.field("item", pa.uint64(), False), 10), False),
+    pa.field("braking", pa.list_(pa.field("item", pa.uint64(), False), 6), False),
+    pa.field("accel", pa.list_(pa.field("item", pa.uint64(), False), 6), False),
+    pa.field("orientation", pa.uint8(), False),
+    pa.field("small_speed_var", pa.list_(pa.field("item", pa.uint64(), False), 13), False),
+    pa.field("large_speed_var", pa.list_(pa.field("item", pa.uint64(), False), 13), False),
+    pa.field("accel_decel", pa.uint64(), False),
+    pa.field("speed_changes", pa.uint64(), False)
+
+    ]).with_metadata({
+    b'fletcher_mode': b'write',
+    b'fletcher_name': b'output'
+    })
+
 
 def generate_schema_files(num_parsers):
     files = []
-    file_out = "schemas/out_.as"
-    pa.output_stream(file_out).write(output_schema.serialize())
-    files.append(file_out)
+    file_out_hw = "schemas/out_.as"
+    pa.output_stream(file_out_hw).write(hw_output_schema.serialize())
+    files.append(file_out_hw)
+    file_out_sw = "schemas/out_sw.as"
+    pa.output_stream(file_out_sw).write(sw_output_schema.serialize())
     for i in range(0, num_parsers):
         file_in = "schemas/in_{:02}.as".format(i)
         schema_in = input_schema(i)

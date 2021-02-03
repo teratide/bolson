@@ -38,7 +38,7 @@ end entity;
 architecture Implementation of ArbiterController is
     signal out_valid   : std_logic;
     signal out_ready   : std_logic;
-    signal pkt_ready_s : std_logic_vector(NUM_INPUTS-1 downto 0); 
+    signal pkt_ready_s : std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '0'); 
   begin
 
     sync_out: StreamSync
@@ -71,8 +71,6 @@ architecture Implementation of ArbiterController is
     begin 
 
       if rising_edge(clk) then
-     
-        
         if out_ready = '1' then
           ov := '0';
           if to_x01(ol) = '1' then
@@ -119,7 +117,7 @@ architecture Implementation of ArbiterController is
           if to_x01(ov) /= '1' and idx = to_integer(unsigned(index_r)) then
             pkt_ready_s(idx) <= '1';
           else
-          pkt_ready_s(idx) <= '0';
+            pkt_ready_s(idx) <= '0';
           end if;
         end loop;
 

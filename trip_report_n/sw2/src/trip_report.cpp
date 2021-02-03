@@ -32,6 +32,20 @@ arrow::Result<std::shared_ptr<arrow::PrimitiveArray>> AlignedPrimitiveArray(cons
   return value_array;
 }
 
+arrow::Result<std::shared_ptr<arrow::PrimitiveArray>> AlignedFixedSizeListArray(const std::shared_ptr<arrow::DataType>& type,
+                                                                            size_t length,
+                                                                            size_t buffer_size) {
+  uint8_t *value_data = (uint8_t *)memalign(sysconf(_SC_PAGESIZE), buffer_size);
+  if (value_data == nullptr)
+  {
+    return arrow::Status::OutOfMemory("Failed to allocate buffer");
+  }
+  auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(type, 0, value_buffer);
+  auto list_array = std::make_shared<arrow::FixedSizeListArray>(arrow::fixed_size_list(type, length), length, value_array);
+  return value_array;
+}
+
 arrow::Result<std::shared_ptr<arrow::ListArray>> AlignedListArray(const std::shared_ptr<arrow::DataType>& type,
                                                                             size_t offset_buffer_size,
                                                                             size_t value_buffer_size) {
@@ -49,9 +63,9 @@ arrow::Result<std::shared_ptr<arrow::ListArray>> AlignedListArray(const std::sha
     return arrow::Status::OutOfMemory("Failed to allocate value buffer");
   }
   auto value_buffer = std::make_shared<arrow::Buffer>(value_data, value_buffer_size);
-  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(type, 0, value_buffer);
 
-  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, offset_buffer, value_array);
+  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(type), 0, offset_buffer, value_array);
   return arrow::ToResult(list_array);
 }
 
@@ -82,6 +96,17 @@ std::shared_ptr<arrow::PrimitiveArray>ReWrapArray(std::shared_ptr<arrow::Primiti
   auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_rows, value_buffer);
   return value_array;
 }
+
+std::shared_ptr<arrow::PrimitiveArray>ReWrapArray(std::shared_ptr<arrow::FixedSizeListArray> array,
+                                                  size_t num_rows) {
+
+  auto data_buff = array->data()->buffers[1]->data();
+  auto value_buff_length = array->length() * num_rows;
+  auto value_buffer = std::make_shared<arrow::Buffer>(data_buff, value_buff_length);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_rows, value_buffer);
+  return value_array;
+}
+
 
 std::shared_ptr<arrow::ListArray>ReWrapArray(std::shared_ptr<arrow::ListArray> array,
                                                                   size_t num_rows) {
@@ -121,15 +146,14 @@ arrow::Status WrapTripReport(
   std::vector<std::shared_ptr<arrow::Array>> rewrapped_arrays;
 
   for(std::shared_ptr<arrow::Array> f: arrays) {
-    std::cout << f->type()->ToString() << std::endl;
     if(f->type()->Equals(arrow::uint64())) {
       auto field = std::static_pointer_cast<arrow::PrimitiveArray>(f);
       rewrapped_arrays.push_back(ReWrapArray(field, num_rows));
     } else if(f->type()->Equals(arrow::uint8())) {
       auto field = std::static_pointer_cast<arrow::PrimitiveArray>(f);
       rewrapped_arrays.push_back(ReWrapArray(field, num_rows));
-    } else if (f->type()->Equals(arrow::list(arrow::uint64()))) {
-      auto field = std::static_pointer_cast<arrow::ListArray>(f);
+    } else if (f->type()->id() == arrow::Type::FIXED_SIZE_LIST) {
+       auto field = std::static_pointer_cast<arrow::FixedSizeListArray>(f);
       rewrapped_arrays.push_back(ReWrapArray(field, num_rows));
     } else if (f->type()->Equals(arrow::utf8())) {
       auto field = std::static_pointer_cast<arrow::StringArray>(f);
@@ -170,15 +194,18 @@ int main(int argc, char **argv)
 
   std::vector<std::shared_ptr<arrow::Array>> arrays;
 
+
+
   for(auto f : schema->fields()) {
     if(f->type()->Equals(arrow::uint64())) {
       arrays.push_back(AlignedPrimitiveArray(arrow::uint64(), buffer_size).ValueOrDie());
     } else if(f->type()->Equals(arrow::uint8())) {
       arrays.push_back(AlignedPrimitiveArray(arrow::uint8(), buffer_size).ValueOrDie());
-    } else if (f->type()->Equals(arrow::list(arrow::field("item", arrow::uint64(), false)))) {
-      arrays.push_back(AlignedListArray(arrow::uint64(), buffer_size, buffer_size).ValueOrDie());
     } else if (f->type()->Equals(arrow::utf8())) {
       arrays.push_back(AlignedStringArray(buffer_size, buffer_size).ValueOrDie());
+    } else if (f->type()->id() == arrow::Type::FIXED_SIZE_LIST) {
+      auto field = std::static_pointer_cast<arrow::FixedSizeListType>(f->type());
+      arrays.push_back(AlignedFixedSizeListArray(field->value_type(), field->list_size(), buffer_size).ValueOrDie());
     }
   }
 
@@ -296,6 +323,14 @@ int main(int argc, char **argv)
     std::cerr << arrow_status.ToString() << std::endl;
     return -1;
   }
+
+//  auto arrow_status = WrapTripReport(1, arrays, schema, &output_batch);
+//  if (!arrow_status.ok())
+//  {
+//    std::cerr << "Could not create output recordbatch." << std::endl;
+//    std::cerr << arrow_status.ToString() << std::endl;
+//    return -1;
+//  }
 
   std::cout << output_batch->ToString() << std::endl;
 
