@@ -37,12 +37,32 @@
 
 namespace bolson {
 
-auto SetupClientProducer(const std::string& url, const std::string& topic,
-                         PulsarConsumerContext* out) -> Status {
-  auto config = pulsar::ClientConfiguration().setLogger(new bolsonLoggerFactory());
-  out->client = std::make_unique<pulsar::Client>(url, config);
+auto SetupClientProducer(const PulsarOptions& opts, PulsarConsumerContext* out)
+    -> Status {
+  // Configure client
+  auto client_config = pulsar::ClientConfiguration().setLogger(new bolsonLoggerFactory());
+
+  // Configure producer
+  auto producer_config = pulsar::ProducerConfiguration();
+
+  // Explicitly not setting Schema:
+  // producer_config.setSchema()
+
+  // Handle batching
+  if (opts.batching.enable) {
+    producer_config.setBatchingEnabled(opts.batching.enable)
+        .setBatchingMaxAllowedSizeInBytes(opts.batching.max_bytes)
+        .setBatchingMaxMessages(opts.batching.max_messages)
+        .setBatchingMaxPublishDelayMs(opts.batching.max_delay_ms);
+  }
+
+  // Set up client.
+  out->client = std::make_unique<pulsar::Client>(opts.url, client_config);
+
+  // Set up producer
   out->producer = std::make_unique<pulsar::Producer>();
-  CHECK_PULSAR(out->client->createProducer(topic, *out->producer));
+  CHECK_PULSAR(out->client->createProducer(opts.topic, producer_config, *out->producer));
+
   return Status::OK();
 }
 
@@ -50,8 +70,8 @@ auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> 
   pulsar::Message msg = pulsar::MessageBuilder()
                             .setAllocatedContent(const_cast<uint8_t*>(buffer), size)
                             .build();
-  // [IFR06]: The Pulsar messages leave the system through the Pulsar C++ client API call
-  // pulsar::Producer::send().
+  // [IFR06]: The Pulsar messages leave the system through the Pulsar C++ client API
+  // call pulsar::Producer::send().
   CHECK_PULSAR(producer->send(msg));
   return Status::OK();
 }

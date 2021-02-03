@@ -107,7 +107,7 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
   timers.init.Start();
   // Set up Pulsar client and producer.
   PulsarConsumerContext pulsar;
-  BOLSON_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &pulsar));
+  BOLSON_ROE(SetupClientProducer(opt.pulsar, &pulsar));
 
   // Set up output queue.
   IpcQueue ipc_queue(16 * 1024 * 1024);
@@ -140,8 +140,9 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
   illex::BufferingClient client;
   SHUTDOWN_ON_FAILURE(illex::BufferingClient::Create(
       opt.client, converter->mutable_buffers(), converter->mutexes(), &client));
-
   timers.init.Stop();
+
+  spdlog::info("Converting...");
 
   // Receive JSONs (blocking) until the server closes the connection.
   // Concurrently, the conversion and publish thread will do their job.

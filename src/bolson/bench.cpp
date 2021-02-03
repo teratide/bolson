@@ -233,7 +233,7 @@ auto BenchPulsar(const PulsarBenchOptions& opt) -> Status {
   }
   // Setup Pulsar context
   PulsarConsumerContext pulsar;
-  BOLSON_ROE(SetupClientProducer(opt.pulsar.url, opt.pulsar.topic, &pulsar));
+  BOLSON_ROE(SetupClientProducer(opt.pulsar, &pulsar));
 
   putong::Timer<> t;
 

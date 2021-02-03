@@ -141,9 +141,25 @@ static void AddArrowOpts(CLI::App* sub, std::string* schema_file) {
 
 static void AddPulsarOpts(CLI::App* sub, PulsarOptions* pulsar) {
   sub->add_option("-u,--pulsar-url", pulsar->url, "Pulsar broker service URL.")
-      ->default_str("pulsar://localhost:6650/");
+      ->default_val("pulsar://localhost:6650/");
+
   sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic.")
-      ->default_str("non-persistent://public/default/bolson");
+      ->default_val("non-persistent://public/default/bolson");
+
+  // Defaults taken from the Pulsar CPP client sources.
+  // pulsar-client-cpp/lib/ProducerConfigurationImpl.h
+
+  sub->add_flag("--pulsar-batch", pulsar->batching.enable,
+                "Enable batching Pulsar producer.");
+  sub->add_option("--pulsar-batch-max-messages", pulsar->batching.max_messages,
+                  "Pulsar batching max. messages.")
+      ->default_val(1000);
+  sub->add_option("--pulsar-batch-max-bytes", pulsar->batching.max_bytes,
+                  "Pulsar batching max. bytes.")
+      ->default_val(128 * 1024);
+  sub->add_option("--pulsar-batch-max-delay", pulsar->batching.max_delay_ms,
+                  "Pulsar batching max. delay (ms).")
+      ->default_val(10);
 }
 
 static void AddBenchOpts(CLI::App* bench, BenchOptions* out, std::string* schema_file) {
@@ -178,7 +194,6 @@ static void AddBenchOpts(CLI::App* bench, BenchOptions* out, std::string* schema
 
 auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status {
   std::string schema_file;
-  uint16_t stream_port = 0;
   bool csv = false;
 
   CLI::App app{"bolson : A JSON to Arrow IPC converter and Pulsar publishing tool."};
