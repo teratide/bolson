@@ -105,11 +105,7 @@ architecture behavioral of PacketArbiter is
         out_strb    <= in_strb(idx);
 
         -- Pass through transfers when we're in a locked state.
-        if lock = '1' then
-          out_valid_s <= in_valid(idx);
-        else
-          out_valid_s <= '0';
-        end if;
+        out_valid_s <= in_valid(idx) and lock;
     end process;
 
     -- Output ready demux

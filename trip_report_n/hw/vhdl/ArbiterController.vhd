@@ -67,7 +67,7 @@ architecture Implementation of ArbiterController is
       variable index_r  : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
       variable index    : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
       variable tag_v    : std_logic_vector(TAG_WIDTH-1 downto 0);
-      variable last_pkt : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
+      variable last_pkt : std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '0');
     begin 
 
       if rising_edge(clk) then

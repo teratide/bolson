@@ -272,7 +272,7 @@ end trip_report_sub;
 
 architecture Implementation of trip_report_sub is
     
-  constant INDEX_WIDTH : natural := 1;
+  constant INDEX_WIDTH : natural := log2ceil(NUM_PARSERS);
   constant PKT_COUNT_WIDTH : natural := 2;
 
   --

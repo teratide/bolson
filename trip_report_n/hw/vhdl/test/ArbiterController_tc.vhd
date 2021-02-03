@@ -297,14 +297,14 @@ begin
     tc_wait_for(20 us);
 
     tc_check(out_sink.pq_ready, true);
-    tc_check(out_sink.pq_get_str, "SRCB");
-    out_sink.cq_next;
     tc_check(out_sink.pq_get_str, "SRCA");
+    out_sink.cq_next;
+    tc_check(out_sink.pq_get_str, "SRCB");
 
     tc_check(tag_sink.pq_ready, true);
-    tc_check(tag_sink.cq_get_d_nat, 1, "tag: 1");
-    tag_sink.cq_next;
     tc_check(tag_sink.cq_get_d_nat, 0, "tag: 0");
+    tag_sink.cq_next;
+    tc_check(tag_sink.cq_get_d_nat, 1, "tag: 1");
     
     tc_pass;
 
