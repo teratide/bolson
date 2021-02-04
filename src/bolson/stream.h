@@ -26,6 +26,8 @@
 #include "bolson/parse/parser.h"
 #include "bolson/pulsar.h"
 
+#define BOLSON_IPC_QUEUE_SIZE 1024
+
 namespace bolson {
 
 /// Stream subcommand options.

@@ -101,46 +101,44 @@ static void LogStreamStats(const StreamTimers& timers, const illex::Client& clie
   void()
 
 auto ProduceFromStream(const StreamOptions& opt) -> Status {
-  // Timers for throughput
-  StreamTimers timers;
+  StreamThreads threads;                      // Management of all threads.
+  StreamTimers timers;                        // Performance metric timers.
+  IpcQueue ipc_queue(BOLSON_IPC_QUEUE_SIZE);  // IPC queue to Pulsar producer.
+
+  spdlog::info("Initializing Pulsar client and producer...");
 
   timers.init.Start();
-  // Set up Pulsar client and producer.
   PulsarConsumerContext pulsar;
   BOLSON_ROE(SetupClientProducer(opt.pulsar, &pulsar));
 
-  // Set up output queue.
-  IpcQueue ipc_queue(16 * 1024 * 1024);
-
-  StreamThreads threads;
-
-  // Set up futures for statistics delivered by threads.
+  // Set up futures for statistics delivered by the Pulsar producer thread.
   std::promise<PublishStats> pub_stats_promise;
-  auto pub_stats_future = pub_stats_promise.get_future();
-
   std::promise<LatencyMeasurements> pub_lat_promise;
+  auto pub_stats_future = pub_stats_promise.get_future();
   auto pub_lat_future = pub_lat_promise.get_future();
 
-  // Set up the Converter.
+  spdlog::info("Initializing converter(s)...");
+
   std::shared_ptr<convert::Converter> converter;
   BOLSON_ROE(convert::Converter::Make(opt.converter, &ipc_queue, &converter));
 
+  spdlog::info("Initializing stream source client...");
+
+  illex::BufferingClient client;
+  BILLEX_ROE(illex::BufferingClient::Create(opt.client, converter->mutable_buffers(),
+                                            converter->mutexes(), &client));
+  timers.init.Stop();
+
+  spdlog::info("Starting JSON-to-Arrow converter thread(s)...");
   // Start the converter threads.
   converter->Start(&threads.shutdown);
 
+  spdlog::info("Starting Pulsar publish thread(s)...");
   // Spawn the publish thread, which pulls from the IPC queue and publishes the IPC
   // messages in Pulsar.
   threads.publish_thread = std::make_unique<std::thread>(
       PublishThread, std::move(pulsar), &ipc_queue, &threads.shutdown,
       &threads.publish_count, std::move(pub_stats_promise), std::move(pub_lat_promise));
-
-  // Set up the client that receives incoming JSONs.
-  // We must shut down the already spawned threads in case the client returns some
-  // errors.
-  illex::BufferingClient client;
-  SHUTDOWN_ON_FAILURE(illex::BufferingClient::Create(
-      opt.client, converter->mutable_buffers(), converter->mutexes(), &client));
-  timers.init.Stop();
 
   spdlog::info("Converting...");
 
@@ -151,7 +149,8 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
   timers.tcp.Stop();
   SHUTDOWN_ON_FAILURE(client.Close());
 
-  SPDLOG_DEBUG("Waiting to empty JSON queue.");
+  spdlog::info("Source disconnected, emptying buffers...");
+
   // Once the server disconnects, we can work towards finishing this function.
   // Wait until all JSONs have been published, or if either the publish or converter
   // thread have asserted the shutdown signal, the latter indicating some error.
@@ -166,9 +165,10 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
                  threads.publish_count.load());
 #endif
   }
-
   // We can now shut down all threads and collect futures.
   threads.Shutdown(converter);
+
+  spdlog::info("Done, shutting down...");
 
   auto conv_stats = converter->statistics();
   auto pub_stats = pub_stats_future.get();
@@ -196,13 +196,15 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
     if (opt.succinct) {
       return Status(Error::GenericError, "Not implemented.");
     } else {
+      spdlog::info("----------------------------------------------------------------");
       LogStreamStats(timers, client, conv_stats, pub_stats);
-      opt.pulsar.Log();
-      spdlog::info("Implementation    : {}", ToString(opt.converter.implementation));
-      spdlog::info("Conversion threads: {}", opt.converter.num_threads);
-      spdlog::info("TCP clients       : {}", 1);
-      spdlog::info("Publish threads   : {}", 1);
+      spdlog::info("Implementation         : {}", ToString(opt.converter.implementation));
+      spdlog::info("Conversion threads     : {}", opt.converter.num_threads);
+      spdlog::info("TCP clients            : {}", 1);
+      spdlog::info("Pulsar publish threads : {}", 1);
       DumpLatencyStats(lat_stats, opt.latency_file);
+      opt.pulsar.Log();
+      spdlog::info("----------------------------------------------------------------");
     }
   }
 
