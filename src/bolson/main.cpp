@@ -40,8 +40,10 @@ auto main(int argc, char* argv[]) -> int {
   }
 
   if (!status.ok()) {
-    spdlog::error("{} exiting with errors.", bolson::AppOptions::name);
-    spdlog::error("  {}", status.msg());
+    spdlog::error("{} exiting with {} error:", bolson::AppOptions::name,
+                  ToString(status.err()));
+    spdlog::error("{}", status.msg());
+    return -1;
   }
 
   return 0;

@@ -24,6 +24,7 @@
 #include "bolson/convert/converter.h"
 #include "bolson/log.h"
 #include "bolson/parse/parser.h"
+#include "bolson/publish/publisher.h"
 #include "bolson/status.h"
 
 namespace bolson {
@@ -122,7 +123,7 @@ static void AddConvertOpts(CLI::App* sub, convert::ConverterOptions* opts) {
       ->default_val(1024);
   sub->add_option("--max-ipc", opts->max_ipc_size,
                   "Maximum size of IPC messages in bytes.")
-      ->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
+      ->default_val(BOLSON_DEFAULT_PULSAR_MAX_MSG_SIZE);
   sub->add_option("--threads", opts->num_threads,
                   "Number of threads to use in conversion.")
       ->default_val(1);
@@ -139,18 +140,23 @@ static void AddArrowOpts(CLI::App* sub, std::string* schema_file) {
       ->required();
 }
 
-static void AddPulsarOpts(CLI::App* sub, PulsarOptions* pulsar) {
+static void AddPublishOpts(CLI::App* sub, publish::Options* pulsar) {
   sub->add_option("-u,--pulsar-url", pulsar->url, "Pulsar broker service URL.")
       ->default_val("pulsar://localhost:6650/");
-
   sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic.")
       ->default_val("non-persistent://public/default/bolson");
 
-  // Defaults taken from the Pulsar CPP client sources.
-  // pulsar-client-cpp/lib/ProducerConfigurationImpl.h
+  sub->add_option("--pulsar-max-msg-size", pulsar->max_msg_size)
+      ->default_val(BOLSON_DEFAULT_PULSAR_MAX_MSG_SIZE);
 
+  sub->add_option("--pulsar-producers", pulsar->num_producers,
+                  "Number of concurrent Pulsar producers.")
+      ->default_val(1);
+
+  // Pulsar batching defaults taken from the Pulsar CPP client sources.
+  // pulsar-client-cpp/lib/ProducerConfigurationImpl.h
   sub->add_flag("--pulsar-batch", pulsar->batching.enable,
-                "Enable batching Pulsar producer.");
+                "Enable batching Pulsar producer(s).");
   sub->add_option("--pulsar-batch-max-messages", pulsar->batching.max_messages,
                   "Pulsar batching max. messages.")
       ->default_val(1000);
@@ -182,10 +188,10 @@ static void AddBenchOpts(CLI::App* bench, BenchOptions* out, std::string* schema
   // 'bench pulsar' subcommand.
   auto* bench_pulsar = bench->add_subcommand("pulsar", "Run Pulsar microbenchmark.");
   bench_pulsar->add_option("-s", out->pulsar.message_size, "Pulsar message size.")
-      ->default_val(PULSAR_DEFAULT_MAX_MESSAGE_SIZE);
+      ->default_val(BOLSON_DEFAULT_PULSAR_MAX_MSG_SIZE);
   bench_pulsar->add_option("-m", out->pulsar.num_messages, "Pulsar number of messages.")
       ->default_val(1024);
-  AddPulsarOpts(bench_pulsar, &out->pulsar.pulsar);
+  AddPublishOpts(bench_pulsar, &out->pulsar.pulsar);
 
   // 'bench queue' subcommand
   auto* bench_queue = bench->add_subcommand("queue", "Run queue microbenchmark.");
@@ -208,7 +214,7 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
                      "Enable batch latency measurements and write to supplied file.");
   AddConvertOpts(stream, &out->stream.converter);
   AddArrowOpts(stream, &schema_file);
-  AddPulsarOpts(stream, &out->stream.pulsar);
+  AddPublishOpts(stream, &out->stream.pulsar);
 
   // 'bench' subcommand:
   auto* bench =

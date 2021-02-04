@@ -68,4 +68,13 @@ auto CastPtrs(std::vector<std::shared_ptr<From>> vec)
   return result;
 }
 
+template <typename T>
+auto Aggregate(const std::vector<T>& items) -> T {
+  T result;
+  for (const auto& i : items) {
+    result += i;
+  }
+  return result;
+}
+
 }  // namespace bolson

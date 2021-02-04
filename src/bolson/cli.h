@@ -16,7 +16,6 @@
 #include <iostream>
 
 #include "bolson/bench.h"
-#include "bolson/pulsar.h"
 #include "bolson/stream.h"
 
 #pragma once

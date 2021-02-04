@@ -65,8 +65,8 @@ static auto TryGetFilledBuffer(const std::vector<illex::JSONBuffer*>& buffers,
 
 void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
                    Serializer* serializer, const std::vector<illex::JSONBuffer*>& buffers,
-                   const std::vector<std::mutex*>& mutexes, IpcQueue* out,
-                   std::atomic<bool>* shutdown, Stats* stats) {
+                   const std::vector<std::mutex*>& mutexes, publish::IpcQueue* out,
+                   std::atomic<bool>* shutdown, Metrics* stats) {
   /// Macro to shut this thread and others down when something failed.
 #define SHUTDOWN_ON_FAILURE()                                                          \
   if (!stats->status.ok()) {                                                           \
@@ -170,9 +170,8 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
 }
 #undef SHUTDOWN_ON_FAILURE
 
-void Converter::Start(std::atomic<bool>* shutdown) {
+void ConcurrentConverter::Start(std::atomic<bool>* shutdown) {
   shutdown_ = shutdown;
-
   for (int t = 0; t < num_threads_; t++) {
     threads.emplace_back(ConvertThread, t, parsers[t].get(), &resizers[t],
                          &serializers[t], mutable_buffers(), mutexes(), output_queue_,
@@ -180,7 +179,7 @@ void Converter::Start(std::atomic<bool>* shutdown) {
   }
 }
 
-auto Converter::Finish() -> Status {
+auto ConcurrentConverter::Finish() -> Status {
   // Wait for the drones to get shut down by the caller of this function.
   // Also gather the statistics and see if there was any error.
   for (size_t t = 0; t < num_threads_; t++) {
@@ -196,10 +195,11 @@ auto Converter::Finish() -> Status {
 
   BOLSON_ROE(FreeBuffers());
 
+  // TODO: return MultiStatus like pulsar.h
   return Status::OK();
 }
 
-auto Converter::AllocateBuffers(size_t capacity) -> Status {
+auto ConcurrentConverter::AllocateBuffers(size_t capacity) -> Status {
   // Allocate buffers.
   for (size_t b = 0; b < num_buffers_; b++) {
     std::byte* raw = nullptr;
@@ -212,15 +212,15 @@ auto Converter::AllocateBuffers(size_t capacity) -> Status {
   return Status::OK();
 }
 
-auto Converter::FreeBuffers() -> Status {
+auto ConcurrentConverter::FreeBuffers() -> Status {
   for (size_t b = 0; b < num_buffers_; b++) {
     BOLSON_ROE(allocator_->Free(buffers[b].mutable_data()));
   }
   return Status::OK();
 }
 
-auto Converter::Make(const ConverterOptions& opts, IpcQueue* ipc_queue,
-                     std::shared_ptr<Converter>* out) -> Status {
+auto ConcurrentConverter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
+                               std::shared_ptr<ConcurrentConverter>* out) -> Status {
   // Select allocator.
   std::shared_ptr<buffer::Allocator> allocator;
   switch (opts.implementation) {
@@ -235,8 +235,9 @@ auto Converter::Make(const ConverterOptions& opts, IpcQueue* ipc_queue,
   // Set up the Converter.
   size_t num_buffers = opts.num_buffers.value_or(opts.num_threads);
 
-  auto converter = std::shared_ptr<convert::Converter>(
-      new convert::Converter(ipc_queue, allocator, num_buffers, opts.num_threads));
+  auto converter =
+      std::shared_ptr<convert::ConcurrentConverter>(new convert::ConcurrentConverter(
+          ipc_queue, allocator, num_buffers, opts.num_threads));
 
   // Allocate buffers.
   switch (opts.implementation) {
@@ -285,24 +286,26 @@ auto Converter::Make(const ConverterOptions& opts, IpcQueue* ipc_queue,
   return Status::OK();
 }
 
-auto Converter::mutable_buffers() -> std::vector<illex::JSONBuffer*> {
+auto ConcurrentConverter::mutable_buffers() -> std::vector<illex::JSONBuffer*> {
   return ToPointers(buffers);
 }
 
-auto Converter::mutexes() -> std::vector<std::mutex*> { return ToPointers(mutexes_); }
+auto ConcurrentConverter::mutexes() -> std::vector<std::mutex*> {
+  return ToPointers(mutexes_);
+}
 
-void Converter::LockBuffers() {
+void ConcurrentConverter::LockBuffers() {
   for (auto& mutex : mutexes_) {
     mutex.lock();
   }
 }
 
-void Converter::UnlockBuffers() {
+void ConcurrentConverter::UnlockBuffers() {
   for (auto& mutex : mutexes_) {
     mutex.unlock();
   }
 }
 
-auto Converter::statistics() -> std::vector<Stats> { return statistics_; }
+auto ConcurrentConverter::metrics() const -> std::vector<Metrics> { return statistics_; }
 
 }  // namespace bolson::convert

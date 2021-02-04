@@ -24,6 +24,7 @@
 #include "bolson/bench.h"
 #include "bolson/convert/converter.h"
 #include "bolson/convert/test_convert.h"
+#include "bolson/publish/publisher.h"
 #include "bolson/log.h"
 
 namespace bolson::convert {
@@ -57,18 +58,18 @@ auto GetRecordBatch(const std::shared_ptr<arrow::Schema>& schema,
  * \return Status::OK() if successful, some error otherwise.
  */
 auto Convert(const ConverterOptions& opts, const std::vector<illex::JSONItem>& in,
-             std::vector<IpcQueueItem>* out) -> Status {
+             std::vector<publish::IpcQueueItem>* out) -> Status {
   // Set up the output queue.
-  IpcQueue out_queue;
-  std::shared_ptr<Converter> conv;
-  BOLSON_ROE(Converter::Make(opts, &out_queue, &conv));
+  publish::IpcQueue out_queue;
+  std::shared_ptr<ConcurrentConverter> conv;
+  BOLSON_ROE(ConcurrentConverter::Make(opts, &out_queue, &conv));
   FillBuffers(conv->mutable_buffers(), in);
   std::atomic<bool> shutdown = false;
   conv->Start(&shutdown);
 
   size_t rows = 0;
   while ((rows != in.size()) && (shutdown.load() == false)) {
-    IpcQueueItem item;
+    publish::IpcQueueItem item;
     out_queue.wait_dequeue(item);
     rows += RecordSizeOf(item);
     out->push_back(item);
@@ -90,8 +91,8 @@ auto Convert(const ConverterOptions& opts, const std::vector<illex::JSONItem>& i
  * \param expected_rows The expected number of rows in all batches.
  * \param max_ipc_size  The maximum IPC message size to test.
  */
-void ConsumeMessages(const std::vector<IpcQueueItem>& ref_data,
-                     const std::vector<IpcQueueItem>& uut_data,
+void ConsumeMessages(const std::vector<publish::IpcQueueItem>& ref_data,
+                     const std::vector<publish::IpcQueueItem>& uut_data,
                      const std::shared_ptr<arrow::Schema>& schema,
                      const size_t expected_rows, const size_t max_ipc_size) {
   // Validate schema.

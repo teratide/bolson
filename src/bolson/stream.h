@@ -23,10 +23,7 @@
 
 #include "bolson/convert/converter.h"
 #include "bolson/latency.h"
-#include "bolson/parse/parser.h"
-#include "bolson/pulsar.h"
-
-#define BOLSON_IPC_QUEUE_SIZE 1024
+#include "bolson/publish/publisher.h"
 
 namespace bolson {
 
@@ -35,7 +32,7 @@ struct StreamOptions {
   /// The client options.
   illex::ClientOptions client;
   /// The Pulsar options.
-  PulsarOptions pulsar;
+  publish::Options pulsar;
   /// Enable statistics.
   bool statistics = true;
   /// Latency stats output file. If empty, no latency stats will be written.
