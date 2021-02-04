@@ -12,8 +12,8 @@
 #ifdef NDEBUG
 #define FLETCHER_PLATFORM "opae"
 #else
-#define FLETCHER_PLATFORM "opae-ase"
-///#define FLETCHER_PLATFORM "echo"
+//#define FLETCHER_PLATFORM "opae-ase"
+#define FLETCHER_PLATFORM "echo"
 #endif
 
 #define OPAE_BATTERY_AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5e01"
@@ -72,7 +72,7 @@ class OpaeTripReportParser {
   static constexpr size_t in_addr_regs_per_inst = 2;
 
   // Arrow address registers for the output buffers
-  static constexpr size_t out_addr_regs= 44;
+  static constexpr size_t out_addr_regs= 42;
 
   // Custom regs per instance:
   // 0 tag
