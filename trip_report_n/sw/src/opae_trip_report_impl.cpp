@@ -375,7 +375,6 @@ static fletcher::Status ReadMMIO(fletcher::Platform *platform,
 
 bool OpaeTripReportParser::SetInput(RawJSONBuffer *in, size_t tag) {
   platform_mutex->lock();
-  ParsedBuffer result;
   // rewrite the input last index because of opae limitations.
   FLETCHER_ROE(WriteMMIO(platform_,
                          input_lastidx_offset(idx_),
@@ -406,8 +405,8 @@ bool OpaeTripReportParser::SetInput(RawJSONBuffer *in, size_t tag) {
   return true;
 }
 
-bool OpaeTripReportParserManager::ParseAll(ParsedBuffer *out) {
-  ParsedBuffer result;
+bool OpaeTripReportParserManager::ParseAll(std::shared_ptr<arrow::RecordBatch> *out) {
+  std::shared_ptr<arrow::RecordBatch> result;
 
   // Start kernel
   kernel->Start();
@@ -424,7 +423,7 @@ bool OpaeTripReportParserManager::ParseAll(ParsedBuffer *out) {
 
   std::cout << "Number of records parsed: " << num_rows << std::endl;
 
-  auto arrow_status = WrapTripReport(num_rows, output_arrays_sw, output_schema_sw(), &result.batch);
+  auto arrow_status = WrapTripReport(num_rows, output_arrays_sw, output_schema_sw(), &result);
   if (!arrow_status.ok())
   {
     std::cerr << "Could not create output recordbatch." << std::endl;

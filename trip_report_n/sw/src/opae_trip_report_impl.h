@@ -28,11 +28,6 @@ struct RawJSONBuffer {
   size_t capacity_ = 0;
 };
 
-struct ParsedBuffer {
-  std::shared_ptr<arrow::RecordBatch> batch;
-  size_t parsed_bytes = 0;
-};
-
 using AddrMap = std::unordered_map<const byte *, da_t>;
 
 class OpaeTripReportParser {
@@ -138,7 +133,7 @@ class OpaeTripReportParserManager {
                    size_t num_parsers,
                    std::shared_ptr<OpaeTripReportParserManager> *out);
 
-  bool ParseAll(ParsedBuffer *out);
+  bool ParseAll(std::shared_ptr<arrow::RecordBatch> *out);
   bool num_parsers() const { return num_parsers_; }
   std::vector<std::shared_ptr<OpaeTripReportParser>> parsers() { return parsers_; }
  private:

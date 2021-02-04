@@ -26,12 +26,12 @@ int main(int argc, char **argv) {
 
   std::vector<RawJSONBuffer> buffers(num_parsers);
   std::vector<RawJSONBuffer *> buffers_ptr(num_parsers);
-  ParsedBuffer output;
+  std::shared_ptr<arrow::RecordBatch> output;
 
   // Create buffer wrappers, allocate buffers, copy test string into buffers.
 
   for (int i = 0; i < num_parsers; i++) {
-    std::string test_string = R"( {
+    std::string test_string = (num_jsons, R"( {
     "timestamp": "2005-09-09T11:59:06-10:00",
     "timezone": 883,
     "vin": 16852243674679352615,
@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     "large_speed_var": [3702, 931, 2040, 3388, 2575, 881, 1821, 3675, 2080, 3973, 4132, 3965, 4166],
     "accel_decel": 1148,
     "speed_changes": 1932
-}\n)";
+}\n)");
 
 
     size_t num_bytes = test_string.length();
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
   }
   m->ParseAll(&output);
 
-  std::cout << output.batch->ToString() << std::endl;
+  std::cout << output->ToString() << std::endl;
 
   return 0;
 }
