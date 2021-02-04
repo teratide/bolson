@@ -22,13 +22,19 @@
 namespace bolson {
 
 template <typename T>
-inline static size_t GetDiff(const LatencyMeasurement& m, size_t index) {
+inline static auto GetDiff(const LatencyMeasurement& m, size_t index) -> size_t {
   return std::chrono::duration_cast<T>(m.time[index] - m.time[index - 1]).count();
 }
 
-void DumpLatencyStats(const LatencyMeasurements& measurements, const std::string& file) {
+auto SaveLatencyMetrics(const LatencyMeasurements& measurements, const std::string& file)
+    -> Status {
   using ns = std::chrono::nanoseconds;
+
   std::ofstream ofs(file);
+
+  if (!ofs.good()) {
+    return Status(Error::IOError, "Could not open " + file + " to save latency metrics.");
+  }
 
   ofs << "First,Last,Parse,Resize,Serialize,Publish" << std::endl;
   for (const auto& m : measurements) {
@@ -39,6 +45,8 @@ void DumpLatencyStats(const LatencyMeasurements& measurements, const std::string
     ofs << GetDiff<ns>(m, TimePoints::serialized) << ",";
     ofs << GetDiff<ns>(m, TimePoints::published) << std::endl;
   }
+
+  return Status::OK();
 }
 
 }  // namespace bolson

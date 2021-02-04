@@ -24,9 +24,9 @@
 
 #include "bolson/buffer/allocator.h"
 #include "bolson/convert/converter.h"
-#include "bolson/convert/stats.h"
+#include "bolson/convert/metrics.h"
 #include "bolson/parse/parser.h"
-#include "bolson/pulsar.h"
+#include "bolson/publish/publisher.h"
 #include "bolson/status.h"
 #include "bolson/utils.h"
 
@@ -110,12 +110,12 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status {
   }
 
   // Set up output queue.
-  IpcQueue ipc_queue;
-  IpcQueueItem ipc_item;
+  publish::IpcQueue ipc_queue;
+  publish::IpcQueueItem ipc_item;
 
   // Construct converter.
-  std::shared_ptr<convert::Converter> converter;
-  BOLSON_ROE(convert::Converter::Make(opt.converter, &ipc_queue, &converter));
+  std::shared_ptr<convert::ConcurrentConverter> converter;
+  BOLSON_ROE(convert::ConcurrentConverter::Make(opt.converter, &ipc_queue, &converter));
 
   // Fill buffers.
   FillBuffers(converter->mutable_buffers(), items);
@@ -173,9 +173,9 @@ auto BenchConvert(ConvertBenchOptions opt) -> Status {
   spdlog::info("  Throughput (out)    : {} MB/s", ipc_MB / t_conv.seconds());
   spdlog::info("  Throughput          : {} MJ/s", json_M / t_conv.seconds());
 
-  auto a = convert::AggrStats(converter->statistics());
+  auto a = Aggregate(converter->metrics());
   spdlog::info("Details:");
-  LogConvertStats(a, opt.converter.num_threads, "  ");
+  LogConvertMetrics(a, opt.converter.num_threads, "  ");
 
   return Status::OK();
 }
@@ -225,6 +225,7 @@ auto BenchQueue(const QueueBenchOptions& opt) -> Status {
 }
 
 auto BenchPulsar(const PulsarBenchOptions& opt) -> Status {
+  /*
   if (!opt.csv) {
     spdlog::info("Number of messages : {}", opt.num_messages);
     spdlog::info("Message size       : {} bytes", opt.message_size);
@@ -232,8 +233,8 @@ auto BenchPulsar(const PulsarBenchOptions& opt) -> Status {
     spdlog::info("Pulsar topic       : {}", opt.pulsar.topic);
   }
   // Setup Pulsar context
-  PulsarConsumerContext pulsar;
-  BOLSON_ROE(SetupClientProducer(opt.pulsar, &pulsar));
+  std::shared_ptr<ConcurrentPulsarPublisher> pulsar;
+  BOLSON_ROE(ConcurrentPulsarPublisher::Make(opt.pulsar, &pulsar));
 
   putong::Timer<> t;
 
@@ -264,6 +265,8 @@ auto BenchPulsar(const PulsarBenchOptions& opt) -> Status {
   }
 
   return Status::OK();
+   */
+  return Status(Error::GenericError, "Not implemented.");
 }
 
 auto BenchClient(const illex::ClientOptions& opt) -> Status {

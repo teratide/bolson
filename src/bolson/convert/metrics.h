@@ -21,25 +21,9 @@
 namespace bolson::convert {
 
 /**
- * \brief Various statistics related to durations of pipeline stages.
+ * \brief Converter metrics.
  */
-struct TimeStats {
-  /// Total time spent on parsing JSONs to Arrow RecordBatch.
-  double parse = 0.0;
-  /// Total time spent on resizing parsed batches to fit in a message.
-  double resize = 0.0;
-  /// Total time spent on serializing the RecordBatch.
-  double serialize = 0.0;
-  /// Total time spent on enqueueing serialized RecordBatches
-  double enqueue = 0.0;
-  /// Total time spent in the conversion thread.
-  double thread = 0.0;
-};
-
-/**
- * \brief Converter statistics.
- */
-struct Stats {
+struct Metrics {
   /// Number of converted JSONs.
   size_t num_jsons = 0;
   /// Number of converted JSON bytes.
@@ -51,11 +35,22 @@ struct Stats {
   /// Number of bytes in the IPC messages.
   size_t ipc_bytes = 0;
   /// Total time of specific operations in the pipeline.
-  TimeStats t;
+  struct {
+    /// Total time spent on parsing JSONs to Arrow RecordBatch.
+    double parse = 0.0;
+    /// Total time spent on resizing parsed batches to fit in a message.
+    double resize = 0.0;
+    /// Total time spent on serializing the RecordBatch.
+    double serialize = 0.0;
+    /// Total time spent on enqueueing serialized RecordBatches
+    double enqueue = 0.0;
+    /// Total time spent in the conversion thread.
+    double thread = 0.0;
+  } t;
   /// Status about the conversion.
   Status status = Status::OK();
 
-  auto operator+=(const Stats& r) -> Stats&;
+  auto operator+=(const Metrics& r) -> Metrics&;
 };
 
 /**
@@ -64,9 +59,7 @@ struct Stats {
  * \param num_threads The number of threads used.
  * \param t Prefix for indenting.
  */
-void LogConvertStats(const Stats& stats, size_t num_threads, const std::string& t = "");
-
-/// \brief Aggregate statistics from multiple threads.
-auto AggrStats(const std::vector<Stats>& conv_stats) -> Stats;
+void LogConvertMetrics(const Metrics& stats, size_t num_threads,
+                       const std::string& t = "");
 
 }  // namespace bolson::convert

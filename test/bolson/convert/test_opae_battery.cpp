@@ -75,14 +75,14 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   arrow_opts.arrow.parse.explicit_schema = test_schema();
 
   // Run both implementations.
-  std::vector<IpcQueueItem> arrow_out;
-  std::vector<IpcQueueItem> opae_out;
+  std::vector<publish::IpcQueueItem> arrow_out;
+  std::vector<publish::IpcQueueItem> opae_out;
   FAIL_ON_ERROR(Convert(arrow_opts, jsons_in, &arrow_out));
   FAIL_ON_ERROR(Convert(opae_opts, jsons_in, &opae_out));
 
   // Sort outputs by seq. no.
-  std::sort(arrow_out.begin(), arrow_out.end(), IpcSortBySeq);
-  std::sort(opae_out.begin(), opae_out.end(), IpcSortBySeq);
+  std::sort(arrow_out.begin(), arrow_out.end());
+  std::sort(opae_out.begin(), opae_out.end());
 
   ConsumeMessages(arrow_out, opae_out, test_schema(), num_jsons, max_ipc_size);
 }

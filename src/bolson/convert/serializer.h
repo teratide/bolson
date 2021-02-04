@@ -21,18 +21,26 @@
 
 namespace bolson::convert {
 
+/// A serialized RecordBatch.
 struct SerializedBatch {
+  /// The serialized batch.
   std::shared_ptr<arrow::Buffer> message;
+  /// The range of sequence numbers it contains.
   illex::SeqRange seq_range;
+  /// When the batch was where in the pipeline.
   TimePoints time_points;
 };
 
+/// \brief Returns true if lhs batch has lower first index than rhs batch.
+auto operator<(const SerializedBatch& a, const SerializedBatch& b) -> bool;
+
+/// Batches that were serialized to an Arrow IPC message.
 using SerializedBatches = std::vector<SerializedBatch>;
 
+/// Return the number of records in a serialized batch.
 auto RecordSizeOf(const SerializedBatch& batch) -> size_t;
 
-auto RecordSizeOf(const SerializedBatches& batches) -> size_t;
-
+/// Return the number of bytes in multiple serialized batches.
 auto ByteSizeOf(const SerializedBatches& batches) -> size_t;
 
 /**
@@ -58,7 +66,10 @@ class Serializer {
   auto Serialize(const ResizedBatches& in, SerializedBatches* out) -> Status;
 
  private:
+  /// Options for Arrow's IPC writer.
   arrow::ipc::IpcWriteOptions opts = arrow::ipc::IpcWriteOptions::Defaults();
+
+  /// Maximum IPC size. Serialize() will return an Error if this is exceeded.
   size_t max_ipc_size;
 };
 

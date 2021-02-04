@@ -80,21 +80,23 @@ add_compile_unit(
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
   SRCS
-    src/bolson/utils.cpp
-    src/bolson/pulsar.cpp
-    src/bolson/cli.cpp
-    src/bolson/stream.cpp
     src/bolson/bench.cpp
+    src/bolson/cli.cpp
     src/bolson/latency.cpp
+    src/bolson/status.cpp
+    src/bolson/stream.cpp
+    src/bolson/utils.cpp
     src/bolson/buffer/allocator.cpp
     src/bolson/buffer/opae_allocator.cpp
-    src/bolson/parse/parser.cpp
-    src/bolson/parse/arrow_impl.cpp
-    src/bolson/parse/opae_battery_impl.cpp
-    src/bolson/convert/stats.cpp
+    src/bolson/convert/converter.cpp
     src/bolson/convert/resizer.cpp
     src/bolson/convert/serializer.cpp
-    src/bolson/convert/converter.cpp
+    src/bolson/convert/metrics.cpp
+    src/bolson/parse/arrow_impl.cpp
+    src/bolson/parse/opae_battery_impl.cpp
+    src/bolson/parse/parser.cpp
+    src/bolson/publish/metrics.cpp
+    src/bolson/publish/publisher.cpp
   TSTS
     test/bolson/convert/test_opae_battery.cpp
   DEPS

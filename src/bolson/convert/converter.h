@@ -19,13 +19,13 @@
 #include <utility>
 
 #include "bolson/buffer/allocator.h"
+#include "bolson/convert/metrics.h"
 #include "bolson/convert/resizer.h"
 #include "bolson/convert/serializer.h"
-#include "bolson/convert/stats.h"
 #include "bolson/parse/arrow_impl.h"
 #include "bolson/parse/opae_battery_impl.h"
 #include "bolson/parse/parser.h"
-#include "bolson/pulsar.h"
+#include "bolson/publish/publisher.h"
 #include "bolson/status.h"
 
 /// Contains all constructs to support JSON to Arrow conversion and serialization.
@@ -59,7 +59,7 @@ struct ConverterOptions {
  * When started, this unit spawns multiple threads performing the conversion
  * simultaneously.
  */
-class Converter {
+class ConcurrentConverter {
  public:
   /**
    * \brief Construct a converter instance.
@@ -71,8 +71,8 @@ class Converter {
    * \param out         A pointer to a shared pointer to store the converter.
    * \return Status::OK() if successful, some error otherwise.
    */
-  static auto Make(const ConverterOptions& opts, IpcQueue* ipc_queue,
-                   std::shared_ptr<Converter>* out) -> Status;
+  static auto Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
+                   std::shared_ptr<ConcurrentConverter>* out) -> Status;
 
   /**
    * \brief Start the converter, spawning the supplied number of converter threads.
@@ -95,18 +95,19 @@ class Converter {
   /// brief Lock all mutexes of all buffers.
   void UnlockBuffers();
 
-  /// \brief Return converter statistics.
-  auto statistics() -> std::vector<Stats>;
+  /// \brief Return converter metrics.
+  auto metrics() const -> std::vector<Metrics>;
 
  private:
-  Converter(IpcQueue* output_queue, std::shared_ptr<buffer::Allocator> allocator,
-            size_t num_buffers = 1, size_t num_threads = 1)
+  ConcurrentConverter(publish::IpcQueue* output_queue,
+                      std::shared_ptr<buffer::Allocator> allocator,
+                      size_t num_buffers = 1, size_t num_threads = 1)
       : output_queue_(output_queue),
         allocator_(std::move(allocator)),
         num_buffers_(num_buffers),
         num_threads_(num_threads),
         mutexes_(std::vector<std::mutex>(num_buffers)),
-        statistics_(std::vector<Stats>(num_threads)) {}
+        statistics_(std::vector<Metrics>(num_threads)) {}
 
   /**
    * \brief Allocate all buffers using the supplied allocator.
@@ -121,7 +122,7 @@ class Converter {
    */
   auto FreeBuffers() -> Status;
 
-  IpcQueue* output_queue_ = nullptr;
+  publish::IpcQueue* output_queue_ = nullptr;
   std::shared_ptr<buffer::Allocator> allocator_ = nullptr;
   size_t num_threads_ = 1;
   size_t num_buffers_ = 1;
@@ -132,7 +133,7 @@ class Converter {
   std::vector<illex::JSONBuffer> buffers;
   std::vector<std::mutex> mutexes_;
   std::vector<std::thread> threads;
-  std::vector<Stats> statistics_;
+  std::vector<Metrics> statistics_;
 
   // TODO: work-around for OPAE because it needs a manager.
   //  This should be abstracted.

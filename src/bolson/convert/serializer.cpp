@@ -55,12 +55,8 @@ auto RecordSizeOf(const SerializedBatch& batch) -> size_t {
   return batch.seq_range.last - batch.seq_range.first + 1;
 }
 
-auto RecordSizeOf(const SerializedBatches& batches) -> size_t {
-  size_t result = 0;
-  for (const auto& b : batches) {
-    result += RecordSizeOf(b);
-  }
-  return result;
+auto operator<(const SerializedBatch& a, const SerializedBatch& b) -> bool {
+  return a.seq_range.first < b.seq_range.first;
 }
 
 }  // namespace bolson::convert

@@ -17,6 +17,7 @@
 #include <putong/status.h>
 
 #include <iostream>
+#include <vector>
 
 namespace bolson {
 
@@ -31,7 +32,22 @@ enum class Error {
   OpaeError      ///< Errors related to FPGA impl.
 };
 
+/// \brief Return human-readable Error enum.
+auto ToString(Error e) -> std::string;
+
+/// Bolson status type.
 using Status = putong::Status<Error>;
+
+/// Status from multiple threads.
+using MultiThreadStatus = std::vector<Status>;
+
+/**
+ * \brief Aggregate status from multiple threads.
+ * \param status The statuses from multiple threads.
+ * \param prefix Prefix for error messages.
+ * \return A single status.
+ */
+auto Aggregate(const MultiThreadStatus& status, const std::string& prefix) -> Status;
 
 /// Return on error status.
 #define BOLSON_ROE(s)                    \

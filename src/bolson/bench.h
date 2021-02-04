@@ -23,7 +23,7 @@
 #include "bolson/convert/converter.h"
 #include "bolson/parse/arrow_impl.h"
 #include "bolson/parse/parser.h"
-#include "bolson/pulsar.h"
+#include "bolson/publish/publisher.h"
 #include "bolson/status.h"
 #include "bolson/utils.h"
 
@@ -40,14 +40,14 @@ struct ConvertBenchOptions {
 
 /// Options for Pulsar interface benchmark.
 struct PulsarBenchOptions {
-  /// Pulsar options
-  PulsarOptions pulsar;
-  /// Print output as CSV-like line
+  /// Pulsar options.
+  publish::Options pulsar;
+  /// Print output as CSV-like line.
   bool csv = false;
-  /// Number of Pulsar messages
-  size_t num_messages = 256;
-  /// Size of each message
-  size_t message_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
+  /// Number of Pulsar messages to publish.
+  size_t num_messages;
+  /// Size of each message.
+  size_t message_size;
 };
 
 /// Options for queue benchmark

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bolson/pulsar.h"
+#include "bolson/publish/publisher.h"
 
 #include <pulsar/Client.h>
 #include <pulsar/ClientConfiguration.h>
@@ -21,6 +21,8 @@
 #include <pulsar/Result.h>
 #include <putong/timer.h>
 
+#include <cassert>
+#include <memory>
 #include <utility>
 
 #include "bolson/log.h"
@@ -35,10 +37,18 @@
     }                                                                        \
   }
 
-namespace bolson {
+namespace bolson::publish {
 
-auto SetupClientProducer(const PulsarOptions& opts, PulsarConsumerContext* out)
-    -> Status {
+auto ConcurrentPublisher::Make(const Options& opts, IpcQueue* ipc_queue,
+                               std::atomic<size_t>* publish_count,
+                               std::shared_ptr<ConcurrentPublisher>* out) -> Status {
+  auto* result = new ConcurrentPublisher();
+
+  assert(ipc_queue != nullptr);
+  assert(publish_count != nullptr);
+  result->queue_ = ipc_queue;
+  result->published_ = publish_count;
+
   // Configure client
   auto client_config = pulsar::ClientConfiguration().setLogger(new bolsonLoggerFactory());
 
@@ -57,14 +67,54 @@ auto SetupClientProducer(const PulsarOptions& opts, PulsarConsumerContext* out)
   }
 
   // Set up client.
-  out->client = std::make_unique<pulsar::Client>(opts.url, client_config);
+  result->client = std::make_unique<pulsar::Client>(opts.url, client_config);
 
-  // Set up producer
-  out->producer = std::make_unique<pulsar::Producer>();
-  CHECK_PULSAR(out->client->createProducer(opts.topic, producer_config, *out->producer));
+  // Create producer instances.
+  for (int i = 0; i < opts.num_producers; i++) {
+    std::unique_ptr<pulsar::Producer>& prod =
+        result->producers.emplace_back(new pulsar::Producer);
+    CHECK_PULSAR(result->client->createProducer(opts.topic, producer_config, *prod));
+  }
+
+  *out = std::shared_ptr<ConcurrentPublisher>(result);
 
   return Status::OK();
 }
+
+void ConcurrentPublisher::Start(std::atomic<bool>* shutdown) {
+  shutdown_ = shutdown;
+  for (auto& producer : producers) {
+    std::promise<Metrics> s;
+    metrics_futures.push_back(s.get_future());
+    threads.emplace_back(PublishThread, producer.get(), queue_, shutdown_, published_,
+                         std::move(s));
+  }
+}
+
+auto ConcurrentPublisher::Finish() -> MultiThreadStatus {
+  MultiThreadStatus result;
+  // Attempt to join all threads.
+  for (size_t t = 0; t < threads.size(); t++) {
+    // Check if the thread can be joined.
+    if (threads[t].joinable()) {
+      threads[t].join();
+      // Get the metrics.
+      auto metric = metrics_futures[t].get();
+      metrics_.push_back(metric);
+      result.push_back(metric.status);
+      // If a thread returned an error status, shut everything down.
+      if (!metric.status.ok()) {
+        shutdown_->store(true);
+      }
+      producers[t]->close();
+    }
+  }
+  client->close();
+
+  return result;
+}
+
+auto ConcurrentPublisher::metrics() const -> std::vector<Metrics> { return metrics_; }
 
 auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> Status {
   pulsar::Message msg = pulsar::MessageBuilder()
@@ -76,28 +126,25 @@ auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> 
   return Status::OK();
 }
 
-void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
+void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
                    std::atomic<bool>* shutdown, std::atomic<size_t>* count,
-                   std::promise<PublishStats>&& stats,
-                   std::promise<LatencyMeasurements>&& latencies) {
+                   std::promise<Metrics>&& stats) {
   // Set up timers.
   auto thread_timer = putong::Timer(true);
   auto publish_timer = putong::Timer();
-  LatencyMeasurements lat;
 
-  PublishStats s;
+  Metrics s;
 
   // Try pulling stuff from the queue until the stop signal is given.
   IpcQueueItem ipc_item;
   while (!shutdown->load()) {
-    if (in->wait_dequeue_timed(ipc_item,
-                               std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
+    if (queue->wait_dequeue_timed(ipc_item,
+                                  std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
       // Start measuring time to handle an IPC message on the Pulsar side.
       publish_timer.Start();
 
       // Publish the message
-      auto status = Publish(pulsar.producer.get(), ipc_item.message->data(),
-                            ipc_item.message->size());
+      auto status = Publish(producer, ipc_item.message->data(), ipc_item.message->size());
 
       // Deal with Pulsar errors.
       // In case the Producer causes some error, shut everything down.
@@ -105,8 +152,6 @@ void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
         spdlog::error("Pulsar error: {} for message of size {} B with {} rows.",
                       status.msg(), ipc_item.message->size(),
                       ipc_item.seq_range.last - ipc_item.seq_range.first);
-        pulsar.producer->close();
-        pulsar.client->close();
         // Fulfill the promise.
         s.status = status;
         stats.set_value(s);
@@ -122,23 +167,20 @@ void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
       count->fetch_add(RecordSizeOf(ipc_item));
 
       // Update some statistics.
-      s.num_ipc_published++;
-      s.num_jsons_published += RecordSizeOf(ipc_item);
+      s.ipc++;
+      s.rows += RecordSizeOf(ipc_item);
       publish_timer.Stop();
       s.publish_time += publish_timer.seconds();
       // Dump the latency stats.
-      lat.push_back({ipc_item.seq_range, ipc_item.time_points});
+      s.latencies.push_back({ipc_item.seq_range, ipc_item.time_points});
     }
   }
   // Stop thread timer.
   thread_timer.Stop();
   s.thread_time = thread_timer.seconds();
 
-  pulsar.producer->close();
-  pulsar.client->close();
   // Fulfill the promise.
   stats.set_value(s);
-  latencies.set_value(lat);
 }
 
 /// A custom logger to redirect Pulsar client log messages to the Bolson logger.
@@ -165,4 +207,18 @@ auto bolsonLoggerFactory::create() -> std::unique_ptr<bolsonLoggerFactory> {
   return std::make_unique<bolsonLoggerFactory>();
 }
 
-}  // namespace bolson
+void Options::Log() const {
+  spdlog::info("Pulsar:");
+  spdlog::info("  URL                     : {}", url);
+  spdlog::info("  Topic                   : {}", topic);
+  spdlog::info("  Max msg. size           : {} B", max_msg_size);
+  spdlog::info("  Producer threads        : {}", num_producers);
+  spdlog::info("  Batching                : {}", batching.enable);
+  if (batching.enable) {
+    spdlog::info("    Max. messages       : {}", batching.max_messages);
+    spdlog::info("    Max. bytes          : {} B", batching.max_bytes);
+    spdlog::info("    Max. delay          : {} ms", batching.max_delay_ms);
+  }
+}
+
+}  // namespace bolson::publish

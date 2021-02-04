@@ -48,6 +48,7 @@ struct LatencyMeasurement {
 
 using LatencyMeasurements = std::vector<LatencyMeasurement>;
 
-void DumpLatencyStats(const LatencyMeasurements& measurements, const std::string& file);
+auto SaveLatencyMetrics(const LatencyMeasurements& measurements, const std::string& file)
+    -> Status;
 
 }  // namespace bolson
