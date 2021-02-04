@@ -18,25 +18,24 @@
 #include "./opae_allocator.h"
 #include "./opae_trip_report_impl.h"
 
-const int num_parsers = 8;
-const int num_jsons = 2;
+const int num_parsers = 3;
+const int num_jsons = 1;
 
 int main(int argc, char **argv) {
   OpaeAllocator alloc;
 
   std::vector<RawJSONBuffer> buffers(num_parsers);
   std::vector<RawJSONBuffer *> buffers_ptr(num_parsers);
-  std::vector<ParsedBuffer> outputs(num_parsers);
+  ParsedBuffer output;
 
   // Create buffer wrappers, allocate buffers, copy test string into buffers.
 
   for (int i = 0; i < num_parsers; i++) {
     std::string test_string = R"( {
-    "timestamp": "2005-09-09T11:59:06-10:01",
-    "accel_decel": 11446688,
+    "timestamp": "2005-09-09T11:59:06-10:00",
     "timezone": 883,
-    "vin": 8834555,
-    "odometer": 99711112,
+    "vin": 16852243674679352615,
+    "odometer": 997,
     "hypermiling": false,
     "avgspeed": 156,
     "sec_in_band": [3403, 893, 2225, 78, 162, 2332, 1473, 2587, 3446, 178, 997, 2403],
@@ -44,13 +43,14 @@ int main(int argc, char **argv) {
     "const_speed_miles_in_band": [4175, 2541, 2841, 157, 2922, 651, 315, 2484, 2696, 165, 1366, 958],
     "vary_speed_miles_in_band": [2502, 155, 1516, 1208, 2229, 1850, 4032, 3225, 2704, 2064, 484, 3073],
     "sec_decel": [722, 2549, 547, 3468, 844, 3064, 2710, 1515, 763, 2972],
-    "sec_accel": [4175, 2541, 2841, 157, 2922, 651, 315, 2484, 2696, 165, 1366, 958],
+    "sec_accel": [2580, 3830, 792, 2407, 2425, 3305, 2985, 1920, 3889, 909],
+    "braking": [2541, 13, 3533, 59, 116, 134],
     "accel": [1780, 228, 1267, 2389, 437, 871],
     "orientation": false,
-    "braking": [724, 2549, 547],
-    "small_speed_var": [724, 2549, 54788],
-    "large_speed_var": [724, 2549, 5478],
-    "speed_changes": 156
+    "small_speed_var": [1254, 3048, 377, 754, 1745, 3666, 2820, 3303, 2558, 1308, 2795, 941, 2049],
+    "large_speed_var": [3702, 931, 2040, 3388, 2575, 881, 1821, 3675, 2080, 3973, 4132, 3965, 4166],
+    "accel_decel": 1148,
+    "speed_changes": 1932
 }\n)";
 
 
@@ -74,8 +74,10 @@ int main(int argc, char **argv) {
   auto parsers = m->parsers();
   for (int i = 0; i < num_parsers; i++) {
     parsers[i]->SetInput(&buffers[i], i);
-    std::cout << outputs[i].batch->ToString() << std::endl;
   }
+  m->ParseAll(&output);
+
+  std::cout << output.batch->ToString() << std::endl;
 
   return 0;
 }

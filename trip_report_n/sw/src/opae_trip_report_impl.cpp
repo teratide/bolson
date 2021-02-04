@@ -32,16 +32,59 @@ static std::shared_ptr<arrow::Schema> input_schema() {
   return result;
 }
 
-static std::shared_ptr<arrow::DataType> output_type() {
-  static auto result = arrow::list(arrow::field("item", arrow::uint64(), false));
+static std::shared_ptr<arrow::Schema> output_schema_hw() {
+  static auto result = fletcher::WithMetaRequired(
+          *arrow::schema({
+             fletcher::WithMetaEPC(*arrow::field("timestamp", arrow::utf8(), false), 1),
+             arrow::field("tag", arrow::uint64(), false),
+             arrow::field("timezone", arrow::uint64(), false),
+             arrow::field("vin", arrow::uint64(), false),
+             arrow::field("odometer", arrow::uint64(), false),
+             arrow::field("hypermiling", arrow::uint8(), false),
+             arrow::field("avgspeed", arrow::uint64(), false),
+             arrow::field("sec_in_band", arrow::uint64(), false),
+             arrow::field("miles_in_time_range", arrow::uint64(), false),
+             arrow::field("const_speed_miles_in_band", arrow::uint64(), false),
+             arrow::field("vary_speed_miles_in_band", arrow::uint64(), false),
+             arrow::field("sec_decel", arrow::uint64(), false),
+             arrow::field("sec_accel", arrow::uint64(), false),
+             arrow::field("braking", arrow::uint64(), false),
+             arrow::field("accel", arrow::uint64(), false),
+             arrow::field("orientation", arrow::uint8(), false),
+             arrow::field("small_speed_var", arrow::uint64(), false),
+             arrow::field("large_speed_var", arrow::uint64(), false),
+             arrow::field("accel_decel", arrow::uint64(), false),
+             arrow::field("speed_changes", arrow::uint64(), false) }),
+          "output",
+          fletcher::Mode::WRITE);
   return result;
 }
 
-static std::shared_ptr<arrow::Schema> output_schema() {
+static std::shared_ptr<arrow::Schema> output_schema_sw() {
   static auto result = fletcher::WithMetaRequired(
-      *arrow::schema({arrow::field("voltage", output_type(), false)}),
-      "output",
-      fletcher::Mode::WRITE);
+          *arrow::schema({
+             arrow::field("timestamp", arrow::utf8(), false),
+             arrow::field("tag", arrow::uint64(), false),
+             arrow::field("timezone", arrow::uint64(), false),
+             arrow::field("vin", arrow::uint64(), false),
+             arrow::field("odometer", arrow::uint64(), false),
+             arrow::field("hypermiling", arrow::uint8(), false),
+             arrow::field("avgspeed", arrow::uint64(), false),
+             arrow::field("sec_in_band", arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12), false),
+             arrow::field("miles_in_time_range", arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 24), false),
+             arrow::field("const_speed_miles_in_band", arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12), false),
+             arrow::field("vary_speed_miles_in_band", arrow::fixed_size_list(arrow::field("item",arrow::uint64(), false), 12), false),
+             arrow::field("sec_decel", arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10), false),
+             arrow::field("sec_accel", arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10), false),
+             arrow::field("braking", arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6), false),
+             arrow::field("accel", arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6), false),
+             arrow::field("orientation", arrow::uint8(), false),
+             arrow::field("small_speed_var", arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13), false),
+             arrow::field("large_speed_var", arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13), false),
+             arrow::field("accel_decel", arrow::uint64(), false),
+             arrow::field("speed_changes", arrow::uint64(), false)}),
+          "output",
+          fletcher::Mode::WRITE);
   return result;
 }
 
@@ -62,10 +105,12 @@ bool OpaeTripReportParserManager::PrepareInputBatches(const std::vector<RawJSONB
 
 
 
-
-
-
-
+arrow::Result<std::shared_ptr<arrow::FixedSizeListArray>> AlignedFixedSizeListArray(const std::shared_ptr<arrow::DataType>& type,
+                                                                                    std::shared_ptr<arrow::Array> value_array,
+                                                                                    size_t length) {
+  auto list_array = std::make_shared<arrow::FixedSizeListArray>(arrow::fixed_size_list(type, length), 0, value_array);
+  return list_array;
+}
 
 
 arrow::Result<std::shared_ptr<arrow::PrimitiveArray>> AlignedPrimitiveArray(const std::shared_ptr<arrow::DataType>& type,
@@ -80,34 +125,6 @@ arrow::Result<std::shared_ptr<arrow::PrimitiveArray>> AlignedPrimitiveArray(cons
   auto value_buffer = std::make_shared<arrow::Buffer>(value_data, buffer_size);
   auto value_array = std::make_shared<arrow::PrimitiveArray>(type, 0, value_buffer);
   return value_array;
-}
-
-arrow::Result<std::shared_ptr<arrow::ListArray>> AlignedListArray(const std::shared_ptr<arrow::DataType>& type,
-                                                                  OpaeAllocator& allocator,
-                                                                  size_t offset_buffer_size,
-                                                                  size_t value_buffer_size) {
-  byte *offset_data = nullptr;
-  bool ret =allocator.Allocate(offset_buffer_size, &offset_data);
-  if (!ret)
-  {
-    return arrow::Status::OutOfMemory("Failed to allocate buffer");
-  }
-
-  memset(offset_data, 0, offset_buffer_size);
-  auto offset_buffer = std::make_shared<arrow::Buffer>(offset_data, offset_buffer_size);
-
-  byte *value_data = nullptr;
-  ret =allocator.Allocate(value_buffer_size, &value_data);
-  if (!ret)
-  {
-    return arrow::Status::OutOfMemory("Failed to allocate buffer");
-  }
-
-  auto value_buffer = std::make_shared<arrow::Buffer>(value_data, value_buffer_size);
-  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, value_buffer);
-
-  auto list_array = std::make_shared<arrow::ListArray>(arrow::list(arrow::uint64()), 0, offset_buffer, value_array);
-  return arrow::ToResult(list_array);
 }
 
 arrow::Result<std::shared_ptr<arrow::StringArray>> AlignedStringArray(OpaeAllocator& allocator,
@@ -143,32 +160,22 @@ std::shared_ptr<arrow::PrimitiveArray>ReWrapArray(std::shared_ptr<arrow::Primiti
   return value_array;
 }
 
-std::shared_ptr<arrow::ListArray>ReWrapArray(std::shared_ptr<arrow::ListArray> array,
-                                             size_t num_rows) {
-  auto type = array->type();
-
-  int32_t num_offsets = num_rows + 1;
-
-  uint8_t *offsets = (uint8_t *)array->offsets()->data()->buffers[1]->data();
-  uint8_t *values = const_cast<uint8_t *>(array->values()->data()->buffers[1]->data());
-
-  uint32_t num_values = reinterpret_cast<uint32_t *>(offsets)[num_offsets-1];
-
-  size_t num_values_bytes = num_values * sizeof(array->type().get());
-  size_t num_offset_bytes = num_offsets * sizeof(uint32_t);
-
-  auto value_buffer = arrow::Buffer::Wrap(values, num_values_bytes);
-  auto offsets_buffer = arrow::Buffer::Wrap(offsets, num_offset_bytes);
-
-  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_values, value_buffer);
-  auto list_array = std::make_shared<arrow::ListArray>(type, num_rows, offsets_buffer, value_array);
-  return list_array;
-}
 
 std::shared_ptr<arrow::StringArray>ReWrapArray(std::shared_ptr<arrow::StringArray> array,
                                                size_t num_rows) {
   auto string_array = std::make_shared<arrow::StringArray>(num_rows, array->value_offsets(), array->value_data());
   return string_array;
+}
+
+std::shared_ptr<arrow::FixedSizeListArray>ReWrapArray(std::shared_ptr<arrow::FixedSizeListArray> array,
+                                                      size_t num_rows) {
+
+  auto data_buff = array->values()->data()->buffers[1]->data();
+  auto value_buff_size = array->length() * num_rows * sizeof(uint64_t);;
+  auto value_buffer = std::make_shared<arrow::Buffer>(data_buff, value_buff_size);
+  auto value_array = std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_rows*array->value_length(), value_buffer);
+  auto list_array = std::make_shared<arrow::FixedSizeListArray>(arrow::fixed_size_list(arrow::uint64(), array->value_length()), num_rows, value_array);
+  return list_array;
 }
 
 arrow::Status WrapTripReport(
@@ -181,15 +188,14 @@ arrow::Status WrapTripReport(
   std::vector<std::shared_ptr<arrow::Array>> rewrapped_arrays;
 
   for(std::shared_ptr<arrow::Array> f: arrays) {
-    std::cout << f->type()->ToString() << std::endl;
     if(f->type()->Equals(arrow::uint64())) {
       auto field = std::static_pointer_cast<arrow::PrimitiveArray>(f);
       rewrapped_arrays.push_back(ReWrapArray(field, num_rows));
     } else if(f->type()->Equals(arrow::uint8())) {
       auto field = std::static_pointer_cast<arrow::PrimitiveArray>(f);
       rewrapped_arrays.push_back(ReWrapArray(field, num_rows));
-    } else if (f->type()->Equals(arrow::list(arrow::uint64()))) {
-      auto field = std::static_pointer_cast<arrow::ListArray>(f);
+    } else if (f->type()->id() == arrow::Type::FIXED_SIZE_LIST) {
+      auto field = std::static_pointer_cast<arrow::FixedSizeListArray>(f);
       rewrapped_arrays.push_back(ReWrapArray(field, num_rows));
     } else if (f->type()->Equals(arrow::utf8())) {
       auto field = std::static_pointer_cast<arrow::StringArray>(f);
@@ -204,23 +210,31 @@ arrow::Status WrapTripReport(
 
 
 
-
-
-
 bool OpaeTripReportParserManager::PrepareOutputBatch() {
-  for(auto f : output_schema()->fields()) {
+  for(auto f : output_schema_sw()->fields()) {
     if(f->type()->Equals(arrow::uint64())) {
-      output_arrays.push_back(AlignedPrimitiveArray(arrow::uint64(), allocator, opae_fixed_capacity).ValueOrDie());
+      auto array = AlignedPrimitiveArray(arrow::uint64(), allocator, opae_fixed_capacity).ValueOrDie();
+      output_arrays_sw.push_back(array);
+      output_arrays_hw.push_back(array);
     } else if(f->type()->Equals(arrow::uint8())) {
-      output_arrays.push_back(AlignedPrimitiveArray(arrow::uint8(), allocator, opae_fixed_capacity).ValueOrDie());
-    } else if (f->type()->Equals(arrow::list(arrow::field("item", arrow::uint64(), false)))) {
-      output_arrays.push_back(AlignedListArray(arrow::uint64(), allocator, opae_fixed_capacity, opae_fixed_capacity).ValueOrDie());
+      auto array = AlignedPrimitiveArray(arrow::uint8(), allocator, opae_fixed_capacity).ValueOrDie();
+      output_arrays_sw.push_back(array);
+      output_arrays_hw.push_back(array);
     } else if (f->type()->Equals(arrow::utf8())) {
-      output_arrays.push_back(AlignedStringArray(allocator, opae_fixed_capacity, opae_fixed_capacity).ValueOrDie());
+      auto array = AlignedStringArray(allocator, opae_fixed_capacity, opae_fixed_capacity).ValueOrDie();
+      output_arrays_sw.push_back(array);
+      output_arrays_hw.push_back(array);
+    } else if (f->type()->id() == arrow::Type::FIXED_SIZE_LIST) {
+      auto field = std::static_pointer_cast<arrow::FixedSizeListType>(f->type());
+      auto value_array = AlignedPrimitiveArray(arrow::uint64(), allocator, opae_fixed_capacity).ValueOrDie();
+      auto list_array = AlignedFixedSizeListArray(field->value_type(), value_array, field->list_size()).ValueOrDie();
+      output_arrays_sw.push_back(list_array);
+      output_arrays_hw.push_back(value_array);
     }
   }
 
-  batch_out = arrow::RecordBatch::Make(output_schema(), 0, output_arrays);
+  batch_out_sw = arrow::RecordBatch::Make(output_schema_sw(), 0, output_arrays_sw);
+  batch_out_hw = arrow::RecordBatch::Make(output_schema_hw(), 0, output_arrays_hw);
 
   return true;
 }
@@ -259,7 +273,7 @@ bool OpaeTripReportParserManager::Make(const OpaeBatteryOptions &opts,
   }
 
 
-  FLETCHER_ROE(result->context->QueueRecordBatch(result->batch_out));
+  FLETCHER_ROE(result->context->QueueRecordBatch(result->batch_out_hw));
 
 
   spdlog::info("Enabling context...");
@@ -294,8 +308,6 @@ bool OpaeTripReportParserManager::PrepareParsers() {
                                            &h2d_addr_map,
                                            i,
                                            num_parsers_,
-                                           output_arrays,
-                                           batch_out,
                                            &platform_mutex);
 
     parsers_.push_back(parser);
@@ -386,62 +398,41 @@ bool OpaeTripReportParser::SetInput(RawJSONBuffer *in, size_t tag) {
                          "input values addr hi"));
 
   FLETCHER_ROE(WriteMMIO(platform_,
-                         tag_offset(idx_),
+                         ctrl_offset(idx_),
                          tag,
                          idx_,
-                         "input values addr hi"));
-  bool done = false;
-  uint32_t done_mask = 4;
-  uint32_t done_status = 4;
-  uint32_t status = 0;
-  dau_t num_rows;
+                         "tag address"));
+  platform_mutex->unlock();
+  return true;
+}
 
-  while (!done) {
-#ifndef NDEBUG
-    ReadMMIO(platform_, status_offset(idx_), &status, idx_, "status");
-    spdlog::info("Status value: {}", status);
-    ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
-    ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
-    spdlog::info("{} number of rows: {}", idx_, num_rows.full);
-    platform_mutex->unlock();
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    platform_mutex->lock();
-#else
-    platform_->ReadMMIO(status_offset(idx_), &status);
-    platform_mutex->unlock();
-    std::this_thread::sleep_for(std::chrono::microseconds(1));
-    platform_mutex->lock();
-#endif
-    done = (status & done_mask) == done_status;
-  }
+bool OpaeTripReportParserManager::ParseAll(ParsedBuffer *out) {
+  ParsedBuffer result;
 
-  // FLETCHER_ROE(kernel->GetReturn(&num_rows.lo, &num_rows.hi));
-  ReadMMIO(platform_, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
-  ReadMMIO(platform_, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
-  spdlog::info("{} number of rows: {}", idx_, num_rows.full);
+  // Start kernel
+  kernel->Start();
 
-  std::shared_ptr<arrow::RecordBatch> out_batch;
-  auto arrow_status =WrapTripReport(num_rows.full,
-                 arrays,
-                 output_schema(),
-                 &result.batch);
+  //Wait for finish
+  kernel->PollUntilDone();
 
+  // Grab the return value (number of parsed JSON objects)
+  // and wrap the output recordbatch.
+  uint32_t return_value_0;
+  uint32_t return_value_1;
+  FLETCHER_ROE(kernel->GetReturn(&return_value_0, &return_value_1));
+  uint64_t num_rows = ((uint64_t)return_value_1 << 32) | return_value_0;
+
+  std::cout << "Number of records parsed: " << num_rows << std::endl;
+
+  auto arrow_status = WrapTripReport(num_rows, output_arrays_sw, output_schema_sw(), &result.batch);
   if (!arrow_status.ok())
   {
     std::cerr << "Could not create output recordbatch." << std::endl;
     std::cerr << arrow_status.ToString() << std::endl;
     return -1;
   }
-
-  result.parsed_bytes = in->size_;
-  platform_mutex->unlock();
   *out = result;
   return true;
-}
-
-bool OpaeTripReportParserManager::ParseAll() {
-  kernel->Start();
-  kernel->PollUntilDone();
 }
 
 

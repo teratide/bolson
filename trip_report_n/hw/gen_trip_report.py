@@ -128,7 +128,7 @@ sw_output_schema = pa.schema([pa.field("timestamp", pa.utf8(), False).with_metad
     pa.field("avgspeed", pa.uint64(), False),
     pa.field("sec_in_band", pa.list_(pa.field("item", pa.uint64(), False), 12), False),
     pa.field("miles_in_time_range", pa.list_(pa.field("item", pa.uint64(), False), 24), False),
-    pa.field("const_speed_miles_in_band", pa.list_(pa.field("item", pa.uint64(), False), 0), False),
+    pa.field("const_speed_miles_in_band", pa.list_(pa.field("item", pa.uint64(), False), 12), False),
     pa.field("vary_speed_miles_in_band", pa.list_(pa.field("item",pa.uint64(), False), 12), False),
     pa.field("sec_decel", pa.list_(pa.field("item", pa.uint64(), False), 10), False),
     pa.field("sec_accel", pa.list_(pa.field("item", pa.uint64(), False), 10), False),
@@ -209,34 +209,68 @@ for i in range(0, args.parsers):
     
 """.format(idx=i)
 
-TYDI_STRB = ""
+STRB_SENSITIVITY_LIST=""
+for i in range(0, args.parsers):
+    if i != args.parsers-1:
+        STRB_SENSITIVITY_LIST = STRB_SENSITIVITY_LIST + """\
+        input_{idx:02}_input_dvalid,
+        input_{idx:02}_input_count,
+""".format(idx=i)
+    else:
+        STRB_SENSITIVITY_LIST = STRB_SENSITIVITY_LIST + """\
+        input_{idx:02}_input_dvalid,
+        input_{idx:02}_input_count
+""".format(idx=i)
+
+TYDI_STRB = """\
+tydi_strb: process (
+{strb_sensitivity_list})
+    begin
+""".format(strb_sensitivity_list=STRB_SENSITIVITY_LIST)
 for i in range(0, args.parsers):
     TYDI_STRB = TYDI_STRB + """\
-    tydi_strb_{idx:02} : process (input_{idx:02}_input_dvalid, input_{idx:02}_input_count)
-    begin
-      in_strb(EPC * ({idx}+1)-1 downto EPC * {idx}) <= (others => '0');
       for i in EPC-1 downto 0 loop
         if unsigned(input_{idx:02}_input_count) = 0 or i < unsigned(input_{idx:02}_input_count) then
           in_strb(EPC*{idx} + i) <= input_{idx:02}_input_dvalid;
+        else
+          in_strb(EPC*{idx} + i) <= '0';
         end if;
       end loop;
-    end process;
-    
+""".format(idx=i)
+TYDI_STRB = TYDI_STRB + """\
+end process;
+"""
+
+
+LAST_SENSITIVITY_LIST=""
+for i in range(0, args.parsers):
+    if i != args.parsers-1:
+        LAST_SENSITIVITY_LIST = LAST_SENSITIVITY_LIST + """\
+        input_{idx:02}_input_last,
+""".format(idx=i)
+    else:
+        LAST_SENSITIVITY_LIST = LAST_SENSITIVITY_LIST + """\
+        input_{idx:02}_input_last
 """.format(idx=i)
 
-TYDI_LAST = ""
-for i in range(0, args.parsers):
-    TYDI_LAST = TYDI_LAST + """\
-  tydi_last_{idx:02} : process (input_{idx:02}_input_last)
-  begin
-    in_last(EPC * 2 * ({idx}+1)-1 downto EPC * 2 * {idx}) <= (others => '0');
+TYDI_LAST = """\
+tydi_last: process (
+{last_sensitivity_list})
+    begin
     -- all records are currently sent in one transfer, so there's no difference
     -- between the two dimensions going into the parser.
+""".format(last_sensitivity_list=LAST_SENSITIVITY_LIST)
+
+for i in range(0, args.parsers):
+    TYDI_LAST = TYDI_LAST + """\
+    in_last(EPC * 2 * ({idx}+1)-1 downto EPC * 2 * {idx}) <= (others => '0');
     in_last(EPC * 2 * ({idx}+1) - 2) <= input_{idx:02}_input_last;
     in_last(EPC * 2 * ({idx}+1) - 1) <= input_{idx:02}_input_last;
-  end process;
-  
+    
 """.format(idx=i)
+TYDI_LAST = TYDI_LAST + """\
+end process;
+"""
 
 SYNC_IN_UNL_MAP = ""
 for i in range(0, args.parsers):

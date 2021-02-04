@@ -45,6 +45,7 @@ architecture behavioral of PacketArbiter is
   signal out_valid_s            : std_logic := '0';
   signal lock                   : std_logic := '0';
   signal index                  : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
+  signal last_pkt_s             : std_logic := '0';
 
   begin
 
@@ -85,6 +86,7 @@ architecture behavioral of PacketArbiter is
         cr := (not cv) and (not lock_v) and (not reset);
         cmd_ready <= cr;
         lock <= lock_v;
+        last_pkt_s <= last_pkt;
 
       end if;
 
@@ -96,12 +98,13 @@ architecture behavioral of PacketArbiter is
     end process;
 
     -- Input mux
-    inp_mux_proc: process(in_data, in_valid, in_last, in_strb, lock) is
+    inp_mux_proc: process(in_data, in_valid, in_last, in_strb, lock, last_pkt_s) is
         variable idx : integer range 0 to 2**INDEX_WIDTH-1;
     begin
         idx := to_integer(unsigned(index));
         out_data    <= in_data(DATA_WIDTH*(idx+1)-1 downto DATA_WIDTH*idx);
-        out_last_s  <= in_last(DIMENSIONALITY*(idx+1) - 1  downto DIMENSIONALITY*idx);
+        out_last_s(DIMENSIONALITY - 2  downto 0)  <= in_last(DIMENSIONALITY*(idx+1) - 2  downto DIMENSIONALITY*idx);
+        out_last_s(DIMENSIONALITY - 1)  <= in_last(DIMENSIONALITY*(idx+1) - 1) and last_pkt_s;
         out_strb    <= in_strb(idx);
 
         -- Pass through transfers when we're in a locked state.

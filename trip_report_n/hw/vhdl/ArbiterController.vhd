@@ -91,7 +91,7 @@ architecture Implementation of ArbiterController is
                 ov             := '1';
                 tag_v          := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
                 last_pkt(idx)  := last_pkt(idx) or pkt_last(idx);
-                cl             := pkt_last(idx);
+                cl             := and_reduce(last_pkt);
                 ol             := and_reduce(last_pkt);
               end if;
             end if;
@@ -105,7 +105,7 @@ architecture Implementation of ArbiterController is
                   ov             := '1';
                   tag_v          := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
                   last_pkt(idx)  := last_pkt(idx) or pkt_last(idx);
-                  cl             := pkt_last(idx);
+                  cl             := and_reduce(last_pkt);
                   ol             := and_reduce(last_pkt);
                 end if;
               end if;

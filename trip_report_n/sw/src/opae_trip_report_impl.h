@@ -12,11 +12,11 @@
 #ifdef NDEBUG
 #define FLETCHER_PLATFORM "opae"
 #else
-//#define FLETCHER_PLATFORM "opae-ase"
-#define FLETCHER_PLATFORM "echo"
+#define FLETCHER_PLATFORM "opae-ase"
+///#define FLETCHER_PLATFORM "echo"
 #endif
 
-#define OPAE_BATTERY_AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5ee0"
+#define OPAE_BATTERY_AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5e01"
 
 /// A structure to manage multi-buffered client implementation.
 struct RawJSONBuffer {
@@ -43,8 +43,6 @@ class OpaeTripReportParser {
                        AddrMap *addr_map,
                        size_t parser_idx,
                        size_t num_parsers,
-                       std::vector<std::shared_ptr<arrow::Array>> arrays,
-                       std::shared_ptr<arrow::RecordBatch> output_batch,
                        std::mutex *platform_mutex)
       : platform_(platform),
         context_(context),
@@ -52,8 +50,6 @@ class OpaeTripReportParser {
         h2d_addr_map(addr_map),
         idx_(parser_idx),
         num_parsers(num_parsers),
-        arrays(std::move(arrays)),
-        output_batch(std::move(output_batch)),
         platform_mutex(platform_mutex) {}
 
   bool SetInput(RawJSONBuffer *in, size_t tag);
@@ -81,15 +77,15 @@ class OpaeTripReportParser {
   static constexpr size_t in_addr_regs_per_inst = 2;
 
   // Arrow address registers for the output buffers
-  static constexpr size_t out_addr_regs= 32;
+  static constexpr size_t out_addr_regs= 44;
 
   // Custom regs per instance:
   // 0 tag
   static constexpr size_t custom_regs_per_inst = 1;
 
   size_t custom_regs_offset() const {
-    return default_regs + (num_parsers
-        * input_range_regs_per_inst) + output_range_regs + in_addr_regs_per_inst + out_addr_regs;
+    return default_regs + num_parsers
+        * (input_range_regs_per_inst +in_addr_regs_per_inst) + output_range_regs + out_addr_regs;
   }
 
   size_t ctrl_offset(size_t idx) {
@@ -128,8 +124,6 @@ class OpaeTripReportParser {
   fletcher::Context *context_;
   fletcher::Kernel *kernel_;
   AddrMap *h2d_addr_map;
-  std::vector<std::shared_ptr<arrow::Array>> arrays;
-  std::shared_ptr<arrow::RecordBatch> output_batch;
   std::mutex *platform_mutex;
 };
 
@@ -144,13 +138,13 @@ class OpaeTripReportParserManager {
                    size_t num_parsers,
                    std::shared_ptr<OpaeTripReportParserManager> *out);
 
+  bool ParseAll(ParsedBuffer *out);
   bool num_parsers() const { return num_parsers_; }
   std::vector<std::shared_ptr<OpaeTripReportParser>> parsers() { return parsers_; }
  private:
   bool PrepareInputBatches(const std::vector<RawJSONBuffer *> &buffers);
   bool PrepareOutputBatch();
   bool PrepareParsers();
-  bool ParseAll();
 
   OpaeBatteryOptions opts_;
 
@@ -158,9 +152,15 @@ class OpaeTripReportParserManager {
 
   size_t num_parsers_;
   OpaeAllocator allocator;
-  std::vector<std::shared_ptr<arrow::Array>> output_arrays;
+  // We create different views for teh host Sw and Fletcher, since Fletcher
+  // currently doesn't support fixed size lists.
+  // In case of 'output_arrays_hw', we wrap the buffers behind fixed size list fields
+  // as primitive arrays.
+  std::vector<std::shared_ptr<arrow::Array>> output_arrays_sw;
+  std::vector<std::shared_ptr<arrow::Array>> output_arrays_hw;
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches_in;
-  std::shared_ptr<arrow::RecordBatch> batch_out;
+  std::shared_ptr<arrow::RecordBatch> batch_out_sw;
+    std::shared_ptr<arrow::RecordBatch> batch_out_hw;
 
   std::shared_ptr<fletcher::Platform> platform;
   std::shared_ptr<fletcher::Context> context;
