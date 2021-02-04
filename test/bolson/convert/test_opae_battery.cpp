@@ -59,7 +59,7 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
       GenerateJSONs(num_jsons, *test_schema(), illex::GenerateOptions(0), &jsons_in);
 
   // Set OPAE Converter options.
-  Options opae_opts;
+  ConverterOptions opae_opts;
   opae_opts.implementation = parse::Impl::OPAE_BATTERY;
   opae_opts.buf_capacity = buffer::OpaeAllocator::opae_fixed_capacity;
   opae_opts.num_threads = opae_battery_parsers_instances;
@@ -68,7 +68,7 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   opae_opts.max_ipc_size = max_ipc_size;
 
   // Set Arrow Converter options, using the same options where applicable.
-  Options arrow_opts = opae_opts;
+  ConverterOptions arrow_opts = opae_opts;
   arrow_opts.implementation = parse::Impl::ARROW;
   arrow_opts.buf_capacity = 2 * bytes_largest.first;
   arrow_opts.arrow.read.use_threads = false;

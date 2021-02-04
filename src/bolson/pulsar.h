@@ -53,20 +53,40 @@ struct PulsarConsumerContext {
   std::unique_ptr<pulsar::Producer> producer;
 };
 
+/// Pulsar batching producer options.
+struct BatchingOptions {
+  /// Whether to enable batching.
+  bool enable = false;
+  /// Maximum batch messages.
+  uint32_t max_messages;
+  /// Maximum batch bytes.
+  size_t max_bytes;
+  /// Maximum batch delay.
+  size_t max_delay_ms;
+};
+
 /// Pulsar options.
 struct PulsarOptions {
   /// Pulsar URL.
-  std::string url = "pulsar://localhost:6650/";
+  std::string url;
   /// Pulsar topic to publish on.
-  std::string topic = "bolson";
+  std::string topic;
   /// Maximum message size.
   size_t max_msg_size = PULSAR_DEFAULT_MAX_MESSAGE_SIZE;
+  /// Options related to batching producer.
+  BatchingOptions batching;
 
   inline void Log() const {
     spdlog::info("Pulsar:");
-    spdlog::info("  URL           : {}", url);
-    spdlog::info("  Topic         : {}", topic);
-    spdlog::info("  Max msg. size : {} B", max_msg_size);
+    spdlog::info("  URL             : {}", url);
+    spdlog::info("  Topic           : {}", topic);
+    spdlog::info("  Max msg. size   : {} B", max_msg_size);
+    spdlog::info("  Batching        : {}", batching.enable);
+    if (batching.enable) {
+      spdlog::info("    Max. messages : {}", batching.max_messages);
+      spdlog::info("    Max. bytes    : {} B", batching.max_bytes);
+      spdlog::info("    Max. delay    : {} ms", batching.max_delay_ms);
+    }
   }
 };
 
@@ -85,14 +105,12 @@ struct PublishStats {
 };
 
 /**
- * Set a Pulsar client and producer up.
- * \param url    The Pulsar broker service URL.
- * \param topic  The Pulsar topic to produce message in.
- * \param out    A context including the client and producer.
- * \return       Status::OK() if successful, some error otherwise.
+ * Set up a Pulsar client and producer.
+ * \param[in]  opts Pulsar client and producer options.
+ * \param[out] out  A context including the client and producer.
+ * \return Status::OK() if successful, some error otherwise.
  */
-auto SetupClientProducer(const std::string& url, const std::string& topic,
-                         PulsarConsumerContext* out) -> Status;
+auto SetupClientProducer(const PulsarOptions& opts, PulsarConsumerContext* out) -> Status;
 
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
@@ -110,9 +128,12 @@ auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> 
  * \param shutdown      If this is true, this thread will try to terminate.
  * \param count         The number of published messages.
  * \param stats         Statistics about this thread.
+ * \param latencies     Latency statistics for batches.
  */
-void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in, std::atomic<bool>* shutdown,
-                   std::atomic<size_t>* count, std::promise<PublishStats>&& stats);
+void PublishThread(PulsarConsumerContext pulsar, IpcQueue* in,
+                   std::atomic<bool>* shutdown, std::atomic<size_t>* count,
+                   std::promise<PublishStats>&& stats,
+                   std::promise<LatencyMeasurements>&& latencies);
 
 /**
  * \brief Factory function for the custom Pulsar logger.

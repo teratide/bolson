@@ -111,7 +111,7 @@ static void AddClientOpts(CLI::App* sub, std::string& host, uint16_t& port) {
       ->default_val(ILLEX_DEFAULT_PORT);
 }
 
-static void AddConvertOpts(CLI::App* sub, convert::Options* opts) {
+static void AddConvertOpts(CLI::App* sub, convert::ConverterOptions* opts) {
   ParserMap parsers{{"arrow", parse::Impl::ARROW},
                     {"opae-battery", parse::Impl::OPAE_BATTERY}};
   sub->add_option("-p,--parser", opts->implementation, "Parser implementation.")
@@ -132,10 +132,6 @@ static void AddConvertOpts(CLI::App* sub, convert::Options* opts) {
                   "OPAE battery implementation AFU ID.");
 }
 
-static void AddStatsOpts(CLI::App* sub, bool* csv) {
-  sub->add_flag("-c", *csv, "Print output CSV-style.");
-}
-
 static void AddArrowOpts(CLI::App* sub, std::string* schema_file) {
   sub->add_option("input,-i,--input", *schema_file,
                   "The Arrow schema to generate the JSON from.")
@@ -145,9 +141,25 @@ static void AddArrowOpts(CLI::App* sub, std::string* schema_file) {
 
 static void AddPulsarOpts(CLI::App* sub, PulsarOptions* pulsar) {
   sub->add_option("-u,--pulsar-url", pulsar->url, "Pulsar broker service URL.")
-      ->default_str("pulsar://localhost:6650/");
+      ->default_val("pulsar://localhost:6650/");
+
   sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic.")
-      ->default_str("non-persistent://public/default/bolson");
+      ->default_val("non-persistent://public/default/bolson");
+
+  // Defaults taken from the Pulsar CPP client sources.
+  // pulsar-client-cpp/lib/ProducerConfigurationImpl.h
+
+  sub->add_flag("--pulsar-batch", pulsar->batching.enable,
+                "Enable batching Pulsar producer.");
+  sub->add_option("--pulsar-batch-max-messages", pulsar->batching.max_messages,
+                  "Pulsar batching max. messages.")
+      ->default_val(1000);
+  sub->add_option("--pulsar-batch-max-bytes", pulsar->batching.max_bytes,
+                  "Pulsar batching max. bytes.")
+      ->default_val(128 * 1024);
+  sub->add_option("--pulsar-batch-max-delay", pulsar->batching.max_delay_ms,
+                  "Pulsar batching max. delay (ms).")
+      ->default_val(10);
 }
 
 static void AddBenchOpts(CLI::App* bench, BenchOptions* out, std::string* schema_file) {
@@ -182,7 +194,6 @@ static void AddBenchOpts(CLI::App* bench, BenchOptions* out, std::string* schema
 
 auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status {
   std::string schema_file;
-  uint16_t stream_port = 0;
   bool csv = false;
 
   CLI::App app{"bolson : A JSON to Arrow IPC converter and Pulsar publishing tool."};
@@ -193,16 +204,9 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   // 'stream' subcommand:
   auto* stream =
       app.add_subcommand("stream", "Produce Pulsar messages from a JSON TCP stream.");
-  stream
-      ->add_option("--l-samples", out->stream.latency.num_samples,
-                   "Number of latency samples.")
-      ->default_val(1);
-  stream->add_option("--l-interval", out->stream.latency.interval)->default_val(1024);
-  stream->add_option("--l-out", out->stream.latency.file,
-                     "CSV file to dump latency measurements in. "
-                     "If not supplied, no information is dumped.");
+  stream->add_option("--latency", out->stream.latency_file,
+                     "Enable batch latency measurements and write to supplied file.");
   AddConvertOpts(stream, &out->stream.converter);
-  AddStatsOpts(stream, &csv);
   AddArrowOpts(stream, &schema_file);
   AddPulsarOpts(stream, &out->stream.pulsar);
 
@@ -210,7 +214,6 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
   auto* bench =
       app.add_subcommand("bench", "Run micro-benchmarks on isolated pipeline stages.")
           ->require_subcommand();
-  AddStatsOpts(bench, &csv);
   AddBenchOpts(bench, &out->bench, &schema_file);
 
   // Attempt to parse the CLI arguments.

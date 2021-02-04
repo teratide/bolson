@@ -34,7 +34,7 @@ namespace bolson::convert {
 /**
  * \brief Converter options.
  */
-struct Options {
+struct ConverterOptions {
   /// Maximum size of an IPC message.
   size_t max_ipc_size = 0;
   /// Maximum number of rows in a RecordBatch.
@@ -44,7 +44,7 @@ struct Options {
   /// Number of buffers.
   std::optional<size_t> num_buffers = std::nullopt;
   /// Capacity for each buffer.
-  size_t buf_capacity = 0;
+  size_t buf_capacity = 32 * 1024 * 1024;
   /// Parser implementation to use.
   parse::Impl implementation = parse::Impl::ARROW;
   /// Options for Arrow built-in parser implementation.
@@ -71,7 +71,7 @@ class Converter {
    * \param out         A pointer to a shared pointer to store the converter.
    * \return Status::OK() if successful, some error otherwise.
    */
-  static auto Make(const Options& opts, IpcQueue* ipc_queue,
+  static auto Make(const ConverterOptions& opts, IpcQueue* ipc_queue,
                    std::shared_ptr<Converter>* out) -> Status;
 
   /**
@@ -96,7 +96,7 @@ class Converter {
   void UnlockBuffers();
 
   /// \brief Return converter statistics.
-  auto Statistics() -> std::vector<Stats>;
+  auto statistics() -> std::vector<Stats>;
 
  private:
   Converter(IpcQueue* output_queue, std::shared_ptr<buffer::Allocator> allocator,
@@ -106,7 +106,7 @@ class Converter {
         num_buffers_(num_buffers),
         num_threads_(num_threads),
         mutexes_(std::vector<std::mutex>(num_buffers)),
-        stats(std::vector<Stats>(num_threads)) {}
+        statistics_(std::vector<Stats>(num_threads)) {}
 
   /**
    * \brief Allocate all buffers using the supplied allocator.
@@ -132,7 +132,7 @@ class Converter {
   std::vector<illex::JSONBuffer> buffers;
   std::vector<std::mutex> mutexes_;
   std::vector<std::thread> threads;
-  std::vector<Stats> stats;
+  std::vector<Stats> statistics_;
 
   // TODO: work-around for OPAE because it needs a manager.
   //  This should be abstracted.

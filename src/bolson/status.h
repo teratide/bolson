@@ -22,14 +22,13 @@ namespace bolson {
 
 /// Error types.
 enum class Error {
-  GenericError,    ///< Uncategorized errors.
-  CLIError,        ///< Errors related to the command-line interface.
-  PulsarError,     ///< Errors related to Pulsar.
-  IllexError,      ///< Errors related to Illex.
-  RapidJSONError,  ///< Errors related to RapidJSON.
-  ArrowError,      ///< Errors related to Arrow.
-  IOError,         ///< Errors related to input/output.
-  OpaeError        ///< Errors related to FPGA impl.
+  GenericError,  ///< Uncategorized errors.
+  CLIError,      ///< Errors related to the command-line interface.
+  PulsarError,   ///< Errors related to Pulsar.
+  IllexError,    ///< Errors related to Illex.
+  ArrowError,    ///< Errors related to Arrow.
+  IOError,       ///< Errors related to input/output.
+  OpaeError      ///< Errors related to FPGA impl.
 };
 
 using Status = putong::Status<Error>;
@@ -48,6 +47,14 @@ using Status = putong::Status<Error>;
     auto __status = (s);                                                       \
     if (!__status.ok()) return Status(Error::ArrowError, __status.ToString()); \
   }                                                                            \
+  void()
+
+/// Convert Illex status and return on error.
+#define BILLEX_ROE(s)                                                     \
+  {                                                                       \
+    auto __status = (s);                                                  \
+    if (!__status.ok()) return Status(Error::IllexError, __status.msg()); \
+  }                                                                       \
   void()
 
 }  // namespace bolson
