@@ -12,8 +12,8 @@
 #ifdef NDEBUG
 #define FLETCHER_PLATFORM "opae"
 #else
-//#define FLETCHER_PLATFORM "opae-ase"
-#define FLETCHER_PLATFORM "echo"
+#define FLETCHER_PLATFORM "opae-ase"
+//#define FLETCHER_PLATFORM "echo"
 #endif
 
 #define OPAE_BATTERY_AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5e01"

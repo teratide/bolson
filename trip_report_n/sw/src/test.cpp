@@ -18,7 +18,7 @@
 #include "./opae_allocator.h"
 #include "./opae_trip_report_impl.h"
 
-const int num_parsers = 3;
+const int num_parsers = 4;
 const int num_jsons = 1;
 
 int main(int argc, char **argv) {
