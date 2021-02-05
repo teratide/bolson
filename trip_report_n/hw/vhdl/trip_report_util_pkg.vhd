@@ -110,9 +110,7 @@ package trip_report_util_pkg is
         DATA_WIDTH            : natural := 8;
         NUM_INPUTS            : natural;
         INDEX_WIDTH           : natural;
-        DIMENSIONALITY        : natural := 1;
-        PKT_LAST              : natural := 0;
-        TX_LAST               : natural := 0
+        DIMENSIONALITY        : natural := 1
         );
     port (
         clk                   : in  std_logic;
@@ -142,9 +140,7 @@ package trip_report_util_pkg is
         DATA_WIDTH            : natural;
         DEPTH                 : natural;
         PKT_COUNT_WIDTH       : natural := 8;
-        DIMENSIONALITY        : natural := 1;
-        PKT_LAST              : natural := 0;
-        TX_LAST               : natural := 0
+        DIMENSIONALITY        : natural := 1
         );
     port (
         clk                   : in  std_logic;

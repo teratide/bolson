@@ -24,6 +24,9 @@ entity ArbiterController is
       cmd_valid             : out std_logic;
       cmd_ready             : in  std_logic;
       cmd_index             : out std_logic_vector(INDEX_WIDTH-1 downto 0);
+      -- last(0): last packet in a transfer from the selected source.
+      -- last(1): global last packet. Asserted when the command represents the last packet
+      --          from all of the sources combined.
       cmd_last              : out std_logic_vector(1 downto 0);
 
       tag_valid             : out std_logic;

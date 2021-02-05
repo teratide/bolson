@@ -12,9 +12,7 @@ entity PacketArbiter is
       DATA_WIDTH            : natural := 8;
       NUM_INPUTS            : natural;
       INDEX_WIDTH           : natural;
-      DIMENSIONALITY        : natural := 1;
-      PKT_LAST              : natural := 0;
-      TX_LAST               : natural := 0
+      DIMENSIONALITY        : natural := 1
       );
   port (
       clk                   : in  std_logic;
@@ -35,11 +33,17 @@ entity PacketArbiter is
       cmd_valid             : in  std_logic;
       cmd_ready             : out std_logic;
       cmd_index             : in  std_logic_vector(INDEX_WIDTH-1 downto 0);
+      -- last(0): last packet in a transfer from the selected source.
+      -- last(1): global last packet. Asserted when the command represents the last packet
+      --          from all of the sources combined.
       cmd_last              : in  std_logic_vector(1 downto 0) := (others => '0')
   );
 end entity;
 
-architecture behavioral of PacketArbiter is
+architecture Implementation of PacketArbiter is
+
+  constant PKT_LAST : natural := imax(DIMENSIONALITY-2, 0);
+  constant TX_LAST  : natural := imax(DIMENSIONALITY-1, 0);
 
   signal out_last_s             : std_logic_vector(DIMENSIONALITY-1 downto 0);
   signal out_valid_s            : std_logic := '0';
@@ -125,6 +129,7 @@ architecture behavioral of PacketArbiter is
     end process;
 
     out_valid <= out_valid_s;
-    out_last(DIMENSIONALITY - 2  downto 0)  <= out_last_s(DIMENSIONALITY - 2  downto 0);
-    out_last(DIMENSIONALITY - 1)  <= out_last_s(DIMENSIONALITY - 1) and last_tx_s;
+    out_last(PKT_LAST  downto 0)  <= out_last_s(PKT_LAST  downto 0);
+    -- Only pass the transfer closing last signal on global last command. 
+    out_last(TX_LAST)  <= out_last_s(TX_LAST) and last_tx_s;
   end architecture;

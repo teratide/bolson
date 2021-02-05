@@ -12,9 +12,7 @@ entity PacketFIFO is
       DATA_WIDTH            : natural;
       DEPTH                 : natural;
       PKT_COUNT_WIDTH       : natural := 8;
-      DIMENSIONALITY        : natural := 1;
-      PKT_LAST              : natural := 1;
-      TX_LAST               : natural := 1
+      DIMENSIONALITY        : natural := 1
       );
   port (
       clk                   : in  std_logic;
@@ -40,6 +38,10 @@ entity PacketFIFO is
 end entity;
 
 architecture Implementation of PacketFIFO is
+
+
+  constant PKT_LAST : natural := imax(DIMENSIONALITY-2, 0);
+  constant TX_LAST  : natural := imax(DIMENSIONALITY-1, 0);
 
   -- Data bits, last bits, strb
   constant BUFF_WIDTH          : integer := DATA_WIDTH + DIMENSIONALITY + 1 ;
