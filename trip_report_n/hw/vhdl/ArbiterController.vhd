@@ -24,7 +24,7 @@ entity ArbiterController is
       cmd_valid             : out std_logic;
       cmd_ready             : in  std_logic;
       cmd_index             : out std_logic_vector(INDEX_WIDTH-1 downto 0);
-      cmd_last              : out std_logic;
+      cmd_last              : out std_logic_vector(1 downto 0);
 
       tag_valid             : out std_logic;
       tag_ready             : in  std_logic;
@@ -63,7 +63,7 @@ architecture Implementation of ArbiterController is
     cntrl_proc: process (clk) is
       variable ov       : std_logic := '0';
       variable ol       : std_logic := '0';
-      variable cl       : std_logic := '0';
+      variable cl       : std_logic_vector(1 downto 0) := (others => '0');
       variable index_r  : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
       variable index    : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
       variable tag_v    : std_logic_vector(TAG_WIDTH-1 downto 0);
@@ -91,7 +91,8 @@ architecture Implementation of ArbiterController is
                 ov             := '1';
                 tag_v          := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
                 last_pkt(idx)  := last_pkt(idx) or pkt_last(idx);
-                cl             := and_reduce(last_pkt);
+                cl(0)          := pkt_last(idx);
+                cl(1)          := and_reduce(last_pkt);
                 ol             := and_reduce(last_pkt);
               end if;
             end if;
@@ -105,7 +106,8 @@ architecture Implementation of ArbiterController is
                   ov             := '1';
                   tag_v          := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
                   last_pkt(idx)  := last_pkt(idx) or pkt_last(idx);
-                  cl             := and_reduce(last_pkt);
+                  cl(0)          := pkt_last(idx);
+                  cl(1)          := and_reduce(last_pkt);
                   ol             := and_reduce(last_pkt);
                 end if;
               end if;
@@ -114,7 +116,7 @@ architecture Implementation of ArbiterController is
         end if;
 
         for idx in NUM_INPUTS-1 downto 0 loop
-          if to_x01(ov) /= '1' and idx = to_integer(unsigned(index_r)) then
+          if to_x01(ov) /= '1' and idx = to_integer(unsigned(index)) then
             pkt_ready_s(idx) <= '1';
           else
             pkt_ready_s(idx) <= '0';

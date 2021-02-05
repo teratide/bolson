@@ -304,348 +304,348 @@ architecture Implementation of trip_report_sub is
   --
   
   -- Parser <-> FIFO
-  signal timezone_valid_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timezone_ready_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timezone_data_f                     : std_logic_vector(TIMEZONE_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal timezone_strb_f                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timezone_last_f                     : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal timezone_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timezone_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timezone_data_f                    : std_logic_vector(TIMEZONE_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal timezone_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timezone_last_f                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal timezone_valid_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timezone_ready_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timezone_data_a                     : std_logic_vector(TIMEZONE_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal timezone_strb_a                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timezone_last_a                     : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal timezone_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timezone_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timezone_data_a                    : std_logic_vector(TIMEZONE_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal timezone_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timezone_last_a                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: vin
   --
   
   -- Parser <-> FIFO
-  signal vin_valid_f                         : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vin_ready_f                         : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vin_data_f                          : std_logic_vector(VIN_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal vin_strb_f                          : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vin_last_f                          : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal vin_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vin_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vin_data_f                    : std_logic_vector(VIN_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal vin_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vin_last_f                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal vin_valid_a                         : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vin_ready_a                         : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vin_data_a                          : std_logic_vector(VIN_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal vin_strb_a                          : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vin_last_a                          : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal vin_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vin_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vin_data_a                    : std_logic_vector(VIN_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal vin_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vin_last_a                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: odometer
   --
   
   -- Parser <-> FIFO
-  signal odometer_valid_f                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal odometer_ready_f                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal odometer_data_f                      : std_logic_vector(ODOMETER_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal odometer_strb_f                      : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal odometer_last_f                      : std_logic_vector(2*NUM_PARSERS-1 downto 0);
-   
-  -- FIFO <-> arbiter 
-  signal odometer_valid_a                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal odometer_ready_a                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal odometer_data_a                      : std_logic_vector(ODOMETER_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal odometer_strb_a                      : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal odometer_last_a                      : std_logic_vector(2*NUM_PARSERS-1 downto 0);
-   
-  -- 
-  -- Field: avgspeed 
-  -- 
-   
-  -- Parser <-> FIFO 
-  signal avgspeed_valid_f                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal avgspeed_ready_f                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal avgspeed_data_f                      : std_logic_vector(AVGSPEED_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal avgspeed_strb_f                      : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal avgspeed_last_f                      : std_logic_vector(2*NUM_PARSERS-1 downto 0);
-   
-  -- FIFO <-> arbiter 
-  signal avgspeed_valid_a                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal avgspeed_ready_a                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal avgspeed_data_a                      : std_logic_vector(AVGSPEED_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal avgspeed_strb_a                      : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal avgspeed_last_a                      : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal odometer_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal odometer_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal odometer_data_f                    : std_logic_vector(ODOMETER_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal odometer_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal odometer_last_f                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  
+  -- FIFO <-> arbiter
+  signal odometer_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal odometer_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal odometer_data_a                    : std_logic_vector(ODOMETER_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal odometer_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal odometer_last_a                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  
+  --
+  -- Field: avgspeed
+  --
+  
+  -- Parser <-> FIFO
+  signal avgspeed_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal avgspeed_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal avgspeed_data_f                    : std_logic_vector(AVGSPEED_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal avgspeed_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal avgspeed_last_f                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  
+  -- FIFO <-> arbiter
+  signal avgspeed_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal avgspeed_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal avgspeed_data_a                    : std_logic_vector(AVGSPEED_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal avgspeed_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal avgspeed_last_a                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: accel_decel
   --
   
   -- Parser <-> FIFO
-  signal accel_decel_valid_f                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_decel_ready_f                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_decel_data_f                   : std_logic_vector(ACCEL_DECEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal accel_decel_strb_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_decel_last_f                   : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal accel_decel_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_decel_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_decel_data_f                    : std_logic_vector(ACCEL_DECEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal accel_decel_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_decel_last_f                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal accel_decel_valid_a                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_decel_ready_a                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_decel_data_a                   : std_logic_vector(ACCEL_DECEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal accel_decel_strb_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_decel_last_a                   : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal accel_decel_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_decel_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_decel_data_a                    : std_logic_vector(ACCEL_DECEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal accel_decel_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_decel_last_a                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: speed_changes
   --
   
   -- Parser <-> FIFO
-  signal speed_changes_valid_f                : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal speed_changes_ready_f                : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal speed_changes_data_f                 : std_logic_vector(SPEED_CHANGES_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal speed_changes_strb_f                 : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal speed_changes_last_f                 : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal speed_changes_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal speed_changes_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal speed_changes_data_f                    : std_logic_vector(SPEED_CHANGES_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal speed_changes_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal speed_changes_last_f                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal speed_changes_valid_a                : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal speed_changes_ready_a                : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal speed_changes_data_a                 : std_logic_vector(SPEED_CHANGES_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal speed_changes_strb_a                 : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal speed_changes_last_a                 : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal speed_changes_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal speed_changes_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal speed_changes_data_a                    : std_logic_vector(SPEED_CHANGES_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal speed_changes_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal speed_changes_last_a                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: hypermiling
   --
   
   -- Parser <-> FIFO
-  signal hypermiling_valid_f                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal hypermiling_ready_f                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal hypermiling_data_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal hypermiling_strb_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal hypermiling_last_f                   : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal hypermiling_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal hypermiling_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal hypermiling_data_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal hypermiling_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal hypermiling_last_f                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal hypermiling_valid_a                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal hypermiling_ready_a                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal hypermiling_data_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal hypermiling_strb_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal hypermiling_last_a                   : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal hypermiling_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal hypermiling_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal hypermiling_data_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal hypermiling_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal hypermiling_last_a                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: orientation
   --
   
   -- Parser <-> FIFO
-  signal orientation_valid_f                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal orientation_ready_f                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal orientation_data_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal orientation_strb_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal orientation_last_f                   : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal orientation_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal orientation_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal orientation_data_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal orientation_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal orientation_last_f                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal orientation_valid_a                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal orientation_ready_a                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal orientation_data_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal orientation_strb_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal orientation_last_a                   : std_logic_vector(2*NUM_PARSERS-1 downto 0);
+  signal orientation_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal orientation_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal orientation_data_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal orientation_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal orientation_last_a                    : std_logic_vector(2*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: sec_in_band
   --
   
   -- Parser <-> FIFO
-  signal sec_in_band_valid_f                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_in_band_ready_f                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_in_band_data_f                   : std_logic_vector(SEC_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal sec_in_band_strb_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_in_band_last_f                   : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal sec_in_band_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_in_band_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_in_band_data_f                    : std_logic_vector(SEC_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal sec_in_band_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_in_band_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal sec_in_band_valid_a                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_in_band_ready_a                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_in_band_data_a                   : std_logic_vector(SEC_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal sec_in_band_strb_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_in_band_last_a                   : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal sec_in_band_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_in_band_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_in_band_data_a                    : std_logic_vector(SEC_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal sec_in_band_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_in_band_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: miles_in_time_range
   --
   
   -- Parser <-> FIFO
-  signal miles_in_time_range_valid_f          : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal miles_in_time_range_ready_f          : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal miles_in_time_range_data_f           : std_logic_vector(MILES_IN_TIME_RANGE_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal miles_in_time_range_strb_f           : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal miles_in_time_range_last_f           : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal miles_in_time_range_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal miles_in_time_range_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal miles_in_time_range_data_f                    : std_logic_vector(MILES_IN_TIME_RANGE_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal miles_in_time_range_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal miles_in_time_range_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal miles_in_time_range_valid_a          : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal miles_in_time_range_ready_a          : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal miles_in_time_range_data_a           : std_logic_vector(MILES_IN_TIME_RANGE_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal miles_in_time_range_strb_a           : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal miles_in_time_range_last_a           : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal miles_in_time_range_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal miles_in_time_range_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal miles_in_time_range_data_a                    : std_logic_vector(MILES_IN_TIME_RANGE_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal miles_in_time_range_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal miles_in_time_range_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: const_speed_miles_in_band
   --
   
   -- Parser <-> FIFO
-  signal const_speed_miles_in_band_valid_f    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal const_speed_miles_in_band_ready_f    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal const_speed_miles_in_band_data_f     : std_logic_vector(CONST_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal const_speed_miles_in_band_strb_f     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal const_speed_miles_in_band_last_f     : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal const_speed_miles_in_band_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal const_speed_miles_in_band_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal const_speed_miles_in_band_data_f                    : std_logic_vector(CONST_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal const_speed_miles_in_band_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal const_speed_miles_in_band_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal const_speed_miles_in_band_valid_a    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal const_speed_miles_in_band_ready_a    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal const_speed_miles_in_band_data_a     : std_logic_vector(CONST_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal const_speed_miles_in_band_strb_a     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal const_speed_miles_in_band_last_a     : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal const_speed_miles_in_band_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal const_speed_miles_in_band_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal const_speed_miles_in_band_data_a                    : std_logic_vector(CONST_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal const_speed_miles_in_band_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal const_speed_miles_in_band_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: vary_speed_miles_in_band
   --
   
   -- Parser <-> FIFO
-  signal vary_speed_miles_in_band_valid_f     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vary_speed_miles_in_band_ready_f     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vary_speed_miles_in_band_data_f      : std_logic_vector(VARY_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal vary_speed_miles_in_band_strb_f      : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vary_speed_miles_in_band_last_f      : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal vary_speed_miles_in_band_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vary_speed_miles_in_band_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vary_speed_miles_in_band_data_f                    : std_logic_vector(VARY_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal vary_speed_miles_in_band_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vary_speed_miles_in_band_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal vary_speed_miles_in_band_valid_a     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vary_speed_miles_in_band_ready_a     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vary_speed_miles_in_band_data_a      : std_logic_vector(VARY_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal vary_speed_miles_in_band_strb_a      : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal vary_speed_miles_in_band_last_a      : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal vary_speed_miles_in_band_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vary_speed_miles_in_band_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vary_speed_miles_in_band_data_a                    : std_logic_vector(VARY_SPEED_MILES_IN_BAND_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal vary_speed_miles_in_band_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal vary_speed_miles_in_band_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: sec_decel
   --
   
   -- Parser <-> FIFO
-  signal sec_decel_valid_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_decel_ready_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_decel_data_f                     : std_logic_vector(SEC_DECEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal sec_decel_strb_f                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_decel_last_f                     : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal sec_decel_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_decel_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_decel_data_f                    : std_logic_vector(SEC_DECEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal sec_decel_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_decel_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal sec_decel_valid_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_decel_ready_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_decel_data_a                     : std_logic_vector(SEC_DECEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal sec_decel_strb_a                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_decel_last_a                     : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal sec_decel_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_decel_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_decel_data_a                    : std_logic_vector(SEC_DECEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal sec_decel_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_decel_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: sec_accel
   --
   
   -- Parser <-> FIFO
-  signal sec_accel_valid_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_accel_ready_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_accel_data_f                     : std_logic_vector(SEC_ACCEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal sec_accel_strb_f                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_accel_last_f                     : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal sec_accel_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_accel_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_accel_data_f                    : std_logic_vector(SEC_ACCEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal sec_accel_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_accel_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal sec_accel_valid_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_accel_ready_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_accel_data_a                     : std_logic_vector(SEC_ACCEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal sec_accel_strb_a                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal sec_accel_last_a                     : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal sec_accel_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_accel_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_accel_data_a                    : std_logic_vector(SEC_ACCEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal sec_accel_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal sec_accel_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: braking
   --
   
   -- Parser <-> FIFO
-  signal braking_valid_f                      : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal braking_ready_f                      : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal braking_data_f                       : std_logic_vector(BRAKING_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal braking_strb_f                       : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal braking_last_f                       : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal braking_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal braking_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal braking_data_f                    : std_logic_vector(BRAKING_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal braking_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal braking_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   -- FIFO <-> arbiter
-  signal braking_valid_a                      : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal braking_ready_a                      : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal braking_data_a                       : std_logic_vector(BRAKING_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal braking_strb_a                       : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal braking_last_a                       : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  signal braking_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal braking_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal braking_data_a                    : std_logic_vector(BRAKING_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal braking_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal braking_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
   
   --
   -- Field: accel
   --
   
   -- Parser <-> FIFO
-  signal accel_valid_f                        : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_ready_f                        : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_data_f                         : std_logic_vector(ACCEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal accel_strb_f                         : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_last_f                         : std_logic_vector(3*NUM_PARSERS-1 downto 0);
-   
-  -- FIFO <-> arbiter 
-  signal accel_valid_a                        : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_ready_a                        : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_data_a                         : std_logic_vector(ACCEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal accel_strb_a                         : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal accel_last_a                         : std_logic_vector(3*NUM_PARSERS-1 downto 0);
-   
-  -- 
-  -- Field: small_speed_var 
-  -- 
-   
-  -- Parser <-> FIFO 
-  signal small_speed_var_valid_f              : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal small_speed_var_ready_f              : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal small_speed_var_data_f               : std_logic_vector(SMALL_SPEED_VAR_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal small_speed_var_strb_f               : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal small_speed_var_last_f               : std_logic_vector(3*NUM_PARSERS-1 downto 0);
-   
-  -- FIFO <-> arbiter 
-  signal small_speed_var_valid_a              : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal small_speed_var_ready_a              : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal small_speed_var_data_a               : std_logic_vector(SMALL_SPEED_VAR_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal small_speed_var_strb_a               : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal small_speed_var_last_a               : std_logic_vector(3*NUM_PARSERS-1 downto 0);
-   
-  -- 
-  -- Field: large_speed_var 
-  -- 
-   
-  -- Parser <-> FIFO 
-  signal large_speed_var_valid_f              : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal large_speed_var_ready_f              : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal large_speed_var_data_f               : std_logic_vector(LARGE_SPEED_VAR_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal large_speed_var_strb_f               : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal large_speed_var_last_f               : std_logic_vector(3*NUM_PARSERS-1 downto 0);
-   
-  -- FIFO <-> arbiter 
-  signal large_speed_var_valid_a              : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal large_speed_var_ready_a              : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal large_speed_var_data_a               : std_logic_vector(LARGE_SPEED_VAR_INT_WIDTH*NUM_PARSERS-1 downto 0);
-  signal large_speed_var_strb_a               : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal large_speed_var_last_a               : std_logic_vector(3*NUM_PARSERS-1 downto 0);
-   
-  -- 
-  -- Field: timestamp 
-  -- 
-   
-  -- Parser <-> FIFO 
-  signal timestamp_valid_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timestamp_ready_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timestamp_data_f                     : std_logic_vector(8*NUM_PARSERS-1 downto 0);
-  signal timestamp_strb_f                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timestamp_last_f                     : std_logic_vector(3*NUM_PARSERS-1 downto 0);
-   
-  -- FIFO <-> arbiter 
-  signal timestamp_valid_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timestamp_ready_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timestamp_data_a                     : std_logic_vector(8*NUM_PARSERS-1 downto 0);
-  signal timestamp_strb_a                     : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timestamp_last_a                     : std_logic_vector(3*NUM_PARSERS-1 downto 0);
-     
-  signal timestamp_ser_valid                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timestamp_ser_ready                  : std_logic_vector(NUM_PARSERS-1 downto 0);
-  signal timestamp_ser_data                   : std_logic_vector(8*EPC*NUM_PARSERS-1 downto 0);
-  signal timestamp_ser_last                   : std_logic_vector(3*EPC*NUM_PARSERS-1 downto 0);
-  signal timestamp_ser_strb                   : std_logic_vector(EPC*NUM_PARSERS-1 downto 0);
+  signal accel_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_data_f                    : std_logic_vector(ACCEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal accel_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  
+  -- FIFO <-> arbiter
+  signal accel_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_data_a                    : std_logic_vector(ACCEL_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal accel_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal accel_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  
+  --
+  -- Field: small_speed_var
+  --
+  
+  -- Parser <-> FIFO
+  signal small_speed_var_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal small_speed_var_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal small_speed_var_data_f                    : std_logic_vector(SMALL_SPEED_VAR_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal small_speed_var_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal small_speed_var_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  
+  -- FIFO <-> arbiter
+  signal small_speed_var_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal small_speed_var_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal small_speed_var_data_a                    : std_logic_vector(SMALL_SPEED_VAR_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal small_speed_var_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal small_speed_var_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  
+  --
+  -- Field: large_speed_var
+  --
+  
+  -- Parser <-> FIFO
+  signal large_speed_var_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal large_speed_var_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal large_speed_var_data_f                    : std_logic_vector(LARGE_SPEED_VAR_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal large_speed_var_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal large_speed_var_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  
+  -- FIFO <-> arbiter
+  signal large_speed_var_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal large_speed_var_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal large_speed_var_data_a                    : std_logic_vector(LARGE_SPEED_VAR_INT_WIDTH*NUM_PARSERS-1 downto 0);
+  signal large_speed_var_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal large_speed_var_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  
+  --
+  -- Field: timestamp
+  --
+  
+  -- Parser <-> FIFO
+  signal timestamp_valid_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timestamp_ready_f                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timestamp_data_f                    : std_logic_vector(8*NUM_PARSERS-1 downto 0);
+  signal timestamp_strb_f                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timestamp_last_f                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+  
+  -- FIFO <-> arbiter
+  signal timestamp_valid_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timestamp_ready_a                   : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timestamp_data_a                    : std_logic_vector(8*NUM_PARSERS-1 downto 0);
+  signal timestamp_strb_a                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timestamp_last_a                    : std_logic_vector(3*NUM_PARSERS-1 downto 0);
+    
+  signal timestamp_ser_valid              : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timestamp_ser_ready              : std_logic_vector(NUM_PARSERS-1 downto 0);
+  signal timestamp_ser_data               : std_logic_vector(8*EPC*NUM_PARSERS-1 downto 0);
+  signal timestamp_ser_last               : std_logic_vector(3*EPC*NUM_PARSERS-1 downto 0);
+  signal timestamp_ser_strb               : std_logic_vector(EPC*NUM_PARSERS-1 downto 0);
 
   type field_cntrl_array_t is array (0 to NUM_PARSERS-1) of std_logic_vector(19-1 downto 0);
   signal pkt_valid    : field_cntrl_array_t;
@@ -660,7 +660,7 @@ architecture Implementation of trip_report_sub is
   signal cmd_valid_sync                   : std_logic;
   signal cmd_ready_sync                   : std_logic;
   signal cmd_index                        : std_logic_vector(INDEX_WIDTH-1 downto 0);
-  signal cmd_last                         : std_logic;
+  signal cmd_last                         : std_logic_vector(1 downto 0);
   
   signal pkt_valid_sync                   : std_logic_vector(NUM_PARSERS-1 downto 0);
   signal pkt_ready_sync                   : std_logic_vector(NUM_PARSERS-1 downto 0);
@@ -756,134 +756,134 @@ begin
         END_REQ_EN                                       => false
       )
       port map(
-        clk                                      => clk,
-        reset                                    => reset,
+        clk                                         => clk,
+        reset                                       => reset,
 
-        in_valid                                 => in_valid(p),
-        in_ready                                 => in_ready(p),
-        in_data                                  => in_data(8*EPC*(p+1)-1 downto 8*EPC*p),
-        in_last                                  => in_last(2*EPC*(p+1)-1 downto 2*EPC*p),
-        in_stai                                  => (others => '0'),
-        in_endi                                  => (others => '1'),
-        in_strb                                  => in_strb(EPC*(p+1)-1 downto EPC*p),
+        in_valid                                    => in_valid(p),
+        in_ready                                    => in_ready(p),
+        in_data                                     => in_data(8*EPC*(p+1)-1 downto 8*EPC*p),
+        in_last                                     => in_last(2*EPC*(p+1)-1 downto 2*EPC*p),
+        in_stai                                     => (others => '0'),
+        in_endi                                     => (others => '1'),
+        in_strb                                     => in_strb(EPC*(p+1)-1 downto EPC*p),
 
-        end_req                                  => '0',
-        end_ack                                  => open,
+        end_req                                     => '0',
+        end_ack                                     => open,
 
          
-        timezone_valid                           => timezone_valid_f(p),
-        timezone_ready                           => timezone_ready_f(p),
-        timezone_data                            => timezone_data_f(TIMEZONE_INT_WIDTH*(p+1)-1 downto TIMEZONE_INT_WIDTH*p),
-        timezone_strb                            => timezone_strb_f(p),
-        timezone_last                            => timezone_last_f(2*(p+1)-1 downto 2*p),
-
-        vin_valid                                => vin_valid_f(p),
-        vin_ready                                => vin_ready_f(p),
-        vin_data                                 => vin_data_f(VIN_INT_WIDTH*(p+1)-1 downto VIN_INT_WIDTH*p),
-        vin_strb                                 => vin_strb_f(p),
-        vin_last                                 => vin_last_f(2*(p+1)-1 downto 2*p),
-
-        odometer_valid                           => odometer_valid_f(p),
-        odometer_ready                           => odometer_ready_f(p),
-        odometer_data                            => odometer_data_f(ODOMETER_INT_WIDTH*(p+1)-1 downto ODOMETER_INT_WIDTH*p),
-        odometer_strb                            => odometer_strb_f(p),
-        odometer_last                            => odometer_last_f(2*(p+1)-1 downto 2*p),
-
-        avgspeed_valid                           => avgspeed_valid_f(p),
-        avgspeed_ready                           => avgspeed_ready_f(p),
-        avgspeed_data                            => avgspeed_data_f(AVGSPEED_INT_WIDTH*(p+1)-1 downto AVGSPEED_INT_WIDTH*p),
-        avgspeed_strb                            => avgspeed_strb_f(p),
-        avgspeed_last                            => avgspeed_last_f(2*(p+1)-1 downto 2*p),
-
-        accel_decel_valid                        => accel_decel_valid_f(p),
-        accel_decel_ready                        => accel_decel_ready_f(p),
-        accel_decel_data                         => accel_decel_data_f(ACCEL_DECEL_INT_WIDTH*(p+1)-1 downto ACCEL_DECEL_INT_WIDTH*p),
-        accel_decel_strb                         => accel_decel_strb_f(p),
-        accel_decel_last                         => accel_decel_last_f(2*(p+1)-1 downto 2*p),
-
-        speed_changes_valid                      => speed_changes_valid_f(p),
-        speed_changes_ready                      => speed_changes_ready_f(p),
-        speed_changes_data                       => speed_changes_data_f(SPEED_CHANGES_INT_WIDTH*(p+1)-1 downto SPEED_CHANGES_INT_WIDTH*p),
-        speed_changes_strb                       => speed_changes_strb_f(p),
-        speed_changes_last                       => speed_changes_last_f(2*(p+1)-1 downto 2*p),
-
-        hypermiling_valid                        => hypermiling_valid_f(p),
-        hypermiling_ready                        => hypermiling_ready_f(p),
-        hypermiling_data                         => hypermiling_data_f(p),
-        hypermiling_strb                         => hypermiling_strb_f(p),
-        hypermiling_last                         => hypermiling_last_f(2*(p+1)-1 downto 2*p),
-
-        orientation_valid                        => orientation_valid_f(p),
-        orientation_ready                        => orientation_ready_f(p),
-        orientation_data                         => orientation_data_f(p),
-        orientation_strb                         => orientation_strb_f(p),
-        orientation_last                         => orientation_last_f(2*(p+1)-1 downto 2*p),
-
-        sec_in_band_valid                        => sec_in_band_valid_f(p),
-        sec_in_band_ready                        => sec_in_band_ready_f(p),
-        sec_in_band_data                         => sec_in_band_data_f(SEC_IN_BAND_INT_WIDTH*(p+1)-1 downto SEC_IN_BAND_INT_WIDTH*p),
-        sec_in_band_strb                         => sec_in_band_strb_f(p),
-        sec_in_band_last                         => sec_in_band_last_f(3*(p+1)-1 downto 3*p),
-
-        miles_in_time_range_valid                => miles_in_time_range_valid_f(p),
-        miles_in_time_range_ready                => miles_in_time_range_ready_f(p),
-        miles_in_time_range_data                 => miles_in_time_range_data_f(MILES_IN_TIME_RANGE_INT_WIDTH*(p+1)-1 downto MILES_IN_TIME_RANGE_INT_WIDTH*p),
-        miles_in_time_range_strb                 => miles_in_time_range_strb_f(p),
-        miles_in_time_range_last                 => miles_in_time_range_last_f(3*(p+1)-1 downto 3*p),
-
-        const_speed_miles_in_band_valid          => const_speed_miles_in_band_valid_f(p),
-        const_speed_miles_in_band_ready          => const_speed_miles_in_band_ready_f(p),
-        const_speed_miles_in_band_data           => const_speed_miles_in_band_data_f(CONST_SPEED_MILES_IN_BAND_INT_WIDTH*(p+1)-1 downto CONST_SPEED_MILES_IN_BAND_INT_WIDTH*p),
-        const_speed_miles_in_band_strb           => const_speed_miles_in_band_strb_f(p),
-        const_speed_miles_in_band_last           => const_speed_miles_in_band_last_f(3*(p+1)-1 downto 3*p),
-
-        vary_speed_miles_in_band_valid           => vary_speed_miles_in_band_valid_f(p),
-        vary_speed_miles_in_band_ready           => vary_speed_miles_in_band_ready_f(p),
-        vary_speed_miles_in_band_data            => vary_speed_miles_in_band_data_f(VARY_SPEED_MILES_IN_BAND_INT_WIDTH*(p+1)-1 downto VARY_SPEED_MILES_IN_BAND_INT_WIDTH*p),
-        vary_speed_miles_in_band_strb            => vary_speed_miles_in_band_strb_f(p),
-        vary_speed_miles_in_band_last            => vary_speed_miles_in_band_last_f(3*(p+1)-1 downto 3*p),
-
-        sec_decel_valid                          => sec_decel_valid_f(p),
-        sec_decel_ready                          => sec_decel_ready_f(p),
-        sec_decel_data                           => sec_decel_data_f(SEC_DECEL_INT_WIDTH*(p+1)-1 downto SEC_DECEL_INT_WIDTH*p),
-        sec_decel_strb                           => sec_decel_strb_f(p),
-        sec_decel_last                           => sec_decel_last_f(3*(p+1)-1 downto 3*p),
-
-        sec_accel_valid                          => sec_accel_valid_f(p),
-        sec_accel_ready                          => sec_accel_ready_f(p),
-        sec_accel_data                           => sec_accel_data_f(SEC_ACCEL_INT_WIDTH*(p+1)-1 downto SEC_ACCEL_INT_WIDTH*p),
-        sec_accel_strb                           => sec_accel_strb_f(p),
-        sec_accel_last                           => sec_accel_last_f(3*(p+1)-1 downto 3*p),
-
-        braking_valid                            => braking_valid_f(p),
-        braking_ready                            => braking_ready_f(p),
-        braking_data                             => braking_data_f(BRAKING_INT_WIDTH*(p+1)-1 downto BRAKING_INT_WIDTH*p),
-        braking_strb                             => braking_strb_f(p),
-        braking_last                             => braking_last_f(3*(p+1)-1 downto 3*p),
-
-        accel_valid                              => accel_valid_f(p),
-        accel_ready                              => accel_ready_f(p),
-        accel_data                               => accel_data_f(ACCEL_INT_WIDTH*(p+1)-1 downto ACCEL_INT_WIDTH*p),
-        accel_strb                               => accel_strb_f(p),
-        accel_last                               => accel_last_f(3*(p+1)-1 downto 3*p),
-
-        small_speed_var_valid                    => small_speed_var_valid_f(p),
-        small_speed_var_ready                    => small_speed_var_ready_f(p),
-        small_speed_var_data                     => small_speed_var_data_f(SMALL_SPEED_VAR_INT_WIDTH*(p+1)-1 downto SMALL_SPEED_VAR_INT_WIDTH*p),
-        small_speed_var_strb                     => small_speed_var_strb_f(p),
-        small_speed_var_last                     => small_speed_var_last_f(3*(p+1)-1 downto 3*p),
-
-        large_speed_var_valid                    => large_speed_var_valid_f(p),
-        large_speed_var_ready                    => large_speed_var_ready_f(p),
-        large_speed_var_data                     => large_speed_var_data_f(LARGE_SPEED_VAR_INT_WIDTH*(p+1)-1 downto LARGE_SPEED_VAR_INT_WIDTH*p),
-        large_speed_var_strb                     => large_speed_var_strb_f(p),
-        large_speed_var_last                     => large_speed_var_last_f(3*(p+1)-1 downto 3*p),
-
-        timestamp_valid                          => timestamp_ser_valid(p),
-        timestamp_ready                          => timestamp_ser_ready(p),
-        timestamp_data                           => timestamp_ser_data(8*EPC*(p+1)-1 downto 8*EPC*p),
-        timestamp_strb                           => timestamp_ser_strb(EPC*(p+1)-1 downto EPC*p),
-        timestamp_last                           => timestamp_ser_last(3*EPC*(p+1)-1 downto 3*EPC*p)
+    timezone_valid                              => timezone_valid_f(p),
+    timezone_ready                              => timezone_ready_f(p),
+    timezone_data                               => timezone_data_f(TIMEZONE_INT_WIDTH*(p+1)-1 downto TIMEZONE_INT_WIDTH*p),
+    timezone_strb                               => timezone_strb_f(p),
+    timezone_last                               => timezone_last_f(2*(p+1)-1 downto 2*p),
+ 
+    vin_valid                              => vin_valid_f(p),
+    vin_ready                              => vin_ready_f(p),
+    vin_data                               => vin_data_f(VIN_INT_WIDTH*(p+1)-1 downto VIN_INT_WIDTH*p),
+    vin_strb                               => vin_strb_f(p),
+    vin_last                               => vin_last_f(2*(p+1)-1 downto 2*p),
+ 
+    odometer_valid                              => odometer_valid_f(p),
+    odometer_ready                              => odometer_ready_f(p),
+    odometer_data                               => odometer_data_f(ODOMETER_INT_WIDTH*(p+1)-1 downto ODOMETER_INT_WIDTH*p),
+    odometer_strb                               => odometer_strb_f(p),
+    odometer_last                               => odometer_last_f(2*(p+1)-1 downto 2*p),
+ 
+    avgspeed_valid                              => avgspeed_valid_f(p),
+    avgspeed_ready                              => avgspeed_ready_f(p),
+    avgspeed_data                               => avgspeed_data_f(AVGSPEED_INT_WIDTH*(p+1)-1 downto AVGSPEED_INT_WIDTH*p),
+    avgspeed_strb                               => avgspeed_strb_f(p),
+    avgspeed_last                               => avgspeed_last_f(2*(p+1)-1 downto 2*p),
+ 
+    accel_decel_valid                              => accel_decel_valid_f(p),
+    accel_decel_ready                              => accel_decel_ready_f(p),
+    accel_decel_data                               => accel_decel_data_f(ACCEL_DECEL_INT_WIDTH*(p+1)-1 downto ACCEL_DECEL_INT_WIDTH*p),
+    accel_decel_strb                               => accel_decel_strb_f(p),
+    accel_decel_last                               => accel_decel_last_f(2*(p+1)-1 downto 2*p),
+ 
+    speed_changes_valid                              => speed_changes_valid_f(p),
+    speed_changes_ready                              => speed_changes_ready_f(p),
+    speed_changes_data                               => speed_changes_data_f(SPEED_CHANGES_INT_WIDTH*(p+1)-1 downto SPEED_CHANGES_INT_WIDTH*p),
+    speed_changes_strb                               => speed_changes_strb_f(p),
+    speed_changes_last                               => speed_changes_last_f(2*(p+1)-1 downto 2*p),
+ 
+    hypermiling_valid                              => hypermiling_valid_f(p),
+    hypermiling_ready                              => hypermiling_ready_f(p),
+    hypermiling_data                               => hypermiling_data_f(p),
+    hypermiling_strb                               => hypermiling_strb_f(p),
+    hypermiling_last                               => hypermiling_last_f(2*(p+1)-1 downto 2*p),
+ 
+    orientation_valid                              => orientation_valid_f(p),
+    orientation_ready                              => orientation_ready_f(p),
+    orientation_data                               => orientation_data_f(p),
+    orientation_strb                               => orientation_strb_f(p),
+    orientation_last                               => orientation_last_f(2*(p+1)-1 downto 2*p),
+ 
+    sec_in_band_valid                              => sec_in_band_valid_f(p),
+    sec_in_band_ready                              => sec_in_band_ready_f(p),
+    sec_in_band_data                               => sec_in_band_data_f(SEC_IN_BAND_INT_WIDTH*(p+1)-1 downto SEC_IN_BAND_INT_WIDTH*p),
+    sec_in_band_strb                               => sec_in_band_strb_f(p),
+    sec_in_band_last                               => sec_in_band_last_f(3*(p+1)-1 downto 3*p),
+ 
+    miles_in_time_range_valid                              => miles_in_time_range_valid_f(p),
+    miles_in_time_range_ready                              => miles_in_time_range_ready_f(p),
+    miles_in_time_range_data                               => miles_in_time_range_data_f(MILES_IN_TIME_RANGE_INT_WIDTH*(p+1)-1 downto MILES_IN_TIME_RANGE_INT_WIDTH*p),
+    miles_in_time_range_strb                               => miles_in_time_range_strb_f(p),
+    miles_in_time_range_last                               => miles_in_time_range_last_f(3*(p+1)-1 downto 3*p),
+ 
+    const_speed_miles_in_band_valid                              => const_speed_miles_in_band_valid_f(p),
+    const_speed_miles_in_band_ready                              => const_speed_miles_in_band_ready_f(p),
+    const_speed_miles_in_band_data                               => const_speed_miles_in_band_data_f(CONST_SPEED_MILES_IN_BAND_INT_WIDTH*(p+1)-1 downto CONST_SPEED_MILES_IN_BAND_INT_WIDTH*p),
+    const_speed_miles_in_band_strb                               => const_speed_miles_in_band_strb_f(p),
+    const_speed_miles_in_band_last                               => const_speed_miles_in_band_last_f(3*(p+1)-1 downto 3*p),
+ 
+    vary_speed_miles_in_band_valid                              => vary_speed_miles_in_band_valid_f(p),
+    vary_speed_miles_in_band_ready                              => vary_speed_miles_in_band_ready_f(p),
+    vary_speed_miles_in_band_data                               => vary_speed_miles_in_band_data_f(VARY_SPEED_MILES_IN_BAND_INT_WIDTH*(p+1)-1 downto VARY_SPEED_MILES_IN_BAND_INT_WIDTH*p),
+    vary_speed_miles_in_band_strb                               => vary_speed_miles_in_band_strb_f(p),
+    vary_speed_miles_in_band_last                               => vary_speed_miles_in_band_last_f(3*(p+1)-1 downto 3*p),
+ 
+    sec_decel_valid                              => sec_decel_valid_f(p),
+    sec_decel_ready                              => sec_decel_ready_f(p),
+    sec_decel_data                               => sec_decel_data_f(SEC_DECEL_INT_WIDTH*(p+1)-1 downto SEC_DECEL_INT_WIDTH*p),
+    sec_decel_strb                               => sec_decel_strb_f(p),
+    sec_decel_last                               => sec_decel_last_f(3*(p+1)-1 downto 3*p),
+ 
+    sec_accel_valid                              => sec_accel_valid_f(p),
+    sec_accel_ready                              => sec_accel_ready_f(p),
+    sec_accel_data                               => sec_accel_data_f(SEC_ACCEL_INT_WIDTH*(p+1)-1 downto SEC_ACCEL_INT_WIDTH*p),
+    sec_accel_strb                               => sec_accel_strb_f(p),
+    sec_accel_last                               => sec_accel_last_f(3*(p+1)-1 downto 3*p),
+ 
+    braking_valid                              => braking_valid_f(p),
+    braking_ready                              => braking_ready_f(p),
+    braking_data                               => braking_data_f(BRAKING_INT_WIDTH*(p+1)-1 downto BRAKING_INT_WIDTH*p),
+    braking_strb                               => braking_strb_f(p),
+    braking_last                               => braking_last_f(3*(p+1)-1 downto 3*p),
+ 
+    accel_valid                              => accel_valid_f(p),
+    accel_ready                              => accel_ready_f(p),
+    accel_data                               => accel_data_f(ACCEL_INT_WIDTH*(p+1)-1 downto ACCEL_INT_WIDTH*p),
+    accel_strb                               => accel_strb_f(p),
+    accel_last                               => accel_last_f(3*(p+1)-1 downto 3*p),
+ 
+    small_speed_var_valid                              => small_speed_var_valid_f(p),
+    small_speed_var_ready                              => small_speed_var_ready_f(p),
+    small_speed_var_data                               => small_speed_var_data_f(SMALL_SPEED_VAR_INT_WIDTH*(p+1)-1 downto SMALL_SPEED_VAR_INT_WIDTH*p),
+    small_speed_var_strb                               => small_speed_var_strb_f(p),
+    small_speed_var_last                               => small_speed_var_last_f(3*(p+1)-1 downto 3*p),
+ 
+    large_speed_var_valid                              => large_speed_var_valid_f(p),
+    large_speed_var_ready                              => large_speed_var_ready_f(p),
+    large_speed_var_data                               => large_speed_var_data_f(LARGE_SPEED_VAR_INT_WIDTH*(p+1)-1 downto LARGE_SPEED_VAR_INT_WIDTH*p),
+    large_speed_var_strb                               => large_speed_var_strb_f(p),
+    large_speed_var_last                               => large_speed_var_last_f(3*(p+1)-1 downto 3*p),
+ 
+    timestamp_valid                              => timestamp_ser_valid(p),
+    timestamp_ready                              => timestamp_ser_ready(p),
+    timestamp_data                               => timestamp_ser_data(8*EPC*(p+1)-1 downto 8*EPC*p),
+    timestamp_strb                               => timestamp_ser_strb(EPC*(p+1)-1 downto EPC*p),
+    timestamp_last                               => timestamp_ser_last(3*EPC*(p+1)-1 downto 3*EPC*p)
 
       );
   end generate;
@@ -894,7 +894,8 @@ begin
         DEPTH                     => TIMEZONE_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => TIMEZONE_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -924,7 +925,8 @@ begin
         DEPTH                     => VIN_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => VIN_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -954,7 +956,8 @@ begin
         DEPTH                     => ODOMETER_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => ODOMETER_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -984,7 +987,8 @@ begin
         DEPTH                     => AVGSPEED_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => AVGSPEED_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1014,7 +1018,8 @@ begin
         DEPTH                     => ACCEL_DECEL_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => ACCEL_DECEL_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1044,7 +1049,8 @@ begin
         DEPTH                     => SPEED_CHANGES_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => SPEED_CHANGES_INT_WIDTH,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1074,7 +1080,8 @@ begin
         DEPTH                     => HYPERMILING_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => 1,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1104,7 +1111,8 @@ begin
         DEPTH                     => ORIENTATION_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => 1,
-        DIMENSIONALITY            => 2
+        DIMENSIONALITY            => 2,
+        TX_LAST                   => 2-1
       )
       port map (
         clk                       => clk,
@@ -1134,7 +1142,8 @@ begin
         DEPTH                     => SEC_IN_BAND_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => SEC_IN_BAND_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1164,7 +1173,8 @@ begin
         DEPTH                     => MILES_IN_TIME_RANGE_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => MILES_IN_TIME_RANGE_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1194,7 +1204,8 @@ begin
         DEPTH                     => CONST_SPEED_MILES_IN_BAND_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => CONST_SPEED_MILES_IN_BAND_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1224,7 +1235,8 @@ begin
         DEPTH                     => VARY_SPEED_MILES_IN_BAND_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => VARY_SPEED_MILES_IN_BAND_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1254,7 +1266,8 @@ begin
         DEPTH                     => SEC_DECEL_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => SEC_DECEL_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1284,7 +1297,8 @@ begin
         DEPTH                     => SEC_ACCEL_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => SEC_ACCEL_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1314,7 +1328,8 @@ begin
         DEPTH                     => BRAKING_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => BRAKING_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1344,7 +1359,8 @@ begin
         DEPTH                     => ACCEL_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => ACCEL_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1374,7 +1390,8 @@ begin
         DEPTH                     => SMALL_SPEED_VAR_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => SMALL_SPEED_VAR_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1404,7 +1421,8 @@ begin
         DEPTH                     => LARGE_SPEED_VAR_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => LARGE_SPEED_VAR_INT_WIDTH,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,
@@ -1434,7 +1452,8 @@ begin
         DEPTH                     => TIMESTAMP_FIFO_DEPTH,
         PKT_COUNT_WIDTH           => PKT_COUNT_WIDTH,
         DATA_WIDTH                => 8,
-        DIMENSIONALITY            => 3
+        DIMENSIONALITY            => 3,
+        TX_LAST                   => 3-1
       )
       port map (
         clk                       => clk,

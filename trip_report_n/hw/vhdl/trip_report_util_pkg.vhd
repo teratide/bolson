@@ -133,7 +133,7 @@ package trip_report_util_pkg is
         cmd_valid             : in  std_logic;
         cmd_ready             : out std_logic;
         cmd_index             : in  std_logic_vector(INDEX_WIDTH-1 downto 0);
-        cmd_last              : in  std_logic := '0'
+        cmd_last              : in  std_logic_vector(1 downto 0) := (others => '0')
     );
   end component;
 
@@ -186,7 +186,7 @@ package trip_report_util_pkg is
         cmd_valid             : out std_logic;
         cmd_ready             : in  std_logic;
         cmd_index             : out std_logic_vector(INDEX_WIDTH-1 downto 0);
-        cmd_last              : out std_logic;
+        cmd_last              : out std_logic_vector(1 downto 0);
   
         tag_valid             : out std_logic;
         tag_ready             : in  std_logic;
