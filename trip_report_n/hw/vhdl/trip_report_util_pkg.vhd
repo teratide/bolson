@@ -131,7 +131,10 @@ package trip_report_util_pkg is
         cmd_valid             : in  std_logic;
         cmd_ready             : out std_logic;
         cmd_index             : in  std_logic_vector(INDEX_WIDTH-1 downto 0);
-        cmd_last              : in  std_logic_vector(1 downto 0) := (others => '0')
+
+        last_packet_valid     : out std_logic;
+        last_packet_ready     : in  std_logic
+
     );
   end component;
 
@@ -160,8 +163,7 @@ package trip_report_util_pkg is
   
         packet_valid          : out std_logic;
         packet_ready          : in  std_logic;
-        packet_count          : out std_logic_vector(PKT_COUNT_WIDTH-1 downto 0);
-        packet_last           : out std_logic := '0'
+        packet_count          : out std_logic_vector(PKT_COUNT_WIDTH-1 downto 0)
     );
   end component;
 
@@ -177,16 +179,18 @@ package trip_report_util_pkg is
   
         pkt_valid             : in  std_logic_vector(NUM_INPUTS-1 downto 0);
         pkt_ready             : out std_logic_vector(NUM_INPUTS-1 downto 0);
-        pkt_last              : in  std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '0');
+        
+        last_pkt_valid        : in  std_logic;
+        last_pkt_ready        : out std_logic;
   
         cmd_valid             : out std_logic;
         cmd_ready             : in  std_logic;
         cmd_index             : out std_logic_vector(INDEX_WIDTH-1 downto 0);
-        cmd_last              : out std_logic_vector(1 downto 0);
   
         tag_valid             : out std_logic;
         tag_ready             : in  std_logic;
         tag                   : out std_logic_vector(TAG_WIDTH-1 downto 0);
+        tag_strb              : out std_logic;
         tag_last              : out std_logic;
   
         tag_cfg               : in std_logic_vector(NUM_INPUTS*TAG_WIDTH-1 downto 0)
@@ -445,6 +449,7 @@ package trip_report_util_pkg is
       tag_valid                                   : out std_logic;
       tag_ready                                   : in  std_logic;
       tag                                         : out std_logic_vector(TAG_WIDTH-1 downto 0);
+      tag_strb                                    : out std_logic;
       tag_last                                    : out std_logic;
       
       tag_cfg                                     : in std_logic_vector(TAG_WIDTH*NUM_PARSERS-1 downto 0)

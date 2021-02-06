@@ -1050,6 +1050,7 @@ begin
     tag_valid                                   => output_tag_valid,
     tag_ready                                   => output_tag_ready,
     tag                                         => tag,
+    tag_strb                                    => output_tag_dvalid,
     tag_last                                    => output_tag_last,
 
 {tag_cfg}
@@ -1058,7 +1059,6 @@ begin
 
   -- Some interfacing
 
-  output_tag_dvalid <= '1';
   output_tag(31 downto 0)  <= tag;
   output_tag(63 downto 32) <= (others => '0');
 

@@ -19,19 +19,18 @@ entity ArbiterController is
 
       pkt_valid             : in  std_logic_vector(NUM_INPUTS-1 downto 0);
       pkt_ready             : out std_logic_vector(NUM_INPUTS-1 downto 0);
-      pkt_last              : in  std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '0');
+
+      last_pkt_valid        : in  std_logic;
+      last_pkt_ready        : out std_logic;
 
       cmd_valid             : out std_logic;
       cmd_ready             : in  std_logic;
       cmd_index             : out std_logic_vector(INDEX_WIDTH-1 downto 0);
-      -- last(0): last packet in a transfer from the selected source.
-      -- last(1): global last packet. Asserted when the command represents the last packet
-      --          from all of the sources combined.
-      cmd_last              : out std_logic_vector(1 downto 0);
 
       tag_valid             : out std_logic;
       tag_ready             : in  std_logic;
       tag                   : out std_logic_vector(TAG_WIDTH-1 downto 0);
+      tag_strb              : out std_logic;
       tag_last              : out std_logic;
 
       tag_cfg               : in  std_logic_vector(NUM_INPUTS*TAG_WIDTH-1 downto 0)
@@ -39,64 +38,51 @@ entity ArbiterController is
 end entity;
 
 architecture Implementation of ArbiterController is
-    signal out_valid   : std_logic;
     signal out_ready   : std_logic;
     signal pkt_ready_s : std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '0'); 
   begin
-
-    sync_out: StreamSync
-      generic map (
-        NUM_INPUTS              => 1,
-        NUM_OUTPUTS             => 2
-      )
-      port map (
-        clk                     => clk,
-        reset                   => reset,
-
-        in_valid(0)             => out_valid,
-        in_ready(0)             => out_ready,
-
-        out_valid(0)            => cmd_valid,
-        out_valid(1)            => tag_valid,
-
-        out_ready(0)            => cmd_ready,
-        out_ready(1)            => tag_ready
-    );
-
     cntrl_proc: process (clk) is
-      variable ov       : std_logic := '0';
-      variable ol       : std_logic := '0';
-      variable cl       : std_logic_vector(1 downto 0) := (others => '0');
+      -- Tag valid.
+      variable tv       : std_logic := '0';
+      -- Tag strobe.
+      variable ts       : std_logic := '0';
+      -- Tag last.
+      variable tl       : std_logic := '0';
+      -- Command valid.
+      variable cv       : std_logic := '0';
+      -- Previous source index,
       variable index_r  : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
+      -- Current source index.
       variable index    : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
+      -- Selected tag.
       variable tag_v    : std_logic_vector(TAG_WIDTH-1 downto 0);
-      variable last_pkt : std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '0');
     begin 
 
       if rising_edge(clk) then
-        if out_ready = '1' then
-          ov := '0';
-          if to_x01(ol) = '1' then
-            last_pkt := (others => '0');
-          end if;
+
+        if cmd_ready = '1' then
+          cv := '0';
+        end if;
+
+        if tag_ready = '1' then
+          tv := '0';
         end if;
 
         pkt_ready_s <= (others => '0');
 
-
         -- Select the next index (RR)
-        if to_x01(ov) /= '1' then
+        if to_x01(cv) /= '1' and to_x01(tv) /= '1'then
+          ts := '0';
+          tl := '0';
           -- Priority init.
           for idx in NUM_INPUTS-1 downto 0 loop
             if pkt_valid(idx) = '1' then
               index          := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
               if pkt_ready_s(idx) = '1' then
-                ov             := '1';
+                cv             := '1';
+                tv             := '1';
+                ts             := '1';
                 tag_v          := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
-                last_pkt(idx)  := last_pkt(idx) or pkt_last(idx);
-                cl(0)          := pkt_last(idx);
-                cl(1)          := and_reduce(last_pkt);
-                ol             := and_reduce(last_pkt);
               end if;
             end if;
           end loop;
@@ -106,20 +92,24 @@ architecture Implementation of ArbiterController is
               if idx > to_integer(unsigned(index_r)) then
                 index          := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
                 if pkt_ready_s(idx) = '1' then
-                  ov             := '1';
+                  cv             := '1';
+                  tv             := '1';
+                  ts             := '1';
                   tag_v          := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
-                  last_pkt(idx)  := last_pkt(idx) or pkt_last(idx);
-                  cl(0)          := pkt_last(idx);
-                  cl(1)          := and_reduce(last_pkt);
-                  ol             := and_reduce(last_pkt);
                 end if;
               end if;
             end if;
           end loop;
+
+          if to_x01(last_pkt_valid) = '1' then
+            tv := '1';
+            tl := '1'; 
+          end if;
+
         end if;
 
         for idx in NUM_INPUTS-1 downto 0 loop
-          if to_x01(ov) /= '1' and idx = to_integer(unsigned(index)) then
+          if to_x01(cv) /= '1' and to_x01(tv) /= '1' and idx = to_integer(unsigned(index)) then
             pkt_ready_s(idx) <= '1';
           else
             pkt_ready_s(idx) <= '0';
@@ -131,17 +121,20 @@ architecture Implementation of ArbiterController is
         if reset = '1' then
           index     := (others => '0');
           index_r   := (others => '0');
-          last_pkt  := (others => '0');
-          ov        := '0';
+          cv        := '0';
+          tv        := '0';
         end if;
 
         index_r        := index;
         cmd_index      <= index;
         tag            <= tag_v;
-        out_valid      <= ov and not reset;
+        cmd_valid      <= cv and not reset;
+        tag_valid      <= tv and not reset;
+        tag_strb       <= ts;
+        last_pkt_ready <= not cv and not tv and not reset;
         pkt_ready      <= pkt_ready_s;
-        tag_last       <= ol;
-        cmd_last       <= cl;
+        tag_last       <= tl;
+        tag_strb       <= ts; 
       end if;
     end process;
   end architecture;
