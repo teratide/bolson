@@ -76,7 +76,7 @@ class OpaeTripReportParser {
 
   // Custom regs per instance:
   // 0 tag
-  static constexpr size_t custom_regs_per_inst = 1;
+  static constexpr size_t custom_regs_per_inst = 2;
 
   size_t custom_regs_offset() const {
     return default_regs + num_parsers
