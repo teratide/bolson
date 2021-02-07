@@ -170,7 +170,8 @@ if not os.path.exists('schemas'):
 schema_files = generate_schema_files(args.parsers)
 
 # prepare registers
-registers = [['c:32:parser_{:02}_tag'.format(i)]
+registers = [['c:32:parser_{:02}_tag'.format(i),
+              's:32:parser_{:02}_consumed_bytes'.format(i)]
              for i in range(0, args.parsers)]
 registers = [item for sublist in registers for item in sublist]  # flatten list
 
@@ -352,7 +353,7 @@ for i in range(0, args.parsers):
 INST_IN_READY = ""
 for i in range(0, args.parsers):
     INST_IN_READY = INST_IN_READY + """\
-    in_ready({idx})                                 => input_{idx:02}_input_ready,
+    in_ready({idx})                                 => input_{idx:02}_input_ready_s,
 """.format(idx=i)
 
 INST_IN_DATA= ""
@@ -375,7 +376,45 @@ for i in range(0, args.parsers):
 MMIO=""
 for i in range(0, args.parsers):
     MMIO = MMIO + """\
-    parser_{idx:02}_tag                                 : in std_logic_vector(31 downto 0);
+    parser_{idx:02}_tag                                 : in  std_logic_vector(31 downto 0);
+    parser_{idx:02}_consumed_bytes                      : out std_logic_vector(31 downto 0);
+""".format(idx=i)
+
+INPUT_READY_COPIES=""
+for i in range(0, args.parsers):
+    INPUT_READY_COPIES = INPUT_READY_COPIES + """\
+  signal input_{idx:02}_input_ready_s                 : std_logic;
+""".format(idx=i)
+
+INPUT_READY_ASSIGNMENTS=""
+for i in range(0, args.parsers):
+    INPUT_READY_ASSIGNMENTS = INPUT_READY_ASSIGNMENTS + """\
+  input_{idx:02}_input_ready  <= input_{idx:02}_input_ready_s;
+""".format(idx=i)
+
+
+BYTE_COUNTER_SIGNALS=""
+for i in range(0, args.parsers):
+    BYTE_COUNTER_SIGNALS = BYTE_COUNTER_SIGNALS + """\
+  signal byte_count_{idx:02}                    : unsigned(31 downto 0);
+""".format(idx=i)
+
+BYTE_COUNTERS=""
+for i in range(0, args.parsers):
+    BYTE_COUNTERS = BYTE_COUNTERS + """\
+  byte_counter_{idx:02}: process (kcd_clk)
+    is
+  begin
+    if rising_edge(kcd_clk) then
+      if input_{idx:02}_input_valid = '1' and input_{idx:02}_input_ready_s = '1' then
+        byte_count_{idx:02} <= byte_count_{idx:02} + unsigned(input_{idx:02}_input_count);
+      end if;
+      if kcd_reset = '1' or reset = '1' then
+        byte_count_{idx:02} <= (others => '0');
+      end if;
+    end if;
+  end process;
+  parser_{idx:02}_consumed_bytes <= std_logic_vector(byte_count_{idx:02});
 """.format(idx=i)
 
 emphasize("Generating kernel source...")
@@ -384,7 +423,8 @@ template = open('template/kernel.tmpl')
 kernel = template.read().format(input_ports=INPUT_PORTS, mmio=MMIO, tydi_strb=TYDI_STRB, tydi_last=TYDI_LAST,
                                 read_req_defaults=READ_REQ_DEFAULTS, sync_in_unl=SYNC_IN_UNL, sync_in_cmd=SYNC_IN_CMD,
                                 in_valid=INST_IN_VALID, in_ready=INST_IN_READY, in_data=INST_IN_DATA, tag_cfg=TAG_CFG,
-                                num_parsers=args.parsers)
+                                num_parsers=args.parsers, byte_counter_signals=BYTE_COUNTER_SIGNALS, byte_counters=BYTE_COUNTERS,
+                                input_ready_copies=INPUT_READY_COPIES, input_ready_assignments=INPUT_READY_ASSIGNMENTS)
 # Write the kernel source
 kernel_file = 'vhdl/{}.gen.vhd'.format(KERNEL_NAME)
 with open(kernel_file, 'w') as f:

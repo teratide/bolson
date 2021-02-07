@@ -309,22 +309,25 @@ architecture Implementation of trip_report is
   -- 
   -- INTEGER FIELDS
   --
-  constant TIMEZONE_INT_WIDTH                   :natural := 64;
-  constant VIN_INT_WIDTH                        :natural := 64;
-  constant ODOMETER_INT_WIDTH                   :natural := 64;
-  constant AVGSPEED_INT_WIDTH                   :natural := 64;
-  constant ACCEL_DECEL_INT_WIDTH                :natural := 64;
-  constant SPEED_CHANGES_INT_WIDTH              :natural := 64;
-  constant SEC_IN_BAND_INT_WIDTH                :natural := 64;
-  constant MILES_IN_TIME_RANGE_INT_WIDTH        :natural := 64;
-  constant CONST_SPEED_MILES_IN_BAND_INT_WIDTH  :natural := 64;
-  constant VARY_SPEED_MILES_IN_BAND_INT_WIDTH   :natural := 64;
-  constant SEC_DECEL_INT_WIDTH                  :natural := 64;
-  constant SEC_ACCEL_INT_WIDTH                  :natural := 64;
-  constant BRAKING_INT_WIDTH                    :natural := 64;
-  constant ACCEL_INT_WIDTH                      :natural := 64;
-  constant SMALL_SPEED_VAR_INT_WIDTH            :natural := 64;
-  constant LARGE_SPEED_VAR_INT_WIDTH            :natural := 64;
+  constant TIMEZONE_INT_WIDTH                   : natural := 64;
+  constant VIN_INT_WIDTH                        : natural := 64;
+  constant ODOMETER_INT_WIDTH                   : natural := 64;
+  constant AVGSPEED_INT_WIDTH                   : natural := 64;
+  constant ACCEL_DECEL_INT_WIDTH                : natural := 64;
+  constant SPEED_CHANGES_INT_WIDTH              : natural := 64;
+  constant SEC_IN_BAND_INT_WIDTH                : natural := 64;
+  constant MILES_IN_TIME_RANGE_INT_WIDTH        : natural := 64;
+  constant CONST_SPEED_MILES_IN_BAND_INT_WIDTH  : natural := 64;
+  constant VARY_SPEED_MILES_IN_BAND_INT_WIDTH   : natural := 64;
+  constant SEC_DECEL_INT_WIDTH                  : natural := 64;
+  constant SEC_ACCEL_INT_WIDTH                  : natural := 64;
+  constant BRAKING_INT_WIDTH                    : natural := 64;
+  constant ACCEL_INT_WIDTH                      : natural := 64;
+  constant SMALL_SPEED_VAR_INT_WIDTH            : natural := 64;
+  constant LARGE_SPEED_VAR_INT_WIDTH            : natural := 64;
+
+  -- Input ready internal copies
+{input_ready_copies}
 
   -- 
   -- INTEGER FIELDS
@@ -466,6 +469,8 @@ architecture Implementation of trip_report is
   signal record_counter                   : unsigned(63 downto 0);
   signal tag                              : std_logic_vector(31 downto 0);
 
+{byte_counter_signals}
+
   signal in_cmd_valid                     : std_logic;
   signal in_cmd_ready                     : std_logic;
   signal in_unl_valid                     : std_logic;
@@ -492,6 +497,8 @@ architecture Implementation of trip_report is
 
 begin
 
+{input_ready_assignments}
+
 {tydi_strb}
 
 {tydi_last}
@@ -508,6 +515,8 @@ begin
       end if;
     end if;
   end process;
+
+{byte_counters}
 
   result <= std_logic_vector(record_counter);
 

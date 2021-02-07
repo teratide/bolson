@@ -38,22 +38,21 @@ entity ArbiterController is
 end entity;
 
 architecture Implementation of ArbiterController is
-    signal out_ready   : std_logic;
-    signal pkt_ready_s : std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '0'); 
+    signal pkt_ready_s : std_logic_vector(NUM_INPUTS-1 downto 0); 
   begin
     cntrl_proc: process (clk) is
       -- Tag valid.
-      variable tv       : std_logic := '0';
+      variable tv       : std_logic;
       -- Tag strobe.
-      variable ts       : std_logic := '0';
+      variable ts       : std_logic;
       -- Tag last.
-      variable tl       : std_logic := '0';
+      variable tl       : std_logic;
       -- Command valid.
-      variable cv       : std_logic := '0';
+      variable cv       : std_logic;
       -- Previous source index,
-      variable index_r  : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
+      variable index_r  : std_logic_vector(INDEX_WIDTH-1 downto 0);
       -- Current source index.
-      variable index    : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
+      variable index    : std_logic_vector(INDEX_WIDTH-1 downto 0);
       -- Selected tag.
       variable tag_v    : std_logic_vector(TAG_WIDTH-1 downto 0);
     begin 
@@ -119,10 +118,10 @@ architecture Implementation of ArbiterController is
     
         -- Handle reset.
         if reset = '1' then
-          index     := (others => '0');
-          index_r   := (others => '0');
-          cv        := '0';
-          tv        := '0';
+          index       := (others => '0');
+          index_r     := (others => '0');
+          cv          := '0';
+          tv          := '0';
         end if;
 
         index_r        := index;

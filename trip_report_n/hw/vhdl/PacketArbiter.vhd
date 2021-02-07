@@ -48,26 +48,26 @@ architecture Implementation of PacketArbiter is
 
   -- Internal copies ot output signals.
   signal out_last_s             : std_logic_vector(DIMENSIONALITY-1 downto 0);
-  signal out_valid_s            : std_logic := '0';
+  signal out_valid_s            : std_logic;
   signal in_ready_s             : std_logic_vector(NUM_INPUTS-1 downto 0);
 
   -- Whether the current command is in progress.
-  signal lock                   : std_logic := '0';
+  signal lock                   : std_logic;
 
   -- The selected input index by the last handshaked command.
-  signal index                  : std_logic_vector(INDEX_WIDTH-1 downto 0) := (others => '0');
+  signal index                  : std_logic_vector(INDEX_WIDTH-1 downto 0);
 
   -- Counter for keeping track of how many sources have handshaked their last 
   -- packet in a transfer.
-  signal last_pkt_cntr_s        : unsigned(INDEX_WIDTH-1 downto 0) := (others => '0');
+  signal last_pkt_cntr_s        : unsigned(INDEX_WIDTH downto 0);
 
   -- Signals that the currect packet is going the be the last packet globally,
   -- so we will need to close the transfer appropritely and validate the last_packet stream.
-  signal glob_last_pkt_s        : std_logic := '0';
+  signal glob_last_pkt_s        : std_logic;
 
   -- The transfer closing last (TX_LAST) may come after the packet closing last (PKT_LAST), in a separate cycle.
   -- Since PKT_LAST unlocks the arbiter, we need a way to pass the element that closes the whole transfer.
-  signal outstanding_last       : std_logic := '0';
+  signal outstanding_last       : std_logic;
 
   -- When a source sends a TX_LAST, we need to increment the last_pkt_cntr counter, but
   -- in case it's not the last packet globally, we need to swallow that TX_LAST.
@@ -76,11 +76,11 @@ architecture Implementation of PacketArbiter is
   begin
 
     cmd_proc: process (clk) is
-      variable cv            : std_logic := '0';
-      variable cr            : std_logic := '0';
-      variable last_pkt_v    : std_logic := '0';
-      variable lock_v        : std_logic := '0';
-      variable last_pkt_cntr : unsigned(INDEX_WIDTH-1 downto 0) := (others => '0');
+      variable cv            : std_logic;
+      variable cr            : std_logic;
+      variable last_pkt_v    : std_logic;
+      variable lock_v        : std_logic;
+      variable last_pkt_cntr : unsigned(INDEX_WIDTH downto 0) := (others => '0');
     begin 
 
       if rising_edge(clk) then
@@ -115,12 +115,14 @@ architecture Implementation of PacketArbiter is
         end if;
 
         if out_valid_s = '1' and out_ready = '1' then
-          lock_v := not out_last_s(PKT_LAST);
+          if out_last_s(PKT_LAST) = '1' then
+            lock_v := '0';
+          end if;
         end if;
 
         cr                := (not cv) and (not lock_v) and (not reset);
         cmd_ready         <= cr;
-        lock              <= lock_v;
+        lock              <= lock_v and not reset;
         last_pkt_cntr_s   <= last_pkt_cntr;
         last_packet_valid <= last_pkt_v and not reset;
 
@@ -128,8 +130,9 @@ architecture Implementation of PacketArbiter is
 
       -- Handle reset.
       if reset = '1' then
+        cv            := '0';
         index         <= (others => '0');
-        lock          <= '0';
+        lock_v        := '0';
         last_pkt_cntr := (others => '0');
         last_pkt_v    := '0';
       end if;

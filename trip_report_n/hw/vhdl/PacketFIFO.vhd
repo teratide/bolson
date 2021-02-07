@@ -79,7 +79,7 @@ architecture Implementation of PacketFIFO is
     in_ready <= in_ready_s;
 
     pkt_cntr_proc: process (clk) is
-      variable cnt      : unsigned(PKT_COUNT_WIDTH-1 downto 0) := (others => '0');
+      variable cnt      : unsigned(PKT_COUNT_WIDTH-1 downto 0);
       variable ov       : std_logic := '0';
     begin 
 
@@ -103,7 +103,7 @@ architecture Implementation of PacketFIFO is
         else
           ov := '0';
         end if;
-        packet_valid      <= ov;
+        packet_valid      <= ov and not reset;
         packet_count      <= std_logic_vector(cnt);
       end if;
 
