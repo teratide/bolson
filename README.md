@@ -51,7 +51,7 @@ bolson --help <subcommand>
 
 ## FPGA-accelerated parsing
 
-To enable FPGA-accelerated parsing, continue to read [here](doc/FPGA.md).
+To enable FPGA-accelerated parsing, continue to read [here](doc/src/fpga.md).
 
 ## FAQ
 
