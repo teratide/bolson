@@ -1,5 +1,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 use work.Stream_pkg.all;
 use work.trip_report_pkg.all;
@@ -471,6 +472,8 @@ architecture Implementation of trip_report is
 
 {byte_counter_signals}
 
+  signal parser_enable                    : std_logic_vector(NUM_PARSERS-1 downto 0);
+
   signal in_cmd_valid                     : std_logic;
   signal in_cmd_ready                     : std_logic;
   signal in_unl_valid                     : std_logic;
@@ -603,6 +606,8 @@ begin
 
 
 {read_req_defaults}
+
+{parser_enable}
 
 {sync_in_unl}
 
@@ -926,6 +931,9 @@ begin
     in_stai                                     => (others => '0'),
     in_endi                                     => (others => '1'),
     in_strb                                     => in_strb,
+
+    in_enable_valid                             => start,
+    in_enable                                   => parser_enable,
 
     end_req                                     => '0',
     end_ack                                     => open,

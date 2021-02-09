@@ -298,6 +298,8 @@ sync_in_unl: StreamSync
       clk                     => kcd_clk,
       reset                   => kcd_reset,
       
+      in_use                  => parser_enable,
+      
       out_valid(0)            => in_unl_valid,
       out_ready(0)            => in_unl_ready,  
 {sync_in_unl_map}  
@@ -329,6 +331,8 @@ sync_in_cmd: StreamSync
       clk                     => kcd_clk,
       reset                   => kcd_reset,
       
+      out_enable              => parser_enable,
+      
       in_valid(0)             => in_cmd_valid,
       in_ready(0)             => in_cmd_ready,
 {sync_in_cmd_map}  
@@ -338,9 +342,9 @@ sync_in_cmd: StreamSync
 READ_REQ_DEFAULTS = ""
 for i in range(0, args.parsers):
     READ_REQ_DEFAULTS = READ_REQ_DEFAULTS + """\
-  input_{idx:02}_input_cmd_firstIdx                         <= input_{idx:02}_firstidx;
-  input_{idx:02}_input_cmd_lastIdx                          <= input_{idx:02}_lastidx;
-  input_{idx:02}_input_cmd_tag                              <= (others => '0');
+  input_{idx:02}_input_cmd_firstIdx                   <= input_{idx:02}_firstidx;
+  input_{idx:02}_input_cmd_lastIdx                    <= input_{idx:02}_lastidx;
+  input_{idx:02}_input_cmd_tag                        <= (others => '0');
     
 """.format(idx=i)
 
@@ -417,6 +421,12 @@ for i in range(0, args.parsers):
   parser_{idx:02}_consumed_bytes <= std_logic_vector(byte_count_{idx:02});
 """.format(idx=i)
 
+PARSER_ENABLE = ""
+for i in range(0, args.parsers):
+    PARSER_ENABLE = PARSER_ENABLE + """\
+  parser_enable({idx}) <= or_reduce(input_{idx:02}_lastidx);
+""".format(idx=i)
+
 emphasize("Generating kernel source...")
 template = open('template/kernel.tmpl')
 # src = Template(template.read())
@@ -424,7 +434,8 @@ kernel = template.read().format(input_ports=INPUT_PORTS, mmio=MMIO, tydi_strb=TY
                                 read_req_defaults=READ_REQ_DEFAULTS, sync_in_unl=SYNC_IN_UNL, sync_in_cmd=SYNC_IN_CMD,
                                 in_valid=INST_IN_VALID, in_ready=INST_IN_READY, in_data=INST_IN_DATA, tag_cfg=TAG_CFG,
                                 num_parsers=args.parsers, byte_counter_signals=BYTE_COUNTER_SIGNALS, byte_counters=BYTE_COUNTERS,
-                                input_ready_copies=INPUT_READY_COPIES, input_ready_assignments=INPUT_READY_ASSIGNMENTS)
+                                input_ready_copies=INPUT_READY_COPIES, input_ready_assignments=INPUT_READY_ASSIGNMENTS,
+                                parser_enable=PARSER_ENABLE)
 # Write the kernel source
 kernel_file = 'vhdl/{}.gen.vhd'.format(KERNEL_NAME)
 with open(kernel_file, 'w') as f:

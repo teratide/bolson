@@ -24,6 +24,10 @@ entity PacketArbiter is
       in_last               : in  std_logic_vector(NUM_INPUTS*DIMENSIONALITY-1 downto 0) := (others => '0');
       in_strb               : in  std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '1');
 
+      in_enable_valid       : in  std_logic := '1';
+      in_enable_ready       : out std_logic;
+      in_enable             : in  std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '1');
+
       out_valid             : out std_logic;
       out_ready             : in  std_logic;
       out_data              : out std_logic_vector(DATA_WIDTH-1 downto 0);
@@ -73,35 +77,53 @@ architecture Implementation of PacketArbiter is
   -- in case it's not the last packet globally, we need to swallow that TX_LAST.
   signal silent_last            : std_logic_vector(NUM_INPUTS-1 downto 0);
 
+  -- Number of inputs that we expect a transfer from.
+  signal inp_en_popcnt          : unsigned(INDEX_WIDTH-1 downto 0);
+  signal inp_en_popcnt_v        : std_logic;
+
   begin
 
     cmd_proc: process (clk) is
       variable cv            : std_logic;
       variable cr            : std_logic;
+      variable iev           : std_logic;
+      variable ier           : std_logic;
       variable last_pkt_v    : std_logic;
       variable lock_v        : std_logic;
       variable last_pkt_cntr : unsigned(INDEX_WIDTH downto 0) := (others => '0');
+      variable ie_popcnt     : unsigned(INDEX_WIDTH-1 downto 0);
     begin 
 
       if rising_edge(clk) then
 
         if last_packet_ready = '1' then
           if last_pkt_v = '1' then
-            last_pkt_v := '0';
+            last_pkt_v    := '0';
             last_pkt_cntr := (others => '0');
+            iev           := '0';
           end if;
         end if;
         
         -- Latch command.
         if to_x01(cr) = '1' then 
-          cv       := cmd_valid;
-          index    <= cmd_index;
+          cv          := cmd_valid;
+          index       <= cmd_index;
         end if;
 
         -- Lock on new command.
         if to_x01(cv) = '1' and last_pkt_v = '0' then
-          cv       := '0';
-          lock_v   := '1';
+          cv           := '0';
+          lock_v       := '1';
+        end if;
+
+        if to_x01(ier) =  '1' then
+          iev          := in_enable_valid;
+          ie_popcnt    := (others => '0');
+          for i in 0 to NUM_INPUTS-1 loop  
+            if(in_enable(i) = '1') then 
+              ie_popcnt := ie_popcnt + 1;
+            end if;
+          end loop;
         end if;
 
         for idx in 0 to NUM_INPUTS-1 loop
@@ -110,7 +132,7 @@ architecture Implementation of PacketArbiter is
           end if;
         end loop;
 
-        if last_pkt_cntr = NUM_INPUTS then
+        if last_pkt_cntr = inp_en_popcnt and iev = '1' then
           last_pkt_v := '1';
         end if;
 
@@ -120,12 +142,15 @@ architecture Implementation of PacketArbiter is
           end if;
         end if;
 
-        cr                := (not cv) and (not lock_v) and (not reset);
-        cmd_ready         <= cr;
-        lock              <= lock_v and not reset;
-        last_pkt_cntr_s   <= last_pkt_cntr;
-        last_packet_valid <= last_pkt_v and not reset;
-
+        cr                 := (not cv) and (not lock_v) and (not reset);
+        cmd_ready          <= cr;
+        lock               <= lock_v and not reset;
+        last_pkt_cntr_s    <= last_pkt_cntr;
+        last_packet_valid  <= last_pkt_v and not reset;
+        inp_en_popcnt      <= ie_popcnt;
+        inp_en_popcnt_v    <= iev;
+        ier                := not iev;
+        in_enable_ready    <= ier and not reset;
       end if;
 
       -- Handle reset.
@@ -135,12 +160,13 @@ architecture Implementation of PacketArbiter is
         lock_v        := '0';
         last_pkt_cntr := (others => '0');
         last_pkt_v    := '0';
+        iev           := '0';
       end if;
     end process;
 
-    global_last_packet_proc: process(last_pkt_cntr_s) is
+    global_last_packet_proc: process(last_pkt_cntr_s,inp_en_popcnt_v) is
       begin
-        if last_pkt_cntr_s = NUM_INPUTS-1 then
+        if last_pkt_cntr_s = inp_en_popcnt-1 and inp_en_popcnt_v = '1' then
           glob_last_pkt_s <= '1';
         else
           glob_last_pkt_s <= '0';
@@ -158,12 +184,12 @@ architecture Implementation of PacketArbiter is
       variable idx : integer range 0 to 2**INDEX_WIDTH-1;
     begin
         for idx in 0 to NUM_INPUTS-1 loop
-          silent_last(idx) <= (not glob_last_pkt_s) and (not in_strb(idx)) and in_last(DIMENSIONALITY*idx+TX_LAST);
+          silent_last(idx) <= (not glob_last_pkt_s) and (not in_strb(idx)) and (not in_last(DIMENSIONALITY*idx+PKT_LAST)) and in_last(DIMENSIONALITY*idx+TX_LAST);
         end loop;
     end process;
 
     -- Input mux
-    inp_mux_proc: process(in_data, in_valid, in_last, in_strb, lock, glob_last_pkt_s, outstanding_last) is
+    inp_mux_proc: process(index, in_data, in_valid, in_last, in_strb, lock, glob_last_pkt_s, outstanding_last) is
         variable idx : integer range 0 to 2**INDEX_WIDTH-1;
     begin
         idx := to_integer(unsigned(index));
