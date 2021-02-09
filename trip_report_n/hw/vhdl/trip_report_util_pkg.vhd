@@ -121,6 +121,10 @@ package trip_report_util_pkg is
         in_data               : in  std_logic_vector(DATA_WIDTH*NUM_INPUTS-1 downto 0);
         in_last               : in  std_logic_vector(NUM_INPUTS*DIMENSIONALITY-1 downto 0) := (others => '0');
         in_strb               : in  std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '1');
+
+        in_enable_valid       : in  std_logic := '1';
+        in_enable_ready       : out std_logic;
+        in_enable             : in  std_logic_vector(NUM_INPUTS-1 downto 0) := (others => '1');
   
         out_valid             : out std_logic;
         out_ready             : in  std_logic;
@@ -305,7 +309,10 @@ package trip_report_util_pkg is
       in_stai                                     : in  std_logic_vector(log2ceil(EPC)*NUM_PARSERS-1 downto 0) := (others => '0');
       in_endi                                     : in  std_logic_vector(log2ceil(EPC)*NUM_PARSERS-1 downto 0) := (others => '1');
       in_strb                                     : in  std_logic_vector(EPC*NUM_PARSERS-1 downto 0);
-      
+
+      in_enable_valid                             : in  std_logic;
+      in_enable                                   : in  std_logic_vector(NUM_PARSERS-1 downto 0);
+
       end_req                                     : in  std_logic := '0';
       end_ack                                     : out std_logic;
       
