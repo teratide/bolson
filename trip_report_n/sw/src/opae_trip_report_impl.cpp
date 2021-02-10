@@ -239,7 +239,7 @@ bool OpaeTripReportParserManager::PrepareOutputBatch() {
   return true;
 }
 
-bool OpaeTripReportParserManager::Make(const OpaeBatteryOptions &opts,
+bool OpaeTripReportParserManager::Make(const OpaeTripReportOptions &opts,
                                        const std::vector<RawJSONBuffer *> &buffers,
                                        size_t num_parsers,
                                        std::shared_ptr<OpaeTripReportParserManager> *out) {
@@ -258,7 +258,7 @@ bool OpaeTripReportParserManager::Make(const OpaeBatteryOptions &opts,
   // Fix AFU id
   std::stringstream ss;
   ss << std::hex << num_parsers;
-  result->opts_.afu_id[strlen(OPAE_BATTERY_AFU_ID) - 1] = ss.str()[0];
+  result->opts_.afu_id[strlen(OPAE_TRIP_REPORT_AFU_ID) - 1] = ss.str()[0];
   spdlog::info("AFU ID: {}", result->opts_.afu_id);
   const char *afu_id = result->opts_.afu_id.data();
   result->platform->init_data = &afu_id;

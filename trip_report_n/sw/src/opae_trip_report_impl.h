@@ -122,13 +122,13 @@ class OpaeTripReportParser {
   std::mutex *platform_mutex;
 };
 
-struct OpaeBatteryOptions {
+struct OpaeTripReportOptions {
   std::string afu_id = OPAE_TRIP_REPORT_AFU_ID;
 };
 
 class OpaeTripReportParserManager {
  public:
-  static bool Make(const OpaeBatteryOptions &opts,
+  static bool Make(const OpaeTripReportOptions &opts,
                    const std::vector<RawJSONBuffer *> &buffers,
                    size_t num_parsers,
                    std::shared_ptr<OpaeTripReportParserManager> *out);
@@ -141,7 +141,7 @@ class OpaeTripReportParserManager {
   bool PrepareOutputBatch();
   bool PrepareParsers();
 
-  OpaeBatteryOptions opts_;
+  OpaeTripReportOptions opts_;
 
   std::unordered_map<const byte *, da_t> h2d_addr_map;
 
