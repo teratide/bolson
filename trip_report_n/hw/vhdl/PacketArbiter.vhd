@@ -142,6 +142,16 @@ architecture Implementation of PacketArbiter is
           end if;
         end if;
 
+        -- Handle reset.
+        if reset = '1' then
+          cv            := '0';
+          index         <= (others => '0');
+          lock_v        := '0';
+          last_pkt_cntr := (others => '0');
+          last_pkt_v    := '0';
+          iev           := '0';
+        end if;
+
         cr                 := (not cv) and (not lock_v) and (not reset);
         cmd_ready          <= cr;
         lock               <= lock_v and not reset;
@@ -151,16 +161,6 @@ architecture Implementation of PacketArbiter is
         inp_en_popcnt_v    <= iev;
         ier                := not iev;
         in_enable_ready    <= ier and not reset;
-      end if;
-
-      -- Handle reset.
-      if reset = '1' then
-        cv            := '0';
-        index         <= (others => '0');
-        lock_v        := '0';
-        last_pkt_cntr := (others => '0');
-        last_pkt_v    := '0';
-        iev           := '0';
       end if;
     end process;
 
@@ -206,7 +206,7 @@ architecture Implementation of PacketArbiter is
 
 
     -- Output ready demux
-    rdy_demux_proc: process(out_ready, index, lock, silent_last, outstanding_last) is
+    rdy_demux_proc: process(out_ready, index, lock, silent_last, outstanding_last, in_valid) is
       begin
       for idx in 0 to NUM_INPUTS-1 loop
         if idx = to_integer(unsigned(index)) and (lock = '1' or outstanding_last = '1') then
