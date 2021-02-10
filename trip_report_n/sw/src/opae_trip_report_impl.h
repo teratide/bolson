@@ -16,7 +16,7 @@
 //#define FLETCHER_PLATFORM "echo"
 #endif
 
-#define OPAE_BATTERY_AFU_ID "9ca43fb0-c340-4908-b79b-5c89b4ef5e01"
+#define OPAE_TRIP_REPORT_AFU_ID "5d2f9dba-e8d0-44f8-943d-36b25c2d4002"
 
 /// A structure to manage multi-buffered client implementation.
 struct RawJSONBuffer {
@@ -123,7 +123,7 @@ class OpaeTripReportParser {
 };
 
 struct OpaeBatteryOptions {
-  std::string afu_id = OPAE_BATTERY_AFU_ID;
+  std::string afu_id = OPAE_TRIP_REPORT_AFU_ID;
 };
 
 class OpaeTripReportParserManager {

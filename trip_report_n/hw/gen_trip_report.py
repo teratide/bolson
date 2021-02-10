@@ -42,7 +42,7 @@ fields:
   - address: 0b10---
     name: AFU_ID_H
     behavior: constant
-    value: 11287216594519869704 # check trip_report.json
+    value: 6714758995528140024 # check trip_report.json
   - address: 0b11---
     name: DFH_RSVD0
     behavior: constant
@@ -67,7 +67,7 @@ OPAE_JSON = """{{
       {{
         "name": "trip-report",
         "total-contexts": 1,
-        "accelerator-type-uuid": "9ca43fb0-c340-4908-b79b-5c89b4ef5e{n:02X}"
+        "accelerator-type-uuid": "5d2f9dba-e8d0-44f8-943d-36b25c2d40{n:02X}"
       }}
     ]
   }}
@@ -445,7 +445,7 @@ print("Wrote kernel source to: " + kernel_file)
 
 emphasize("Re-running vhdmmio...")
 
-base_afu_id = 0xb79b5c89b4ef5e00
+base_afu_id = 0xb943d36b25c2d4000
 base_afu_id += args.parsers
 
 with open("fletchgen.mmio.yaml") as f:
