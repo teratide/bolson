@@ -2,6 +2,7 @@ ARG UBUNTU_TAG=focal
 FROM ubuntu:${UBUNTU_TAG} as ubuntu
 ENV DEBIAN_FRONTEND noninteractive
 ARG OPAE_VERSION=2.0.1-2
+ENV OPAE_VERSION ${OPAE_VERSION}
 
 FROM ubuntu as opae
 RUN apt-get update && \
@@ -30,6 +31,7 @@ RUN apt-get update && \
 FROM ubuntu as deps
 ARG ARROW_VERSION=3.0.0
 ARG PULSAR_VERSION=2.7.0
+ENV PULSAR_VERSION ${PULSAR_VERSION}
 ARG FLETCHER_VERSION=0.0.19
 ARG FLETCHER_OPAE_VERSION=0.2.1
 COPY --from=opae /opae-${OPAE_VERSION}.x86_64-libs.deb opae-${OPAE_VERSION}.x86_64-libs.deb
