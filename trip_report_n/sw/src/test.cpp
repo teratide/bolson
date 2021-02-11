@@ -18,8 +18,8 @@
 #include "./opae_allocator.h"
 #include "./opae_trip_report_impl.h"
 
-const int num_parsers = 3;
-const int num_jsons = 2;
+const int num_parsers = 2;
+const int num_jsons = 1;
 
 std::string operator*(const std::string& str, size_t times)
 {
@@ -60,19 +60,30 @@ int main(int argc, char **argv) {
     "speed_changes": 1932
 })";
     std::string repeated = test_string * num_jsons;
+    
+    std::string empty = "";
 
     size_t num_bytes = repeated.length();
     std::cout << "JSON " << i << ", len: " << num_bytes << " = " << repeated;
     alloc.Allocate(opae_fixed_capacity, &buffers[i].data_);
-    std::memcpy(buffers[i].data_, repeated.data(), num_bytes);
-    buffers[i].size_ = num_bytes;
+    //std::memcpy(buffers[i].data_, empty.data(), 2);
+    if (i == 0) {
+        std::memcpy(buffers[i].data_, empty.data(), 0);
+        buffers[i].size_ = 0;
+    } else {
+        std::memcpy(buffers[i].data_, repeated.data(), num_bytes);
+        buffers[i].size_ = num_bytes;
+    }
+    
+    //std::memcpy(buffers[i].data_, repeated.data(), num_bytes);
+    //buffers[i].size_ = num_bytes;
     buffers[i].capacity_ = opae_fixed_capacity;
     buffers_ptr[i] = &buffers[i];
   }
 
   // Set up manager.
   std::shared_ptr<OpaeTripReportParserManager> m;
-  OpaeTripReportParserManager::Make(OpaeBatteryOptions{},
+  OpaeTripReportParserManager::Make(OpaeTripReportOptions{},
                                  buffers_ptr,
                                  num_parsers,
                                  &m);
