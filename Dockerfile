@@ -20,12 +20,13 @@ RUN apt-get update && \
     git clone --single-branch --branch release/${OPAE_VERSION} https://github.com/OPAE/opae-sdk.git /opae-sdk && \
     cmake \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCPACK_GENERATOR=DEB /opae-sdk \
+    -DCPACK_GENERATOR=DEB \
     -DOPAE_BUILD_LIBOPAE_PY=Off \
     -DOPAE_BUILD_LIBOPAEVFIO=Off \
     -DOPAE_BUILD_PLUGIN_VFIO=Off \
     -DOPAE_BUILD_LIBOPAEUIO=Off \
-    -DOPAE_BUILD_EXTRA_TOOLS=Off && \
+    -DOPAE_BUILD_EXTRA_TOOLS=Off \
+    /opae-sdk && \
     make -j package
 
 FROM ubuntu as deps
