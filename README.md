@@ -25,7 +25,7 @@ To build Bolson, make sure your system adheres to the following requirements:
     - A C++17 compiler.
 * Dependencies:
     - [Arrow 3.0.0](https://github.com/apache/arrow)
-        - When building from source, run `cmake` with `-DARROW_JSON ON`.
+        - When building from source, run `cmake` with `-DARROW_JSON=ON`.
     - [Pulsar 2.7.0](https://github.com/apache/pulsar)
 
 Build Bolson as follows:
