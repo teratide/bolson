@@ -20,7 +20,7 @@
 #include "bolson/bench.h"
 #include "bolson/convert/converter.h"
 #include "bolson/convert/test_convert.h"
-#include "bolson/parse/opae_battery_impl.h"
+#include "bolson/parse/opae/battery.h"
 
 namespace bolson::convert {
 
@@ -60,19 +60,15 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
 
   // Set OPAE Converter options.
   ConverterOptions opae_opts;
-  opae_opts.implementation = parse::Impl::OPAE_BATTERY;
-  opae_opts.buf_capacity = buffer::OpaeAllocator::opae_fixed_capacity;
+  opae_opts.parser.impl = parse::Impl::OPAE_BATTERY;
   opae_opts.num_threads = opae_battery_parsers_instances;
-  opae_opts.num_buffers = opae_battery_parsers_instances;
   opae_opts.max_batch_rows = 1024;
   opae_opts.max_ipc_size = max_ipc_size;
 
   // Set Arrow Converter options, using the same options where applicable.
   ConverterOptions arrow_opts = opae_opts;
-  arrow_opts.implementation = parse::Impl::ARROW;
-  arrow_opts.buf_capacity = 2 * bytes_largest.first;
-  arrow_opts.arrow.read.use_threads = false;
-  arrow_opts.arrow.parse.explicit_schema = test_schema();
+  arrow_opts.parser.impl = parse::Impl::ARROW;
+  arrow_opts.parser.arrow.schema = test_schema();
 
   // Run both implementations.
   std::vector<publish::IpcQueueItem> arrow_out;

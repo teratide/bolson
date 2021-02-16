@@ -24,8 +24,8 @@
 #include "bolson/bench.h"
 #include "bolson/convert/converter.h"
 #include "bolson/convert/test_convert.h"
-#include "bolson/publish/publisher.h"
 #include "bolson/log.h"
+#include "bolson/publish/publisher.h"
 
 namespace bolson::convert {
 
@@ -61,9 +61,9 @@ auto Convert(const ConverterOptions& opts, const std::vector<illex::JSONItem>& i
              std::vector<publish::IpcQueueItem>* out) -> Status {
   // Set up the output queue.
   publish::IpcQueue out_queue;
-  std::shared_ptr<ConcurrentConverter> conv;
-  BOLSON_ROE(ConcurrentConverter::Make(opts, &out_queue, &conv));
-  FillBuffers(conv->mutable_buffers(), in);
+  std::shared_ptr<Converter> conv;
+  BOLSON_ROE(Converter::Make(opts, &out_queue, &conv));
+  FillBuffers(conv->parser_context()->mutable_buffers(), in);
   std::atomic<bool> shutdown = false;
   conv->Start(&shutdown);
 

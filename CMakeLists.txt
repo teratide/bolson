@@ -92,9 +92,11 @@ add_compile_unit(
     src/bolson/convert/resizer.cpp
     src/bolson/convert/serializer.cpp
     src/bolson/convert/metrics.cpp
-    src/bolson/parse/arrow_impl.cpp
-    src/bolson/parse/opae_battery_impl.cpp
+    src/bolson/parse/arrow.cpp
     src/bolson/parse/parser.cpp
+    src/bolson/parse/opae/battery.cpp
+    src/bolson/parse/opae/opae.cpp
+    src/bolson/parse/opae/trip.cpp
     src/bolson/publish/metrics.cpp
     src/bolson/publish/publisher.cpp
   TSTS

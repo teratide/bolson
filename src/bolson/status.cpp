@@ -50,7 +50,7 @@ auto ToString(Error e) -> std::string {
     case Error::OpaeError:
       return "OpaeError";
   }
-  return "Error enum class corrupted.";
+  return "Error enum value corrupted.";
 }
 
 }  // namespace bolson

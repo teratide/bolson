@@ -29,6 +29,11 @@ namespace bolson::buffer {
  */
 class Allocator {
  public:
+  /// \brief Returns true if allocator allows only fixed number of bytes.
+  [[nodiscard]] virtual auto AllowsFixedCapacityOnly() const -> bool { return false; }
+  /// \brief Return the fixed capacity if AllowsFixedCapacityOnly() is true, 0 otherwise.
+  [[nodiscard]] virtual auto fixed_capacity() const -> size_t { return 0; }
+
   /**
    * \brief Allocate memory.
    * \param size The number of bytes to allocate.

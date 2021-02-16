@@ -17,6 +17,7 @@
 #include <arrow/api.h>
 #include <illex/client_buffering.h>
 
+#include <cassert>
 #include <memory>
 #include <thread>
 
@@ -24,15 +25,10 @@
 #include "bolson/convert/serializer.h"
 #include "bolson/latency.h"
 #include "bolson/parse/parser.h"
-#include "bolson/utils.h"
 
 namespace bolson::convert {
 
-// Sequence number field.
-static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
-  static auto seq_field = arrow::field("seq", arrow::uint64(), false);
-  return seq_field;
-}
+auto Converter::metrics() const -> std::vector<Metrics> { return metrics_; }
 
 /**
  * \brief Attempt to get a lock on a buffer.
@@ -63,19 +59,22 @@ static auto TryGetFilledBuffer(const std::vector<illex::JSONBuffer*>& buffers,
   return false;
 }
 
-void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
-                   Serializer* serializer, const std::vector<illex::JSONBuffer*>& buffers,
-                   const std::vector<std::mutex*>& mutexes, publish::IpcQueue* out,
-                   std::atomic<bool>* shutdown, Metrics* stats) {
+static void OneToOneConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
+                                  Serializer* serializer,
+                                  const std::vector<illex::JSONBuffer*>& buffers,
+                                  const std::vector<std::mutex*>& mutexes,
+                                  publish::IpcQueue* out, std::atomic<bool>* shutdown,
+                                  Metrics* metrics) {
+  assert(mutexes.size() == buffers.size());
   /// Macro to shut this thread and others down when something failed.
-#define SHUTDOWN_ON_FAILURE()                                                          \
-  if (!stats->status.ok()) {                                                           \
-    t_thread.Stop();                                                                   \
-    stats->t.thread = t_thread.seconds();                                              \
-    SPDLOG_DEBUG("Thread {:2} | terminating with error: {}", id, stats->status.msg()); \
-    shutdown->store(true);                                                             \
-    return;                                                                            \
-  }                                                                                    \
+#define SHUTDOWN_ON_FAILURE()                                                            \
+  if (!metrics->status.ok()) {                                                           \
+    t_thread.Stop();                                                                     \
+    metrics->t.thread = t_thread.seconds();                                              \
+    SPDLOG_DEBUG("Thread {:2} | terminating with error: {}", id, metrics->status.msg()); \
+    shutdown->store(true);                                                               \
+    return;                                                                              \
+  }                                                                                      \
   void()
 
   // Thread timer.
@@ -99,20 +98,20 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
         lat[TimePoints::received] = buf->recv_time();
 
         // Prepare intermediate wrappers.
-        parse::ParsedBatch parsed;
+        std::vector<parse::ParsedBatch> parsed_batches;
         ResizedBatches resized;
         SerializedBatches serialized;
 
         // Parse the buffer.
         {
-          stats->status = parser->Parse(buf, &parsed);
+          metrics->status = parser->Parse({buf}, &parsed_batches);
           SHUTDOWN_ON_FAILURE();
 
+          // Add metrics before buffer is converted and reset.
+          metrics->num_jsons += parsed_batches[0].batch->num_rows();
+          metrics->json_bytes += buf->size();
+          metrics->num_parsed++;
           // Reset and unlock the buffer.
-          // Add sizes stats before buffer is converted and reset.
-          stats->num_jsons += parsed.batch->num_rows();
-          stats->json_bytes += buf->size();
-          stats->num_parsed++;
           buf->Reset();
           mutexes[lock_idx]->unlock();
           lock_idx++;  // start at next buffer next time we try to unlock.
@@ -122,7 +121,7 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
 
         // Resize the batch.
         {
-          stats->status = resizer->Resize(parsed, &resized);
+          metrics->status = resizer->Resize(parsed_batches[0], &resized);
           SHUTDOWN_ON_FAILURE();
           // Mark time points resized for all batches.
           lat[TimePoints::resized] = illex::Timer::now();
@@ -131,10 +130,10 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
 
         // Serialize the batch.
         {
-          stats->status = serializer->Serialize(resized, &serialized);
+          metrics->status = serializer->Serialize(resized, &serialized);
           SHUTDOWN_ON_FAILURE();
-          stats->num_ipc += serialized.size();
-          stats->ipc_bytes += ByteSizeOf(serialized);
+          metrics->num_ipc += serialized.size();
+          metrics->ipc_bytes += ByteSizeOf(serialized);
           // Mark time points serialized for all batches.
           lat[TimePoints::serialized] = illex::Timer::now();
           // Copy the latency statistics to all serialized batches.
@@ -145,16 +144,16 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
         }
 
         // Enqueue IPC items
-        for (const auto sb : serialized) {
+        for (const auto& sb : serialized) {
           out->enqueue(sb);
         }
         t_stages.Split();
 
         // Add parse time to stats.
-        stats->t.parse += t_stages.seconds()[0];
-        stats->t.resize += t_stages.seconds()[1];
-        stats->t.serialize += t_stages.seconds()[2];
-        stats->t.enqueue += t_stages.seconds()[3];
+        metrics->t.parse += t_stages.seconds()[0];
+        metrics->t.resize += t_stages.seconds()[1];
+        metrics->t.serialize += t_stages.seconds()[2];
+        metrics->t.enqueue += t_stages.seconds()[3];
       } else {
         try_buffers = false;
       }
@@ -165,147 +164,218 @@ void ConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
   }
 
   t_thread.Stop();
-  stats->t.thread = t_thread.seconds();
+  metrics->t.thread = t_thread.seconds();
   SPDLOG_DEBUG("Thread {:2} | Terminating.", id);
-}
 #undef SHUTDOWN_ON_FAILURE
+}
 
-void ConcurrentConverter::Start(std::atomic<bool>* shutdown) {
+static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* resizer,
+                                    Serializer* serializer,
+                                    const std::vector<illex::JSONBuffer*>& buffers,
+                                    const std::vector<std::mutex*>& mutexes,
+                                    publish::IpcQueue* out, std::atomic<bool>* shutdown,
+                                    Metrics* metrics) {
+  assert(mutexes.size() == buffers.size());
+  /// Macro to shut this thread and others down when something failed.
+#define SHUTDOWN_ON_FAILURE()                                                            \
+  if (!metrics->status.ok()) {                                                           \
+    t_thread.Stop();                                                                     \
+    metrics->t.thread = t_thread.seconds();                                              \
+    SPDLOG_DEBUG("Thread {:2} | terminating with error: {}", id, metrics->status.msg()); \
+    shutdown->store(true);                                                               \
+    return;                                                                              \
+  }                                                                                      \
+  void()
+
+  // Thread timer.
+  putong::Timer<> t_thread(true);
+  // Workload stage timer.
+  putong::SplitTimer<4> t_stages;
+  // Latency time points.
+  TimePoints lat;
+
+  SPDLOG_DEBUG("Thread {:2} | Spawned.", id);
+
+  while (!shutdown->load()) {
+    // Obtain a lock on all buffers.
+    for (auto* m : mutexes) {
+      m->lock();
+    }
+
+    t_stages.Start();
+
+    // Prepare intermediate wrappers.
+    std::vector<parse::ParsedBatch> parsed_batches;
+    ResizedBatches resized;
+    SerializedBatches serialized;
+
+    // Parse the buffers
+    {
+      metrics->status = parser->Parse(buffers, &parsed_batches);
+      SHUTDOWN_ON_FAILURE();
+
+      // Update metrics
+      metrics->num_jsons += parsed_batches[0].batch->num_rows();
+      metrics->num_parsed += buffers.size();
+
+      lat[TimePoints::received] = buffers[0]->recv_time();  // init with first buf time
+      for (int i = 0; i < buffers.size(); i++) {
+        metrics->json_bytes += buffers[i]->size();
+        // Mark worst-case latency time point for the output batch.
+        if (buffers[i]->recv_time() < lat[TimePoints::received]) {
+          lat[TimePoints::received] = buffers[i]->recv_time();
+        }
+        // Reset and unlock the buffer.
+        buffers[i]->Reset();
+        mutexes[i]->unlock();
+      }
+
+      lat[TimePoints::parsed] = illex::Timer::now();
+      t_stages.Split();
+    }
+
+    // Resize the batch.
+    {
+      metrics->status = resizer->Resize(parsed_batches[0], &resized);
+      SHUTDOWN_ON_FAILURE();
+      // Mark time points resized for all batches.
+      lat[TimePoints::resized] = illex::Timer::now();
+      t_stages.Split();
+    }
+
+    // Serialize the batch.
+    {
+      metrics->status = serializer->Serialize(resized, &serialized);
+      SHUTDOWN_ON_FAILURE();
+      metrics->num_ipc += serialized.size();
+      metrics->ipc_bytes += ByteSizeOf(serialized);
+      // Mark time points serialized for all batches.
+      lat[TimePoints::serialized] = illex::Timer::now();
+      // Copy the latency statistics to all serialized batches.
+      for (auto& s : serialized) {
+        s.time_points = lat;
+      }
+      t_stages.Split();
+    }
+
+    // Enqueue IPC items
+    for (const auto sb : serialized) {
+      out->enqueue(sb);
+    }
+    t_stages.Split();
+
+    // Add parse time to stats.
+    metrics->t.parse += t_stages.seconds()[0];
+    metrics->t.resize += t_stages.seconds()[1];
+    metrics->t.serialize += t_stages.seconds()[2];
+    metrics->t.enqueue += t_stages.seconds()[3];
+
+    std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
+  }
+
+  t_thread.Stop();
+  metrics->t.thread = t_thread.seconds();
+  SPDLOG_DEBUG("Thread {:2} | Terminating.", id);
+#undef SHUTDOWN_ON_FAILURE
+}
+
+void Converter::Start(std::atomic<bool>* shutdown) {
   shutdown_ = shutdown;
-  for (int t = 0; t < num_threads_; t++) {
-    threads.emplace_back(ConvertThread, t, parsers[t].get(), &resizers[t],
-                         &serializers[t], mutable_buffers(), mutexes(), output_queue_,
-                         shutdown_, &statistics_[t]);
+  switch (implementation) {
+    // One to one parsers:
+    case parse::Impl::OPAE_BATTERY:
+      for (int t = 0; t < num_threads_; t++) {
+        threads_.emplace_back(
+            OneToOneConvertThread, t, parser_context_->parsers()[t].get(), &resizers_[t],
+            &serializers_[t], parser_context_->mutable_buffers(),
+            parser_context_->mutexes(), output_queue_, shutdown_, &metrics_[t]);
+      }
+      break;
+    // Many to one parsers:
+    case parse::Impl::ARROW:
+    case parse::Impl::OPAE_TRIP:
+      threads_.emplace_back(
+          AllToOneConverterThread, 0, parser_context_->parsers()[0].get(), &resizers_[0],
+          &serializers_[0], parser_context_->mutable_buffers(),
+          parser_context_->mutexes(), output_queue_, shutdown_, &metrics_[0]);
   }
 }
 
-auto ConcurrentConverter::Finish() -> Status {
+auto Converter::Finish() -> Status {
   // Wait for the drones to get shut down by the caller of this function.
   // Also gather the statistics and see if there was any error.
-  for (size_t t = 0; t < num_threads_; t++) {
-    if (threads[t].joinable()) {
-      threads[t].join();
-      if (!statistics_[t].status.ok()) {
+  for (size_t t = 0; t < threads_.size(); t++) {
+    if (threads_[t].joinable()) {
+      threads_[t].join();
+      if (!metrics_[t].status.ok()) {
         // If a thread returned some error status, shut everything down without waiting
         // for the caller to do so.
         shutdown_->store(true);
       }
     }
   }
-
-  BOLSON_ROE(FreeBuffers());
-
   // TODO: return MultiStatus like pulsar.h
   return Status::OK();
 }
 
-auto ConcurrentConverter::AllocateBuffers(size_t capacity) -> Status {
-  // Allocate buffers.
-  for (size_t b = 0; b < num_buffers_; b++) {
-    std::byte* raw = nullptr;
-    BOLSON_ROE(allocator_->Allocate(capacity, &raw));
-    illex::JSONBuffer buf;
-    BILLEX_ROE(illex::JSONBuffer::Create(raw, capacity, &buf));
-    buffers.push_back(buf);
-  }
+auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
+                     std::shared_ptr<Converter>* out) -> Status {
+  std::shared_ptr<parse::ParserContext> parser_context;
+  std::vector<Resizer> resizers;
+  std::vector<Serializer> serializers;
 
-  return Status::OK();
-}
-
-auto ConcurrentConverter::FreeBuffers() -> Status {
-  for (size_t b = 0; b < num_buffers_; b++) {
-    BOLSON_ROE(allocator_->Free(buffers[b].mutable_data()));
-  }
-  return Status::OK();
-}
-
-auto ConcurrentConverter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
-                               std::shared_ptr<ConcurrentConverter>* out) -> Status {
-  // Select allocator.
-  std::shared_ptr<buffer::Allocator> allocator;
-  switch (opts.implementation) {
+  // Determine which parser and allocator implementation to use.
+  switch (opts.parser.impl) {
     case parse::Impl::ARROW:
-      allocator = std::make_shared<buffer::Allocator>();
+      BOLSON_ROE(parse::ArrowParserContext::Make(opts.parser.arrow, opts.num_threads,
+                                                 &parser_context));
       break;
     case parse::Impl::OPAE_BATTERY:
-      allocator = std::make_shared<buffer::OpaeAllocator>();
+      BOLSON_ROE(
+          parse::opae::BatteryParserContext::Make(opts.parser.battery, &parser_context));
       break;
-  }
-
-  // Set up the Converter.
-  size_t num_buffers = opts.num_buffers.value_or(opts.num_threads);
-
-  auto converter =
-      std::shared_ptr<convert::ConcurrentConverter>(new convert::ConcurrentConverter(
-          ipc_queue, allocator, num_buffers, opts.num_threads));
-
-  // Allocate buffers.
-  switch (opts.implementation) {
-    case parse::Impl::ARROW: {
-      BOLSON_ROE(converter->AllocateBuffers(opts.buf_capacity));
+    case parse::Impl::OPAE_TRIP:
+      BOLSON_ROE(parse::opae::TripParserContext::Make(opts.parser.trip, &parser_context));
       break;
-    }
-    case parse::Impl::OPAE_BATTERY: {
-      if (opts.buf_capacity > buffer::OpaeAllocator::opae_fixed_capacity) {
-        return Status(Error::OpaeError,
-                      "Cannot allocate buffers larger than " +
-                          std::to_string(buffer::OpaeAllocator::opae_fixed_capacity) +
-                          " bytes.");
-      }
-      BOLSON_ROE(converter->AllocateBuffers(buffer::OpaeAllocator::opae_fixed_capacity));
-      break;
-    }
-  }
-
-  // Set up the parsers.
-  switch (opts.implementation) {
-    case parse::Impl::ARROW: {
-      for (size_t t = 0; t < opts.num_threads; t++) {
-        auto parser = std::make_shared<parse::ArrowParser>(opts.arrow);
-        converter->parsers.push_back(parser);
-      }
-      break;
-    }
-    case parse::Impl::OPAE_BATTERY: {
-      BOLSON_ROE(parse::OpaeBatteryParserManager::Make(
-          opts.opae_battery, ToPointers(converter->buffers), opts.num_threads,
-          &converter->opae_battery_manager));
-      converter->parsers =
-          CastPtrs<parse::Parser>(converter->opae_battery_manager->parsers());
-    }
   }
 
   // Set up Resizers and Serializers.
   for (size_t t = 0; t < opts.num_threads; t++) {
-    converter->resizers.emplace_back(opts.max_batch_rows);
-    converter->serializers.emplace_back(opts.max_ipc_size);
+    resizers.emplace_back(opts.max_batch_rows);
+    serializers.emplace_back(opts.max_ipc_size);
   }
 
-  *out = std::move(converter);
+  // Create the converter.
+  auto result = std::shared_ptr<convert::Converter>(new convert::Converter(
+      parser_context, resizers, serializers, ipc_queue, opts.num_threads));
+
+  *out = std::move(result);
 
   return Status::OK();
 }
 
-auto ConcurrentConverter::mutable_buffers() -> std::vector<illex::JSONBuffer*> {
-  return ToPointers(buffers);
+auto Converter::parser_context() const -> std::shared_ptr<parse::ParserContext> {
+  return parser_context_;
 }
 
-auto ConcurrentConverter::mutexes() -> std::vector<std::mutex*> {
-  return ToPointers(mutexes_);
+Converter::Converter(std::shared_ptr<parse::ParserContext> parser_context,
+                     std::vector<convert::Resizer> resizers,
+                     std::vector<convert::Serializer> serializers,
+                     publish::IpcQueue* output_queue, size_t num_threads)
+    : parser_context_(std::move(parser_context)),
+      resizers_(std::move(resizers)),
+      serializers_(std::move(serializers)),
+      output_queue_(output_queue),
+      num_threads_(num_threads),
+      metrics_(std::vector<Metrics>(num_threads)) {
+  assert(output_queue_ != nullptr);
+  assert(num_threads_ != 0);
 }
 
-void ConcurrentConverter::LockBuffers() {
-  for (auto& mutex : mutexes_) {
-    mutex.lock();
-  }
+// Sequence number field.
+static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
+  static auto seq_field = arrow::field("seq", arrow::uint64(), false);
+  return seq_field;
 }
-
-void ConcurrentConverter::UnlockBuffers() {
-  for (auto& mutex : mutexes_) {
-    mutex.unlock();
-  }
-}
-
-auto ConcurrentConverter::metrics() const -> std::vector<Metrics> { return statistics_; }
 
 }  // namespace bolson::convert

@@ -27,13 +27,15 @@ namespace bolson::buffer {
  */
 class OpaeAllocator : public Allocator {
  public:
-  // TODO: Temporary work-around for limitations to the OPAE platform.
-  static constexpr size_t opae_fixed_capacity = 1024 * 1024 * 1024;
-
+  [[nodiscard]] auto AllowsFixedCapacityOnly() const -> bool override { return true; }
+  [[nodiscard]] auto fixed_capacity() const -> size_t override { return fixed_capacity_; }
   auto Allocate(size_t size, std::byte** out) -> Status override;
   auto Free(std::byte* buffer) -> Status override;
 
  private:
+  // TODO: Work-around for limitations to the OPAE platform.
+  static constexpr size_t fixed_capacity_ = 1024 * 1024 * 1024;
+
   std::unordered_map<void*, size_t> allocations;
 };
 

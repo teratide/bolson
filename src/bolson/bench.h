@@ -21,7 +21,7 @@
 #include <putong/timer.h>
 
 #include "bolson/convert/converter.h"
-#include "bolson/parse/arrow_impl.h"
+#include "bolson/parse/arrow.h"
 #include "bolson/parse/parser.h"
 #include "bolson/publish/publisher.h"
 #include "bolson/status.h"
@@ -31,7 +31,6 @@ namespace bolson {
 
 /// Options for the Convert benchmark
 struct ConvertBenchOptions {
-  std::shared_ptr<arrow::Schema> schema;
   illex::GenerateOptions generate;
   bool csv = false;
   size_t num_jsons = 1024;
@@ -98,7 +97,7 @@ auto BenchClient(const illex::ClientOptions& opt) -> Status;
 auto BenchPulsar(const PulsarBenchOptions& opt) -> Status;
 
 /// \brief Run the JSON-to-Arrow conversion benchmark.
-auto BenchConvert(ConvertBenchOptions opt) -> Status;
+auto BenchConvert(const ConvertBenchOptions& opts) -> Status;
 
 /// \brief Generate a bunch of JSONs, returns number of bytes and largest JSON size.
 auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
@@ -110,7 +109,7 @@ auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
  * \param buffers   The buffers to fill.
  * \param jsons     The JSONs to copy into the buffers.
  */
-void FillBuffers(std::vector<illex::JSONBuffer*> buffers,
-                 const std::vector<illex::JSONItem>& jsons);
+auto FillBuffers(std::vector<illex::JSONBuffer*> buffers,
+                 const std::vector<illex::JSONItem>& jsons) -> Status;
 
 }  // namespace bolson

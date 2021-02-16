@@ -17,25 +17,28 @@
 #include <arrow/api.h>
 #include <fletcher/api.h>
 
+#include <CLI/CLI.hpp>
 #include <memory>
 #include <utility>
 
 #include "bolson/buffer/opae_allocator.h"
+#include "bolson/parse/opae/opae.h"
 #include "bolson/parse/parser.h"
+#include "bolson/utils.h"
 
-namespace bolson::parse {
+#define BOLSON_DEFAULT_OPAE_BATTERY_PARSERS 8
 
-struct OpaeBatteryOptions {
-  std::string afu_id;
+namespace bolson::parse::opae {
+
+struct BatteryOptions {
+  std::string afu_id;  // left empty to auto-derive by default.
+  size_t num_parsers = BOLSON_DEFAULT_OPAE_BATTERY_PARSERS;
 };
 
-using AddrMap = std::unordered_map<const std::byte*, da_t>;
+void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out);
 
-class OpaeBatteryParser : public Parser {
+class BatteryParser : public Parser {
  public:
-  /// \brief Return a schema with a single uint8 column.
-  static auto input_schema() -> std::shared_ptr<arrow::Schema>;
-
   /// \brief Return the Arrow type list<uint64>
   static auto output_type() -> std::shared_ptr<arrow::DataType>;
 
@@ -43,10 +46,10 @@ class OpaeBatteryParser : public Parser {
   static auto output_schema() -> std::shared_ptr<arrow::Schema>;
 
   /// \brief OpaeBatteryParser constructor.
-  OpaeBatteryParser(fletcher::Platform* platform, fletcher::Context* context,
-                    fletcher::Kernel* kernel, AddrMap* addr_map, size_t parser_idx,
-                    size_t num_parsers, std::byte* raw_out_offsets,
-                    std::byte* raw_out_values, std::mutex* platform_mutex)
+  BatteryParser(fletcher::Platform* platform, fletcher::Context* context,
+                fletcher::Kernel* kernel, AddrMap* addr_map, size_t parser_idx,
+                size_t num_parsers, std::byte* raw_out_offsets, std::byte* raw_out_values,
+                std::mutex* platform_mutex)
       : platform_(platform),
         context_(context),
         kernel_(kernel),
@@ -57,7 +60,10 @@ class OpaeBatteryParser : public Parser {
         raw_out_values(raw_out_values),
         platform_mutex(platform_mutex) {}
 
-  auto Parse(illex::JSONBuffer* in, ParsedBatch* out) -> Status override;
+  auto Parse(const std::vector<illex::JSONBuffer*>& in, std::vector<ParsedBatch>* out)
+      -> Status override;
+
+  auto ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status;
 
  private:
   static const uint32_t stat_idle = (1u << 0u);
@@ -142,21 +148,24 @@ class OpaeBatteryParser : public Parser {
   std::mutex* platform_mutex;
 };
 
-class OpaeBatteryParserManager {
+class BatteryParserContext : public ParserContext {
  public:
-  static auto Make(const OpaeBatteryOptions& opts,
-                   const std::vector<illex::JSONBuffer*>& buffers, size_t num_parsers,
-                   std::shared_ptr<OpaeBatteryParserManager>* out) -> Status;
+  static auto Make(const BatteryOptions& opts, std::shared_ptr<ParserContext>* out)
+      -> Status;
 
-  auto num_parsers() const -> size_t { return num_parsers_; }
-  auto parsers() -> std::vector<std::shared_ptr<OpaeBatteryParser>> { return parsers_; }
+  auto Init(const std::vector<illex::JSONBuffer*>& buffers) -> Status;
+
+  auto parsers() -> std::vector<std::shared_ptr<Parser>> override;
+  [[nodiscard]] auto CheckThreadCount(size_t num_threads) const -> size_t override;
+  [[nodiscard]] auto CheckBufferCount(size_t num_buffers) const -> size_t override;
+  [[nodiscard]] auto schema() const -> std::shared_ptr<arrow::Schema> override;
 
  private:
   auto PrepareInputBatches(const std::vector<illex::JSONBuffer*>& buffers) -> Status;
   auto PrepareOutputBatches() -> Status;
   auto PrepareParsers() -> Status;
 
-  OpaeBatteryOptions opts_;
+  BatteryOptions opts_;
 
   std::unordered_map<const std::byte*, da_t> h2d_addr_map;
 
@@ -171,12 +180,9 @@ class OpaeBatteryParserManager {
   std::shared_ptr<fletcher::Context> context;
   std::shared_ptr<fletcher::Kernel> kernel;
 
-  std::vector<std::shared_ptr<OpaeBatteryParser>> parsers_;
+  std::vector<std::shared_ptr<BatteryParser>> parsers_;
 
   std::mutex platform_mutex;
 };
 
-/// \brief Print properties of the buffer in human-readable format.
-auto ToString(const illex::JSONBuffer& buffer, bool show_contents = true) -> std::string;
-
-}  // namespace bolson::parse
+}  // namespace bolson::parse::opae
