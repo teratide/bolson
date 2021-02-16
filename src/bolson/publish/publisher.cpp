@@ -128,7 +128,7 @@ auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> 
 
 void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
                    std::atomic<bool>* shutdown, std::atomic<size_t>* count,
-                   std::promise<Metrics>&& stats) {
+                   std::promise<Metrics>&& metrics) {
   // Set up timers.
   auto thread_timer = putong::Timer(true);
   auto publish_timer = putong::Timer();
@@ -154,7 +154,7 @@ void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
                       ipc_item.seq_range.last - ipc_item.seq_range.first);
         // Fulfill the promise.
         s.status = status;
-        stats.set_value(s);
+        metrics.set_value(s);
         shutdown->store(true);
         return;
       }
@@ -180,7 +180,7 @@ void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
   s.thread_time = thread_timer.seconds();
 
   // Fulfill the promise.
-  stats.set_value(s);
+  metrics.set_value(s);
 }
 
 /// A custom logger to redirect Pulsar client log messages to the Bolson logger.

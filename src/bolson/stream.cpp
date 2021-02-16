@@ -40,11 +40,13 @@ struct StreamThreads {
   std::atomic<size_t> publish_count = 0;
 
   /// Shut down the threads.
-  void Shutdown(const std::shared_ptr<convert::ConcurrentConverter>& converter,
-                const std::shared_ptr<publish::ConcurrentPublisher>& publisher) {
+  auto Shutdown(const std::shared_ptr<convert::ConcurrentConverter>& converter,
+                const std::shared_ptr<publish::ConcurrentPublisher>& publisher)
+      -> Status {
     shutdown.store(true);
-    converter->Finish();
-    publisher->Finish();
+    BOLSON_ROE(Aggregate(converter->Finish()));
+    BOLSON_ROE(Aggregate(publisher->Finish()));
+    return Status::OK();
   }
 };
 
@@ -170,7 +172,7 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
 
   // We can now shut down all threads and collect futures.
   spdlog::info("Done, shutting down...");
-  threads.Shutdown(converter, publisher);
+  BOLSON_ROE(threads.Shutdown(converter, publisher));
   spdlog::info("----------------------------------------------------------------");
 
   BOLSON_ROE(LogStreamMetrics(opt, timers, client, *converter, *publisher));

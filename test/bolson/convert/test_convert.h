@@ -24,8 +24,8 @@
 #include "bolson/bench.h"
 #include "bolson/convert/converter.h"
 #include "bolson/convert/test_convert.h"
-#include "bolson/publish/publisher.h"
 #include "bolson/log.h"
+#include "bolson/publish/publisher.h"
 
 namespace bolson::convert {
 
@@ -76,7 +76,7 @@ auto Convert(const ConverterOptions& opts, const std::vector<illex::JSONItem>& i
   }
 
   shutdown.store(true);
-  BOLSON_ROE(conv->Finish());
+  BOLSON_ROE(Aggregate(conv->Finish()));
   return Status::OK();
 }
 
