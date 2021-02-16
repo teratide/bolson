@@ -18,6 +18,7 @@
 #include <illex/client_buffering.h>
 
 #include <cassert>
+#include <future>
 #include <memory>
 #include <thread>
 
@@ -64,18 +65,19 @@ static void OneToOneConvertThread(size_t id, parse::Parser* parser, Resizer* res
                                   const std::vector<illex::JSONBuffer*>& buffers,
                                   const std::vector<std::mutex*>& mutexes,
                                   publish::IpcQueue* out, std::atomic<bool>* shutdown,
-                                  Metrics* metrics) {
+                                  std::promise<Metrics>&& metrics_promise) {
   assert(mutexes.size() == buffers.size());
   /// Macro to shut this thread and others down when something failed.
-#define SHUTDOWN_ON_FAILURE()                                                            \
-  if (!metrics->status.ok()) {                                                           \
-    t_thread.Stop();                                                                     \
-    metrics->t.thread = t_thread.seconds();                                              \
-    SPDLOG_DEBUG("Thread {:2} | terminating with error: {}", id, metrics->status.msg()); \
-    shutdown->store(true);                                                               \
-    return;                                                                              \
-  }                                                                                      \
-  void()
+#define SHUTDOWN_ON_FAILURE()                                                           \
+  if (!metrics.status.ok()) {                                                           \
+    t_thread.Stop();                                                                    \
+    metrics.t.thread = t_thread.seconds();                                              \
+    SPDLOG_DEBUG("Thread {:2} | terminating with error: {}", id, metrics.status.msg()); \
+    metrics_promise.set_value(metrics);                                                 \
+    shutdown->store(true);                                                              \
+    return;                                                                             \
+  }
+  Metrics metrics;
 
   // Thread timer.
   putong::Timer<> t_thread(true);
@@ -97,63 +99,67 @@ static void OneToOneConvertThread(size_t id, parse::Parser* parser, Resizer* res
         t_stages.Start();
         lat[TimePoints::received] = buf->recv_time();
 
-        // Prepare intermediate wrappers.
-        std::vector<parse::ParsedBatch> parsed_batches;
-        ResizedBatches resized;
-        SerializedBatches serialized;
-
         // Parse the buffer.
+        std::vector<parse::ParsedBatch> parsed_batches;
         {
-          metrics->status = parser->Parse({buf}, &parsed_batches);
+          metrics.status = parser->Parse({buf}, &parsed_batches);
           SHUTDOWN_ON_FAILURE();
 
           // Add metrics before buffer is converted and reset.
-          metrics->num_jsons += parsed_batches[0].batch->num_rows();
-          metrics->json_bytes += buf->size();
-          metrics->num_parsed++;
+          metrics.num_jsons += parsed_batches[0].batch->num_rows();
+          metrics.json_bytes += buf->size();
+          metrics.num_parsed++;
           // Reset and unlock the buffer.
           buf->Reset();
           mutexes[lock_idx]->unlock();
           lock_idx++;  // start at next buffer next time we try to unlock.
           lat[TimePoints::parsed] = illex::Timer::now();
-          t_stages.Split();
         }
 
+        t_stages.Split();
+
         // Resize the batch.
+        ResizedBatches resized;
         {
-          metrics->status = resizer->Resize(parsed_batches[0], &resized);
+          metrics.status = resizer->Resize(parsed_batches[0], &resized);
           SHUTDOWN_ON_FAILURE();
           // Mark time points resized for all batches.
           lat[TimePoints::resized] = illex::Timer::now();
-          t_stages.Split();
         }
 
+        t_stages.Split();
+
         // Serialize the batch.
+        SerializedBatches serialized;
         {
-          metrics->status = serializer->Serialize(resized, &serialized);
+          metrics.status = serializer->Serialize(resized, &serialized);
           SHUTDOWN_ON_FAILURE();
-          metrics->num_ipc += serialized.size();
-          metrics->ipc_bytes += ByteSizeOf(serialized);
+          metrics.num_ipc += serialized.size();
+          metrics.ipc_bytes += ByteSizeOf(serialized);
           // Mark time points serialized for all batches.
           lat[TimePoints::serialized] = illex::Timer::now();
           // Copy the latency statistics to all serialized batches.
           for (auto& s : serialized) {
             s.time_points = lat;
           }
-          t_stages.Split();
         }
 
+        t_stages.Split();
+
         // Enqueue IPC items
-        for (const auto& sb : serialized) {
-          out->enqueue(sb);
+        {
+          for (const auto& sb : serialized) {
+            out->enqueue(sb);
+          }
         }
+
         t_stages.Split();
 
         // Add parse time to stats.
-        metrics->t.parse += t_stages.seconds()[0];
-        metrics->t.resize += t_stages.seconds()[1];
-        metrics->t.serialize += t_stages.seconds()[2];
-        metrics->t.enqueue += t_stages.seconds()[3];
+        metrics.t.parse += t_stages.seconds()[0];
+        metrics.t.resize += t_stages.seconds()[1];
+        metrics.t.serialize += t_stages.seconds()[2];
+        metrics.t.enqueue += t_stages.seconds()[3];
       } else {
         try_buffers = false;
       }
@@ -164,7 +170,8 @@ static void OneToOneConvertThread(size_t id, parse::Parser* parser, Resizer* res
   }
 
   t_thread.Stop();
-  metrics->t.thread = t_thread.seconds();
+  metrics.t.thread = t_thread.seconds();
+  metrics_promise.set_value(metrics);
   SPDLOG_DEBUG("Thread {:2} | Terminating.", id);
 #undef SHUTDOWN_ON_FAILURE
 }
@@ -174,18 +181,21 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
                                     const std::vector<illex::JSONBuffer*>& buffers,
                                     const std::vector<std::mutex*>& mutexes,
                                     publish::IpcQueue* out, std::atomic<bool>* shutdown,
-                                    Metrics* metrics) {
+                                    std::promise<Metrics>&& metrics_promise) {
   assert(mutexes.size() == buffers.size());
   /// Macro to shut this thread and others down when something failed.
-#define SHUTDOWN_ON_FAILURE()                                                            \
-  if (!metrics->status.ok()) {                                                           \
-    t_thread.Stop();                                                                     \
-    metrics->t.thread = t_thread.seconds();                                              \
-    SPDLOG_DEBUG("Thread {:2} | terminating with error: {}", id, metrics->status.msg()); \
-    shutdown->store(true);                                                               \
-    return;                                                                              \
-  }                                                                                      \
+#define SHUTDOWN_ON_FAILURE()                                                           \
+  if (!metrics.status.ok()) {                                                           \
+    t_thread.Stop();                                                                    \
+    metrics.t.thread = t_thread.seconds();                                              \
+    SPDLOG_DEBUG("Thread {:2} | terminating with error: {}", id, metrics.status.msg()); \
+    metrics_promise.set_value(metrics);                                                 \
+    shutdown->store(true);                                                              \
+    return;                                                                             \
+  }                                                                                     \
   void()
+
+  Metrics metrics;
 
   // Thread timer.
   putong::Timer<> t_thread(true);
@@ -211,16 +221,16 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
 
     // Parse the buffers
     {
-      metrics->status = parser->Parse(buffers, &parsed_batches);
+      metrics.status = parser->Parse(buffers, &parsed_batches);
       SHUTDOWN_ON_FAILURE();
 
       // Update metrics
-      metrics->num_jsons += parsed_batches[0].batch->num_rows();
-      metrics->num_parsed += buffers.size();
+      metrics.num_jsons += parsed_batches[0].batch->num_rows();
+      metrics.num_parsed += buffers.size();
 
       lat[TimePoints::received] = buffers[0]->recv_time();  // init with first buf time
       for (int i = 0; i < buffers.size(); i++) {
-        metrics->json_bytes += buffers[i]->size();
+        metrics.json_bytes += buffers[i]->size();
         // Mark worst-case latency time point for the output batch.
         if (buffers[i]->recv_time() < lat[TimePoints::received]) {
           lat[TimePoints::received] = buffers[i]->recv_time();
@@ -238,7 +248,7 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
     {
       for (auto pb : parsed_batches) {
         ResizedBatches rb;
-        metrics->status = resizer->Resize(parsed_batches[0], &rb);
+        metrics.status = resizer->Resize(parsed_batches[0], &rb);
         resized.insert(resized.end(), rb.begin(), rb.end());
       }
       SHUTDOWN_ON_FAILURE();
@@ -249,10 +259,10 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
 
     // Serialize the batch.
     {
-      metrics->status = serializer->Serialize(resized, &serialized);
+      metrics.status = serializer->Serialize(resized, &serialized);
       SHUTDOWN_ON_FAILURE();
-      metrics->num_ipc += serialized.size();
-      metrics->ipc_bytes += ByteSizeOf(serialized);
+      metrics.num_ipc += serialized.size();
+      metrics.ipc_bytes += ByteSizeOf(serialized);
       // Mark time points serialized for all batches.
       lat[TimePoints::serialized] = illex::Timer::now();
       // Copy the latency statistics to all serialized batches.
@@ -269,16 +279,16 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
     t_stages.Split();
 
     // Add parse time to stats.
-    metrics->t.parse += t_stages.seconds()[0];
-    metrics->t.resize += t_stages.seconds()[1];
-    metrics->t.serialize += t_stages.seconds()[2];
-    metrics->t.enqueue += t_stages.seconds()[3];
+    metrics.t.parse += t_stages.seconds()[0];
+    metrics.t.resize += t_stages.seconds()[1];
+    metrics.t.serialize += t_stages.seconds()[2];
+    metrics.t.enqueue += t_stages.seconds()[3];
 
     std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
   }
 
   t_thread.Stop();
-  metrics->t.thread = t_thread.seconds();
+  metrics.t.thread = t_thread.seconds();
   SPDLOG_DEBUG("Thread {:2} | Terminating.", id);
 #undef SHUTDOWN_ON_FAILURE
 }
@@ -290,36 +300,43 @@ void Converter::Start(std::atomic<bool>* shutdown) {
     case parse::Impl::ARROW:
     case parse::Impl::OPAE_BATTERY:
       for (int t = 0; t < num_threads_; t++) {
+        std::promise<Metrics> m;
+        metrics_futures_.push_back(m.get_future());
         threads_.emplace_back(
             OneToOneConvertThread, t, parser_context_->parsers()[t].get(), &resizers_[t],
             &serializers_[t], parser_context_->mutable_buffers(),
-            parser_context_->mutexes(), output_queue_, shutdown_, &metrics_[t]);
+            parser_context_->mutexes(), output_queue_, shutdown_, std::move(m));
       }
       break;
     // Many to one parsers:
     case parse::Impl::OPAE_TRIP:
+      std::promise<Metrics> m;
+      metrics_futures_.push_back(m.get_future());
       threads_.emplace_back(
           AllToOneConverterThread, 0, parser_context_->parsers()[0].get(), &resizers_[0],
           &serializers_[0], parser_context_->mutable_buffers(),
-          parser_context_->mutexes(), output_queue_, shutdown_, &metrics_[0]);
+          parser_context_->mutexes(), output_queue_, shutdown_, std::move(m));
   }
 }
 
-auto Converter::Finish() -> Status {
-  // Wait for the drones to get shut down by the caller of this function.
-  // Also gather the statistics and see if there was any error.
+auto Converter::Finish() -> MultiThreadStatus {
+  MultiThreadStatus result;
+  // Attempt to join all threads.
   for (size_t t = 0; t < threads_.size(); t++) {
+    // Check if the thread can be joined.
     if (threads_[t].joinable()) {
       threads_[t].join();
-      if (!metrics_[t].status.ok()) {
-        // If a thread returned some error status, shut everything down without waiting
-        // for the caller to do so.
+      // Get the metrics.
+      auto metric = metrics_futures_[t].get();
+      metrics_.push_back(metric);
+      result.push_back(metric.status);
+      // If a thread returned an error status, shut everything down.
+      if (!metric.status.ok()) {
         shutdown_->store(true);
       }
     }
   }
-  // TODO: return MultiStatus like pulsar.h
-  return Status::OK();
+  return result;
 }
 
 auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,

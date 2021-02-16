@@ -15,7 +15,6 @@
 #include <arrow/api.h>
 #include <arrow/io/api.h>
 #include <gtest/gtest.h>
-#include <illex/client.h>
 
 #include "bolson/bench.h"
 #include "bolson/convert/converter.h"

@@ -25,6 +25,10 @@ auto Metrics::operator+=(const Metrics& r) -> Metrics& {
 
   latencies.insert(latencies.end(), r.latencies.begin(), r.latencies.end());
 
+  if (!r.status.ok()) {
+    status = r.status;
+  }
+
   return *this;
 }
 

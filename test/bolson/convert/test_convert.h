@@ -76,7 +76,7 @@ auto Convert(const ConverterOptions& opts, const std::vector<illex::JSONItem>& i
   }
 
   shutdown.store(true);
-  BOLSON_ROE(conv->Finish());
+  BOLSON_ROE(Aggregate(conv->Finish()));
   return Status::OK();
 }
 

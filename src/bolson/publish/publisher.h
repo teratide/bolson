@@ -63,15 +63,13 @@ struct Options {
   std::string url;
   /// Pulsar topic to publish on.
   std::string topic;
-
   /// Maximum message size.
   size_t max_msg_size;
-
   /// Options related to batching producer.
   BatchingOptions batching;
-
+  /// Number of Pulsar producers.
   size_t num_producers;
-
+  /// Log these options.
   void Log() const;
 };
 
@@ -89,13 +87,12 @@ auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> 
  * \param producer  The producer to use for publishing.
  * \param queue     The queue with IPC messages.
  * \param shutdown  Shutdown signal.
- * \param count Number of published rows.
- * \param stats     Throughput statistics.
- * \param latencies Latency statistics.
+ * \param count     Number of published rows.
+ * \param metrics   Throughput metrics.
  */
 void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
                    std::atomic<bool>* shutdown, std::atomic<size_t>* count,
-                   std::promise<Metrics>&& stats);
+                   std::promise<Metrics>&& metrics);
 
 /// A Pulsar context for functions to operate on.
 struct ConcurrentPublisher {
@@ -125,7 +122,7 @@ struct ConcurrentPublisher {
   auto Finish() -> MultiThreadStatus;
 
   /// \brief Return publish metrics.
-  auto metrics() const -> std::vector<Metrics>;
+  [[nodiscard]] auto metrics() const -> std::vector<Metrics>;
 
  private:
   ConcurrentPublisher() = default;

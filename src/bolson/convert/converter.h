@@ -86,7 +86,7 @@ class Converter {
    * If the shutdown signal supplied to Start() was not set to true, this function will
    * block until the shutdown signal is set to true.
    */
-  auto Finish() -> Status;
+  auto Finish() -> MultiThreadStatus;
 
   /// \brief Return the parser context.
   [[nodiscard]] auto parser_context() const -> std::shared_ptr<parse::ParserContext>;
@@ -119,6 +119,8 @@ class Converter {
   std::vector<convert::Serializer> serializers_;
   /// Metrics of converter thread(s).
   std::vector<Metrics> metrics_;
+  /// Metrics futures of running threads.
+  std::vector<std::future<Metrics>> metrics_futures_;
 };
 
 }  // namespace bolson::convert
