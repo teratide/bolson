@@ -27,6 +27,7 @@
 #include "bolson/utils.h"
 
 #define BOLSON_DEFAULT_OPAE_BATTERY_PARSERS 8
+#define BOLSON_DEFAULT_OPAE_BATTERY_AFUID "9ca43fb0-c340-4908-b79b-5c89b4ef5e"
 
 namespace bolson::parse::opae {
 
@@ -153,24 +154,23 @@ class BatteryParserContext : public ParserContext {
   static auto Make(const BatteryOptions& opts, std::shared_ptr<ParserContext>* out)
       -> Status;
 
-  auto Init(const std::vector<illex::JSONBuffer*>& buffers) -> Status;
-
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;
   [[nodiscard]] auto CheckThreadCount(size_t num_threads) const -> size_t override;
   [[nodiscard]] auto CheckBufferCount(size_t num_buffers) const -> size_t override;
   [[nodiscard]] auto schema() const -> std::shared_ptr<arrow::Schema> override;
 
  private:
-  auto PrepareInputBatches(const std::vector<illex::JSONBuffer*>& buffers) -> Status;
+  explicit BatteryParserContext(const BatteryOptions& opts);
+
+  auto PrepareInputBatches() -> Status;
   auto PrepareOutputBatches() -> Status;
   auto PrepareParsers() -> Status;
 
-  BatteryOptions opts_;
+  size_t num_parsers_;
+  std::string afu_id_;
 
   std::unordered_map<const std::byte*, da_t> h2d_addr_map;
 
-  size_t num_parsers_;
-  buffer::OpaeAllocator allocator;
   std::vector<std::byte*> raw_out_offsets;
   std::vector<std::byte*> raw_out_values;
   std::vector<std::shared_ptr<arrow::RecordBatch>> batches_in;

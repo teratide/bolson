@@ -236,7 +236,11 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
 
     // Resize the batch.
     {
-      metrics->status = resizer->Resize(parsed_batches[0], &resized);
+      for (auto pb : parsed_batches) {
+        ResizedBatches rb;
+        metrics->status = resizer->Resize(parsed_batches[0], &rb);
+        resized.insert(resized.end(), rb.begin(), rb.end());
+      }
       SHUTDOWN_ON_FAILURE();
       // Mark time points resized for all batches.
       lat[TimePoints::resized] = illex::Timer::now();
@@ -259,7 +263,7 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
     }
 
     // Enqueue IPC items
-    for (const auto sb : serialized) {
+    for (const auto& sb : serialized) {
       out->enqueue(sb);
     }
     t_stages.Split();
@@ -283,6 +287,7 @@ void Converter::Start(std::atomic<bool>* shutdown) {
   shutdown_ = shutdown;
   switch (implementation) {
     // One to one parsers:
+    case parse::Impl::ARROW:
     case parse::Impl::OPAE_BATTERY:
       for (int t = 0; t < num_threads_; t++) {
         threads_.emplace_back(
@@ -292,7 +297,6 @@ void Converter::Start(std::atomic<bool>* shutdown) {
       }
       break;
     // Many to one parsers:
-    case parse::Impl::ARROW:
     case parse::Impl::OPAE_TRIP:
       threads_.emplace_back(
           AllToOneConverterThread, 0, parser_context_->parsers()[0].get(), &resizers_[0],

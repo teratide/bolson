@@ -145,9 +145,9 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   // Pull JSON ipc items from the queue to check when we are done.
   while (num_rows != o.num_jsons) {
     ipc_queue.wait_dequeue(ipc_item);
+    num_rows += RecordSizeOf(ipc_item);
     SPDLOG_DEBUG("Popped IPC item of {} rows. Progress: {}/{}", RecordSizeOf(ipc_item),
                  num_rows, o.num_jsons);
-    num_rows += RecordSizeOf(ipc_item);
     ipc_size += ipc_item.message->size();
     num_ipc++;
   }

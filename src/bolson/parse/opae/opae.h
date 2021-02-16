@@ -46,9 +46,8 @@ using AddrMap = std::unordered_map<const std::byte*, da_t>;
 auto ExtractAddrMap(fletcher::Context* context) -> AddrMap;
 
 /// Write MMIO wrapper for debugging.
-static inline auto WriteMMIO(fletcher::Platform* platform, uint64_t offset,
-                             uint32_t value, size_t idx, const std::string& desc = "")
-    -> Status {
+inline auto WriteMMIO(fletcher::Platform* platform, uint64_t offset, uint32_t value,
+                      size_t idx, const std::string& desc = "") -> Status {
   SPDLOG_DEBUG("Thread {:2} | MMIO WRITE 0x{:08X} --> [off:{:4}] [@ 0x{:04X}] {}", idx,
                value, offset, 64 + 4 * offset, desc);
   FLETCHER_ROE(platform->WriteMMIO(offset, value));
@@ -56,13 +55,16 @@ static inline auto WriteMMIO(fletcher::Platform* platform, uint64_t offset,
 }
 
 /// Read MMIO wrapper for debugging.
-static inline auto ReadMMIO(fletcher::Platform* platform, uint64_t offset,
-                            uint32_t* value, size_t idx, const std::string& desc = "")
-    -> Status {
+inline auto ReadMMIO(fletcher::Platform* platform, uint64_t offset, uint32_t* value,
+                     size_t idx, const std::string& desc = "") -> Status {
   FLETCHER_ROE(platform->ReadMMIO(offset, value));
   SPDLOG_DEBUG("Thread {:2} | MMIO READ  0x{:08X} <-- [off:{:4}] [@ 0x{:04X}] {}", idx,
                *value, offset, 64 + 4 * offset, desc);
   return Status::OK();
 }
+
+/// \brief Derive AFU ID from base and no. parsers if supplied is empty.
+auto DeriveAFUID(const std::string& supplied, const std::string& base, size_t num_parsers,
+                 std::string* result) -> Status;
 
 }  // namespace bolson::parse::opae

@@ -34,14 +34,13 @@
 
 namespace bolson::parse::opae {
 
-auto BatteryParserContext::PrepareInputBatches(
-    const std::vector<illex::JSONBuffer*>& buffers) -> Status {
-  for (const auto& buf : buffers) {
-    auto wrapped = arrow::Buffer::Wrap(buf->data(), buf->capacity());
+auto BatteryParserContext::PrepareInputBatches() -> Status {
+  for (const auto& buf : buffers_) {
+    auto wrapped = arrow::Buffer::Wrap(buf.data(), buf.capacity());
     auto array =
-        std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), buf->capacity(), wrapped);
+        std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), buf.capacity(), wrapped);
     batches_in.push_back(
-        arrow::RecordBatch::Make(opae::input_schema(), buf->capacity(), {array}));
+        arrow::RecordBatch::Make(opae::input_schema(), buf.capacity(), {array}));
   }
   return Status::OK();
 }
@@ -50,11 +49,11 @@ auto BatteryParserContext::PrepareOutputBatches() -> Status {
   for (size_t i = 0; i < num_parsers_; i++) {
     std::byte* offsets = nullptr;
     std::byte* values = nullptr;
-    BOLSON_ROE(allocator.Allocate(allocator.fixed_capacity(), &offsets));
-    BOLSON_ROE(allocator.Allocate(allocator.fixed_capacity(), &values));
+    BOLSON_ROE(allocator_->Allocate(allocator_->fixed_capacity(), &offsets));
+    BOLSON_ROE(allocator_->Allocate(allocator_->fixed_capacity(), &values));
 
-    auto offset_buffer = arrow::Buffer::Wrap(offsets, allocator.fixed_capacity());
-    auto values_buffer = arrow::Buffer::Wrap(values, allocator.fixed_capacity());
+    auto offset_buffer = arrow::Buffer::Wrap(offsets, allocator_->fixed_capacity());
+    auto values_buffer = arrow::Buffer::Wrap(values, allocator_->fixed_capacity());
     auto values_array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, values_buffer);
     auto list_array = std::make_shared<arrow::ListArray>(BatteryParser::output_type(), 0,
@@ -71,38 +70,58 @@ auto BatteryParserContext::PrepareOutputBatches() -> Status {
 
 auto BatteryParserContext::Make(const BatteryOptions& opts,
                                 std::shared_ptr<ParserContext>* out) -> Status {
-  // Attempt to derive AFU ID if not supplied.
-  std::string afu_id_str;
-  if (opts.afu_id.empty()) {
-    if (opts.num_parsers > 255) {
-      return Status(
-          Error::OpaeError,
-          "Auto-deriving AFU ID for number of parsers larger than 255 is not supported.");
-    }
-    std::stringstream ss;
-    ss << std::setw(2) << std::setfill('0') << std::hex << opts.num_parsers;
-    // AFU ID from the hardware design script.
-    afu_id_str = "9ca43fb0-c340-4908-b79b-5c89b4ef5e" + ss.str();
-  } else {
-    afu_id_str = opts.afu_id;
-  }
-  SPDLOG_DEBUG("BatteryParserManager | Using AFU ID: {}", afu_id_str);
+  std::string afu_id;
+  DeriveAFUID(opts.afu_id, BOLSON_DEFAULT_OPAE_BATTERY_AFUID, opts.num_parsers, &afu_id);
+  SPDLOG_DEBUG("BatteryParserManager | Using AFU ID: {}", afu_id);
 
   // Create and set up result.
-  auto result = std::make_shared<BatteryParserContext>();
-  result->opts_ = opts;
-  result->num_parsers_ = opts.num_parsers;
-
-  SPDLOG_DEBUG("BatteryParserManager | Setting up for {} parsers.", opts.num_parsers);
+  auto result = std::shared_ptr<BatteryParserContext>(new BatteryParserContext(opts));
+  SPDLOG_DEBUG("BatteryParserManager | Setting up for {} parsers.", result->num_parsers_);
 
   FLETCHER_ROE(fletcher::Platform::Make("opae", &result->platform, false));
 
-  result->opts_.afu_id = afu_id_str;
-  char* afu_id = result->opts_.afu_id.data();
-  result->platform->init_data = &afu_id;
+  result->afu_id_ = afu_id;
+  char* afu_id_ptr = result->afu_id_.data();
+  result->platform->init_data = &afu_id_ptr;
 
   // Initialize the platform.
   FLETCHER_ROE(result->platform->Init());
+
+  // Allocate input buffers.
+  BOLSON_ROE(result->AllocateBuffers(result->num_parsers_,
+                                     result->allocator_->fixed_capacity()));
+
+  // Pull everything through the fletcher stack once.
+  FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));
+
+  BOLSON_ROE(result->PrepareInputBatches());
+  BOLSON_ROE(result->PrepareOutputBatches());
+
+  for (const auto& batch : result->batches_in) {
+    FLETCHER_ROE(result->context->QueueRecordBatch(batch));
+  }
+
+  for (const auto& batch : result->batches_out) {
+    FLETCHER_ROE(result->context->QueueRecordBatch(batch));
+  }
+
+  // Enable context.
+  FLETCHER_ROE(result->context->Enable());
+  // Construct kernel handler.
+  result->kernel = std::make_shared<fletcher::Kernel>(result->context);
+  // Write metadata.
+  FLETCHER_ROE(result->kernel->WriteMetaData());
+
+  // Workaround to obtain buffer device address.
+  result->h2d_addr_map = ExtractAddrMap(result->context.get());
+  SPDLOG_DEBUG("BatteryParserManager | OPAE host address / device address map:");
+  for (auto& kv : result->h2d_addr_map) {
+    SPDLOG_DEBUG("  H: 0x{:016X} <--> D: 0x{:016X}", reinterpret_cast<uint64_t>(kv.first),
+                 kv.second);
+  }
+
+  SPDLOG_DEBUG("BatteryParserManager | Preparing parsers.");
+  BOLSON_ROE(result->PrepareParsers());
 
   *out = result;
 
@@ -130,55 +149,13 @@ auto BatteryParserContext::CheckBufferCount(size_t num_buffers) const -> size_t 
   return parsers_.size();
 }
 
-auto BatteryParserContext::Init(const std::vector<illex::JSONBuffer*>& buffers)
-    -> Status {
-  if (parsers_.size() != buffers.size()) {
-    return Status(Error::OpaeError,
-                  "BatteryParser implementation requires number of buffers and "
-                  "parsers to be equal.");
-  }
-
-  // Pull everything through the fletcher stack once.
-  FLETCHER_ROE(fletcher::Context::Make(&context, platform));
-
-  BOLSON_ROE(PrepareInputBatches(buffers));
-  BOLSON_ROE(PrepareOutputBatches());
-
-  for (const auto& batch : batches_in) {
-    FLETCHER_ROE(context->QueueRecordBatch(batch));
-  }
-
-  for (const auto& batch : batches_out) {
-    FLETCHER_ROE(context->QueueRecordBatch(batch));
-  }
-
-  // Enable context.
-  FLETCHER_ROE(context->Enable());
-  // Construct kernel handler.
-  kernel = std::make_shared<fletcher::Kernel>(context);
-  // Write metadata.
-  FLETCHER_ROE(kernel->WriteMetaData());
-
-  SPDLOG_DEBUG("BatteryParserManager | OPAE host address / device address map:");
-
-  // Workaround to obtain buffer device address.
-  for (size_t i = 0; i < context->num_buffers(); i++) {
-    const auto* ha =
-        reinterpret_cast<const std::byte*>(context->device_buffer(i).host_address);
-    auto da = context->device_buffer(i).device_address;
-    h2d_addr_map[ha] = da;
-    SPDLOG_DEBUG("  H: 0x{:016X} <--> D: 0x{:016X}", reinterpret_cast<uint64_t>(ha), da);
-  }
-
-  SPDLOG_DEBUG("BatteryParserManager | Preparing parsers.");
-
-  BOLSON_ROE(PrepareParsers());
-
-  return Status::OK();
-}
-
 auto BatteryParserContext::schema() const -> std::shared_ptr<arrow::Schema> {
   return BatteryParser::output_schema();
+}
+
+BatteryParserContext::BatteryParserContext(const BatteryOptions& opts)
+    : num_parsers_(opts.num_parsers), afu_id_(opts.afu_id) {
+  allocator_ = std::make_shared<buffer::OpaeAllocator>();
 }
 
 static auto WrapOutput(int32_t num_rows, uint8_t* offsets, uint8_t* values,
@@ -219,14 +196,14 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
   auto* p = platform_;
   SPDLOG_DEBUG("Thread {:2} | Obtained platform lock", idx_);
   SPDLOG_DEBUG("Thread {:2} | Attempting to parse buffer:\n {}", idx_,
-               ToString(*in, false));
+               ToString(*in, true));
 
   // Reset the kernel, start it, and poll until completion.
   // FLETCHER_ROE(kernel_->Reset());
   BOLSON_ROE(WriteMMIO(p, ctrl_offset(idx_), ctrl_reset, idx_, "ctrl"));
   BOLSON_ROE(WriteMMIO(p, ctrl_offset(idx_), 0, idx_, "ctrl"));
 
-  // rewrite the input last index because of opae limitations.
+  // Write the input last index, to let the parser know the input buffer size.
   BOLSON_ROE(
       WriteMMIO(p, input_lastidx_offset(idx_), in->size(), idx_, "input last idx"));
 
