@@ -43,7 +43,7 @@ auto test_schema() -> std::shared_ptr<arrow::Schema> {
 }
 
 /// \brief Test Arrow impl. vs. Opae FPGA impl. for battery status.
-TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
+TEST(OPAE, OPAE_BATTERY_8_KERNELS) {
   // [FNC01]: The system performs the Convert JSON objects function, where JSON Objects
   //  are streamed into the system, aggregated in JSON Objects Messages, and converted to
   //  Pulsar Messages containing Arrow IPC messages containing Arrow RecordBatches.

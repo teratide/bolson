@@ -25,6 +25,7 @@
 #include "bolson/parse/parser.h"
 
 #define BOLSON_DEFAULT_OPAE_TRIP_PARSERS 4
+#define BOLSON_DEFAULT_OPAE_TRIP_AFUID "5d2f9dba-e8d0-44f8-943d-36b25c2d40"
 
 namespace bolson::parse::opae {
 
@@ -37,34 +38,49 @@ void AddTripOptionsToCLI(CLI::App* sub, TripOptions* out);
 
 using AddrMap = std::unordered_map<const std::byte*, da_t>;
 
+/**
+ * \brief Host-side representation of the N:1 hardware parsers for trip report.
+ */
 class TripParser : public Parser {
  public:
+  /// \brief TripParser constructor.
+  TripParser(fletcher::Platform* platform, fletcher::Context* context,
+             fletcher::Kernel* kernel, AddrMap* addr_map,
+             std::vector<std::shared_ptr<arrow::Array>>* output_arrays,
+             size_t num_parsers);
+
   auto Parse(const std::vector<illex::JSONBuffer*>& in, std::vector<ParsedBatch>* out)
       -> Status override;
 
  private:
-  auto WriteInputMetaData(fletcher::Platform* platform, illex::JSONBuffer* in,
-                          const AddrMap& h2d_addr_map, size_t idx) -> Status;
+  auto WriteInputMetaData(fletcher::Platform* platform, illex::JSONBuffer* in, size_t idx)
+      -> Status;
 
-  auto custom_regs_offset() const -> size_t;
+  [[nodiscard]] auto custom_regs_offset() const -> size_t;
   static auto input_firstidx_offset(size_t idx) -> size_t;
   static auto input_lastidx_offset(size_t idx) -> size_t;
-  auto ctrl_offset(size_t idx) -> size_t;
-  auto status_offset(size_t idx) -> size_t { return ctrl_offset(idx) + 1; }
-  auto result_rows_offset_lo(size_t idx) -> size_t { return status_offset(idx) + 1; }
-  auto result_rows_offset_hi(size_t idx) -> size_t;
-  auto input_values_lo_offset(size_t idx) const -> size_t;
-  auto input_values_hi_offset(size_t idx) -> size_t;
+  [[nodiscard]] auto ctrl_offset(size_t idx) const -> size_t;
+  [[nodiscard]] auto status_offset(size_t idx) const -> size_t;
+  [[nodiscard]] auto result_rows_offset_lo(size_t idx) const -> size_t;
+  [[nodiscard]] auto result_rows_offset_hi(size_t idx) const -> size_t;
+  [[nodiscard]] auto input_values_lo_offset(size_t idx) const -> size_t;
+  [[nodiscard]] auto input_values_hi_offset(size_t idx) const -> size_t;
 
-  size_t num_hardware_parsers;
+  size_t num_hardware_parsers_;
+  fletcher::Platform* platform_;
+  fletcher::Context* context_;
+  fletcher::Kernel* kernel_;
+  AddrMap* h2d_addr_map;
+  std::vector<std::shared_ptr<arrow::Array>>* output_arrays_sw_{};
 };
 
+/**
+ * \brief ParserContext for the trip report schema.
+ */
 class TripParserContext : public ParserContext {
  public:
   static auto Make(const TripOptions& opts, std::shared_ptr<ParserContext>* out)
       -> Status;
-
-  auto Init(const std::vector<illex::JSONBuffer*>& buffers) -> Status;
 
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;
   [[nodiscard]] auto CheckThreadCount(size_t num_threads) const -> size_t override;
@@ -72,14 +88,14 @@ class TripParserContext : public ParserContext {
   [[nodiscard]] auto schema() const -> std::shared_ptr<arrow::Schema> override;
 
  private:
-  auto PrepareInputBatches(const std::vector<illex::JSONBuffer*>& buffers) -> Status;
-  auto PrepareOutputBatch() -> Status;
-  auto PrepareParsers() -> Status;
-  auto WriteInputMetaData(illex::JSONBuffer* in, size_t idx) -> Status;
+  explicit TripParserContext(const TripOptions& opts);
 
-  size_t num_hardware_parsers;
+  [[nodiscard]] auto PrepareInputBatches() -> Status;
+  [[nodiscard]] auto PrepareOutputBatch() -> Status;
+  [[nodiscard]] auto PrepareParser() -> Status;
 
-  std::string afu_id;
+  size_t num_parsers_;
+  std::string afu_id_;
 
   buffer::OpaeAllocator allocator;
 

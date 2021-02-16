@@ -106,37 +106,15 @@ class BatteryParser : public Parser {
   // 3 result num rows hi
   static const size_t custom_regs_per_inst = 4;
 
-  [[nodiscard]] auto custom_regs_offset() const -> size_t {
-    return default_regs + num_parsers * (2 * range_regs_per_inst + in_addr_regs_per_inst +
-                                         out_addr_regs_per_inst);
-  }
-
-  auto ctrl_offset(size_t idx) -> size_t {
-    return custom_regs_offset() + custom_regs_per_inst * idx;
-  }
-  auto status_offset(size_t idx) -> size_t { return ctrl_offset(idx) + 1; }
-
-  auto result_rows_offset_lo(size_t idx) -> size_t { return status_offset(idx) + 1; }
-  auto result_rows_offset_hi(size_t idx) -> size_t {
-    return result_rows_offset_lo(idx) + 1;
-  }
-
-  auto input_firstidx_offset(size_t idx) -> size_t {
-    return default_regs + range_regs_per_inst * idx;
-  }
-
-  auto input_lastidx_offset(size_t idx) -> size_t {
-    return input_firstidx_offset(idx) + 1;
-  }
-
-  auto input_values_lo_offset(size_t idx) -> size_t {
-    return default_regs + (2 * range_regs_per_inst) * num_parsers +
-           in_addr_regs_per_inst * idx;
-  }
-
-  auto input_values_hi_offset(size_t idx) -> size_t {
-    return input_values_lo_offset(idx) + 1;
-  }
+  [[nodiscard]] auto custom_regs_offset() const -> size_t;
+  [[nodiscard]] auto ctrl_offset(size_t idx) const -> size_t;
+  [[nodiscard]] auto status_offset(size_t idx) const -> size_t;
+  [[nodiscard]] auto result_rows_offset_lo(size_t idx) const -> size_t;
+  [[nodiscard]] auto result_rows_offset_hi(size_t idx) const -> size_t;
+  [[nodiscard]] auto input_firstidx_offset(size_t idx) const -> size_t;
+  [[nodiscard]] auto input_lastidx_offset(size_t idx) const -> size_t;
+  [[nodiscard]] auto input_values_lo_offset(size_t idx) const -> size_t;
+  [[nodiscard]] auto input_values_hi_offset(size_t idx) const -> size_t;
 
   size_t idx_;
   size_t num_parsers;

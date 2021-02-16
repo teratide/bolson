@@ -289,34 +289,39 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
 
   t_thread.Stop();
   metrics.t.thread = t_thread.seconds();
+  metrics_promise.set_value(metrics);
   SPDLOG_DEBUG("Thread {:2} | Terminating.", id);
 #undef SHUTDOWN_ON_FAILURE
 }
 
-void Converter::Start(std::atomic<bool>* shutdown) {
+auto Converter::Start(std::atomic<bool>* shutdown) -> Status {
   shutdown_ = shutdown;
-  switch (implementation) {
-    // One to one parsers:
-    case parse::Impl::ARROW:
-    case parse::Impl::OPAE_BATTERY:
-      for (int t = 0; t < num_threads_; t++) {
-        std::promise<Metrics> m;
-        metrics_futures_.push_back(m.get_future());
-        threads_.emplace_back(
-            OneToOneConvertThread, t, parser_context_->parsers()[t].get(), &resizers_[t],
-            &serializers_[t], parser_context_->mutable_buffers(),
-            parser_context_->mutexes(), output_queue_, shutdown_, std::move(m));
-      }
-      break;
-    // Many to one parsers:
-    case parse::Impl::OPAE_TRIP:
+  auto threads = parser_context()->CheckThreadCount(num_threads_);
+  auto buffers = parser_context()->mutable_buffers().size();
+
+  if ((threads > 1) || ((threads == 1) && (buffers == 1))) {
+    // One to one parsers, spawn as many threads as parser context allows, and give each
+    // thread a parser to work with.
+    for (int t = 0; t < num_threads_; t++) {
       std::promise<Metrics> m;
       metrics_futures_.push_back(m.get_future());
       threads_.emplace_back(
-          AllToOneConverterThread, 0, parser_context_->parsers()[0].get(), &resizers_[0],
-          &serializers_[0], parser_context_->mutable_buffers(),
+          OneToOneConvertThread, t, parser_context_->parsers()[t].get(), &resizers_[t],
+          &serializers_[t], parser_context_->mutable_buffers(),
           parser_context_->mutexes(), output_queue_, shutdown_, std::move(m));
+    }
+  } else if (threads == 1) {
+    // Many to one parsers, spawn one thread, give the thread the only parser.
+    // This parser can operate on all input buffers.
+    assert(parser_context()->parsers().size() == 1);
+    std::promise<Metrics> m;
+    metrics_futures_.push_back(m.get_future());
+    threads_.emplace_back(AllToOneConverterThread, 0, parser_context_->parsers()[0].get(),
+                          &resizers_[0], &serializers_[0],
+                          parser_context_->mutable_buffers(), parser_context_->mutexes(),
+                          output_queue_, shutdown_, std::move(m));
   }
+  return Status::OK();
 }
 
 auto Converter::Finish() -> MultiThreadStatus {

@@ -77,8 +77,9 @@ class Converter {
   /**
    * \brief Start the converter (non-blocking).
    * \param shutdown Shutdown signal.
+   * \return Status::OK() if successful, some error otherwise.
    */
-  void Start(std::atomic<bool>* shutdown);
+  auto Start(std::atomic<bool>* shutdown) -> Status;
 
   /**
    * \brief Stop the converter, joining all converter threads.
@@ -109,8 +110,6 @@ class Converter {
   size_t num_threads_ = 1;
   /// Converter threads.
   std::vector<std::thread> threads_;
-  /// Parser implementation.
-  parse::Impl implementation = parse::Impl::ARROW;
   /// Parser manager implementations.
   std::shared_ptr<parse::ParserContext> parser_context_;
   /// Resizer instances.

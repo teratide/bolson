@@ -48,7 +48,7 @@ auto ExtractAddrMap(fletcher::Context* context) -> AddrMap;
 /// Write MMIO wrapper for debugging.
 inline auto WriteMMIO(fletcher::Platform* platform, uint64_t offset, uint32_t value,
                       size_t idx, const std::string& desc = "") -> Status {
-  SPDLOG_DEBUG("Thread {:2} | MMIO WRITE 0x{:08X} --> [off:{:4}] [@ 0x{:04X}] {}", idx,
+  SPDLOG_DEBUG("Parser {:2} | MMIO WRITE 0x{:08X} --> [off:{:4}] [@ 0x{:04X}] {}", idx,
                value, offset, 64 + 4 * offset, desc);
   FLETCHER_ROE(platform->WriteMMIO(offset, value));
   return Status::OK();
@@ -58,7 +58,7 @@ inline auto WriteMMIO(fletcher::Platform* platform, uint64_t offset, uint32_t va
 inline auto ReadMMIO(fletcher::Platform* platform, uint64_t offset, uint32_t* value,
                      size_t idx, const std::string& desc = "") -> Status {
   FLETCHER_ROE(platform->ReadMMIO(offset, value));
-  SPDLOG_DEBUG("Thread {:2} | MMIO READ  0x{:08X} <-- [off:{:4}] [@ 0x{:04X}] {}", idx,
+  SPDLOG_DEBUG("Parser {:2} | MMIO READ  0x{:08X} <-- [off:{:4}] [@ 0x{:04X}] {}", idx,
                *value, offset, 64 + 4 * offset, desc);
   return Status::OK();
 }

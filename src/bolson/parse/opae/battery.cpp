@@ -72,11 +72,11 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
                                 std::shared_ptr<ParserContext>* out) -> Status {
   std::string afu_id;
   DeriveAFUID(opts.afu_id, BOLSON_DEFAULT_OPAE_BATTERY_AFUID, opts.num_parsers, &afu_id);
-  SPDLOG_DEBUG("BatteryParserManager | Using AFU ID: {}", afu_id);
+  SPDLOG_DEBUG("BatteryParserContext | Using AFU ID: {}", afu_id);
 
   // Create and set up result.
   auto result = std::shared_ptr<BatteryParserContext>(new BatteryParserContext(opts));
-  SPDLOG_DEBUG("BatteryParserManager | Setting up for {} parsers.", result->num_parsers_);
+  SPDLOG_DEBUG("BatteryParserContext | Setting up for {} parsers.", result->num_parsers_);
 
   FLETCHER_ROE(fletcher::Platform::Make("opae", &result->platform, false));
 
@@ -114,13 +114,13 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
 
   // Workaround to obtain buffer device address.
   result->h2d_addr_map = ExtractAddrMap(result->context.get());
-  SPDLOG_DEBUG("BatteryParserManager | OPAE host address / device address map:");
+  SPDLOG_DEBUG("BatteryParserContext | OPAE host address / device address map:");
   for (auto& kv : result->h2d_addr_map) {
     SPDLOG_DEBUG("  H: 0x{:016X} <--> D: 0x{:016X}", reinterpret_cast<uint64_t>(kv.first),
                  kv.second);
   }
 
-  SPDLOG_DEBUG("BatteryParserManager | Preparing parsers.");
+  SPDLOG_DEBUG("BatteryParserContext | Preparing parsers.");
   BOLSON_ROE(result->PrepareParsers());
 
   *out = result;
@@ -194,8 +194,8 @@ static auto WrapOutput(int32_t num_rows, uint8_t* offsets, uint8_t* values,
 auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status {
   platform_mutex->lock();
   auto* p = platform_;
-  SPDLOG_DEBUG("Thread {:2} | Obtained platform lock", idx_);
-  SPDLOG_DEBUG("Thread {:2} | Attempting to parse buffer:\n {}", idx_,
+  SPDLOG_DEBUG("BatteryParser {:2} | Obtained platform lock", idx_);
+  SPDLOG_DEBUG("BatteryParser {:2} | Attempting to parse buffer:\n {}", idx_,
                ToString(*in, true));
 
   // Reset the kernel, start it, and poll until completion.
@@ -232,7 +232,7 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
     // Obtain the result for debugging.
     ReadMMIO(p, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
     ReadMMIO(p, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
-    SPDLOG_DEBUG("Thread {:2} | Number of rows: {}", idx_, num_rows.full);
+    SPDLOG_DEBUG("BatteryParser {:2} | Number of rows: {}", idx_, num_rows.full);
     platform_mutex->unlock();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     platform_mutex->lock();
@@ -255,7 +255,8 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
                         reinterpret_cast<uint8_t*>(raw_out_values), output_schema(),
                         &out_batch));
 
-  SPDLOG_DEBUG("Thread {:2} | Parsing {} JSONs completed.", idx_, out_batch->num_rows());
+  SPDLOG_DEBUG("BatteryParser {:2} | Parsing {} JSONs completed.", idx_,
+               out_batch->num_rows());
 
   ParsedBatch result(out_batch, in->range());
 
@@ -287,11 +288,49 @@ auto BatteryParser::output_schema() -> std::shared_ptr<arrow::Schema> {
   return result;
 }
 
+auto BatteryParser::custom_regs_offset() const -> size_t {
+  return default_regs + num_parsers * (2 * range_regs_per_inst + in_addr_regs_per_inst +
+                                       out_addr_regs_per_inst);
+}
+
+auto BatteryParser::ctrl_offset(size_t idx) const -> size_t {
+  return custom_regs_offset() + custom_regs_per_inst * idx;
+}
+
+auto BatteryParser::status_offset(size_t idx) const -> size_t {
+  return ctrl_offset(idx) + 1;
+}
+
+auto BatteryParser::result_rows_offset_lo(size_t idx) const -> size_t {
+  return status_offset(idx) + 1;
+}
+
+auto BatteryParser::result_rows_offset_hi(size_t idx) const -> size_t {
+  return result_rows_offset_lo(idx) + 1;
+}
+
+auto BatteryParser::input_firstidx_offset(size_t idx) const -> size_t {
+  return default_regs + range_regs_per_inst * idx;
+}
+
+auto BatteryParser::input_lastidx_offset(size_t idx) const -> size_t {
+  return input_firstidx_offset(idx) + 1;
+}
+
+auto BatteryParser::input_values_lo_offset(size_t idx) const -> size_t {
+  return default_regs + (2 * range_regs_per_inst) * num_parsers +
+         in_addr_regs_per_inst * idx;
+}
+
+auto BatteryParser::input_values_hi_offset(size_t idx) const -> size_t {
+  return input_values_lo_offset(idx) + 1;
+}
+
 void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
-  sub->add_option("--battery-afu-id",
+  sub->add_option("--battery-afu-id", out->afu_id,
                   "OPAE \"battery status\" AFU ID. "
                   "If not supplied, it is derived from number of parser instances.");
-  sub->add_option("--battery-num-parsers",
+  sub->add_option("--battery-num-parsers", out->num_parsers,
                   "OPAE \"battery status\" number of parser instances.")
       ->default_val(BOLSON_DEFAULT_OPAE_BATTERY_PARSERS);
 }
