@@ -29,6 +29,9 @@ auto Metrics::operator+=(const bolson::convert::Metrics& r) -> Metrics& {
   t.serialize += r.t.serialize;
   t.thread += r.t.thread;
   t.enqueue += r.t.enqueue;
+  if (!r.status.ok()) {
+    status = r.status;
+  }
   return *this;
 }
 

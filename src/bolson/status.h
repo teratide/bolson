@@ -38,6 +38,15 @@ auto ToString(Error e) -> std::string;
 /// Bolson status type.
 using Status = putong::Status<Error>;
 
+/// Status type reduce taking preference to error status.
+inline auto operator+=(const Status& lhs, const Status& rhs) -> Status {
+  if (!lhs.ok()) {
+    return lhs;
+  } else {
+    return rhs;
+  };
+}
+
 /// Status from multiple threads.
 using MultiThreadStatus = std::vector<Status>;
 

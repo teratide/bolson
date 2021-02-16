@@ -81,7 +81,7 @@ class ConcurrentConverter {
   void Start(std::atomic<bool>* shutdown);
 
   /// \brief Stop the converter, joining all converter threads.
-  auto Finish() -> Status;
+  auto Finish() -> MultiThreadStatus;
 
   /// \brief Return a pointer to the buffers.
   auto mutable_buffers() -> std::vector<illex::JSONBuffer*>;
@@ -96,7 +96,7 @@ class ConcurrentConverter {
   void UnlockBuffers();
 
   /// \brief Return converter metrics.
-  auto metrics() const -> std::vector<Metrics>;
+  [[nodiscard]] auto metrics() const -> std::vector<Metrics>;
 
  private:
   ConcurrentConverter(publish::IpcQueue* output_queue,
@@ -106,8 +106,7 @@ class ConcurrentConverter {
         allocator_(std::move(allocator)),
         num_buffers_(num_buffers),
         num_threads_(num_threads),
-        mutexes_(std::vector<std::mutex>(num_buffers)),
-        statistics_(std::vector<Metrics>(num_threads)) {}
+        mutexes_(std::vector<std::mutex>(num_buffers)) {}
 
   /**
    * \brief Allocate all buffers using the supplied allocator.
@@ -133,7 +132,8 @@ class ConcurrentConverter {
   std::vector<illex::JSONBuffer> buffers;
   std::vector<std::mutex> mutexes_;
   std::vector<std::thread> threads;
-  std::vector<Metrics> statistics_;
+  std::vector<std::future<Metrics>> metrics_futures;
+  std::vector<Metrics> metrics_;
 
   // TODO: work-around for OPAE because it needs a manager.
   //  This should be abstracted.
