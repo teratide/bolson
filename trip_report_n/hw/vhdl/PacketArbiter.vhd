@@ -184,7 +184,10 @@ architecture Implementation of PacketArbiter is
       variable idx : integer range 0 to 2**INDEX_WIDTH-1;
     begin
         for idx in 0 to NUM_INPUTS-1 loop
-          silent_last(idx) <= (not glob_last_pkt_s) and (not in_strb(idx)) and (not in_last(DIMENSIONALITY*idx+PKT_LAST)) and in_last(DIMENSIONALITY*idx+TX_LAST);
+          silent_last(idx) <= (not glob_last_pkt_s) 
+                              and (not in_strb(idx))
+                              and (not in_last(DIMENSIONALITY*idx+PKT_LAST))
+                              and in_last(DIMENSIONALITY*idx+TX_LAST);
         end loop;
     end process;
 
