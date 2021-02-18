@@ -57,6 +57,8 @@ architecture Implementation of ArbiterController is
       variable tag_v    : std_logic_vector(TAG_WIDTH-1 downto 0);
 
       variable pkt_ready_v : std_logic_vector(NUM_INPUTS-1 downto 0); 
+
+      variable last_pkt_r_v : std_logic;
     begin 
 
       if rising_edge(clk) then
@@ -69,7 +71,8 @@ architecture Implementation of ArbiterController is
           tv := '0';
         end if;
 
-        pkt_ready_v := (others => '0');
+        pkt_ready_v  := (others => '0');
+        last_pkt_r_v := '0';
 
         -- Select the next index (RR)
         if to_x01(cv) /= '1' and to_x01(tv) /= '1'then
@@ -109,6 +112,7 @@ architecture Implementation of ArbiterController is
           end if;
 
           if to_x01(last_pkt_valid) = '1' then
+            last_pkt_r_v := '1';
             tv := '1';
             tl := '1'; 
           end if;
@@ -119,6 +123,7 @@ architecture Implementation of ArbiterController is
         if reset = '1' then
           index       := (others => '0');
           index_r     := (others => '0');
+          last_pkt_r_v := '0';
           cv          := '0';
           tv          := '0';
         end if;
@@ -129,7 +134,7 @@ architecture Implementation of ArbiterController is
         cmd_valid      <= cv and not reset;
         tag_valid      <= tv and not reset;
         tag_strb       <= ts;
-        last_pkt_ready <= not cv and not tv and not reset;
+        last_pkt_ready <= last_pkt_r_v;
         pkt_ready      <= pkt_ready_v;
         tag_last       <= tl;
         tag_strb       <= ts; 
