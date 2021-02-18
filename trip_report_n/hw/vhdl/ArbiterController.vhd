@@ -127,6 +127,7 @@ architecture Implementation of ArbiterController is
         if reset = '1' then
           index       := (others => '0');
           index_r     := (others => '0');
+          lpv         := '0';
           cv          := '0';
           tv          := '0';
         end if;
