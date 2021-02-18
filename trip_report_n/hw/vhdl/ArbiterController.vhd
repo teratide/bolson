@@ -93,7 +93,7 @@ architecture Implementation of ArbiterController is
           end loop;
 
           for idx in NUM_INPUTS-1 downto 0 loop
-            if to_x01(cv) /= '1' and to_x01(tv) /= '1' and idx = to_integer(unsigned(index)) then
+            if idx = to_integer(unsigned(index)) and pkt_valid(to_integer(unsigned(index))) = '1' then
               pkt_ready_v(idx) := '1';
             else
               pkt_ready_v(idx) := '0';
@@ -115,9 +115,6 @@ architecture Implementation of ArbiterController is
 
         end if;
 
-        
-
-    
         -- Handle reset.
         if reset = '1' then
           index       := (others => '0');

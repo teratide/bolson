@@ -112,9 +112,7 @@ architecture Implementation of PacketArbiter is
 
         -- Lock on new command.
         if to_x01(cv) = '1' and last_pkt_v = '0' then
-          if lock = '0' then
-            idx         := cmd_index;
-          end if;
+          idx         := cmd_index;
           lock_v      := '1';
         end if;
 
