@@ -32,7 +32,7 @@ entity PacketArbiter is
       out_ready             : in  std_logic;
       out_data              : out std_logic_vector(DATA_WIDTH-1 downto 0);
       out_last              : out std_logic_vector(DIMENSIONALITY-1 downto 0) := (others => '0');
-      out_strb              : out std_logic := '1';
+      out_strb              : out std_logic;
 
       cmd_valid             : in  std_logic;
       cmd_ready             : out std_logic;
@@ -92,6 +92,7 @@ architecture Implementation of PacketArbiter is
       variable lock_v        : std_logic;
       variable last_pkt_cntr : unsigned(INDEX_WIDTH downto 0) := (others => '0');
       variable ie_popcnt     : unsigned(INDEX_WIDTH-1 downto 0);
+      variable idx           : std_logic_vector(INDEX_WIDTH-1 downto 0);
     begin 
 
       if rising_edge(clk) then
@@ -107,13 +108,14 @@ architecture Implementation of PacketArbiter is
         -- Latch command.
         if to_x01(cr) = '1' then 
           cv          := cmd_valid;
-          index       <= cmd_index;
         end if;
 
         -- Lock on new command.
         if to_x01(cv) = '1' and last_pkt_v = '0' then
-          cv           := '0';
-          lock_v       := '1';
+          if lock = '0' then
+            idx         := cmd_index;
+          end if;
+          lock_v      := '1';
         end if;
 
         if to_x01(ier) =  '1' then
@@ -138,14 +140,15 @@ architecture Implementation of PacketArbiter is
 
         if out_valid_s = '1' and out_ready = '1' then
           if out_last_s(PKT_LAST) = '1' then
-            lock_v := '0';
+            lock_v       := '0';
+            cv           := '0';
           end if;
         end if;
 
         -- Handle reset.
         if reset = '1' then
           cv            := '0';
-          index         <= (others => '0');
+          idx           := (others => '0');
           lock_v        := '0';
           last_pkt_cntr := (others => '0');
           last_pkt_v    := '0';
@@ -153,8 +156,9 @@ architecture Implementation of PacketArbiter is
         end if;
 
         cr                 := (not cv) and (not lock_v) and (not reset);
-        cmd_ready          <= cr;
+        cmd_ready          <= cr and not reset;
         lock               <= lock_v and not reset;
+        index              <= idx;
         last_pkt_cntr_s    <= last_pkt_cntr;
         last_packet_valid  <= last_pkt_v and not reset;
         inp_en_popcnt      <= ie_popcnt;

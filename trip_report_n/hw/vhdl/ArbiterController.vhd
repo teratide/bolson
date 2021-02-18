@@ -55,6 +55,8 @@ architecture Implementation of ArbiterController is
       variable index    : std_logic_vector(INDEX_WIDTH-1 downto 0);
       -- Selected tag.
       variable tag_v    : std_logic_vector(TAG_WIDTH-1 downto 0);
+
+      variable pkt_ready_v : std_logic_vector(NUM_INPUTS-1 downto 0); 
     begin 
 
       if rising_edge(clk) then
@@ -67,38 +69,44 @@ architecture Implementation of ArbiterController is
           tv := '0';
         end if;
 
-        pkt_ready_s <= (others => '0');
+        pkt_ready_v := (others => '0');
 
         -- Select the next index (RR)
         if to_x01(cv) /= '1' and to_x01(tv) /= '1'then
           ts := '0';
           tl := '0';
+
           -- Priority init.
           for idx in NUM_INPUTS-1 downto 0 loop
             if pkt_valid(idx) = '1' then
               index          := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
-              if pkt_ready_s(idx) = '1' then
-                cv             := '1';
-                tv             := '1';
-                ts             := '1';
-                tag_v          := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
-              end if;
             end if;
           end loop;
+
           --Round-robin arbitration.
           for idx in NUM_INPUTS-1 downto 0 loop
-            if pkt_valid(idx) = '1' and pkt_ready_s(idx) = '1' then
+            if pkt_valid(idx) = '1' then
               if idx > to_integer(unsigned(index_r)) then
-                index          := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
-                if pkt_ready_s(idx) = '1' then
-                  cv             := '1';
-                  tv             := '1';
-                  ts             := '1';
-                  tag_v          := tag_cfg(TAG_WIDTH*(idx+1)-1 downto TAG_WIDTH*idx);
-                end if;
+                index  := std_logic_vector(to_unsigned(idx, INDEX_WIDTH));
               end if;
             end if;
           end loop;
+
+          for idx in NUM_INPUTS-1 downto 0 loop
+            if to_x01(cv) /= '1' and to_x01(tv) /= '1' and idx = to_integer(unsigned(index)) then
+              pkt_ready_v(idx) := '1';
+            else
+              pkt_ready_v(idx) := '0';
+            end if;
+          end loop;
+
+
+          if pkt_valid(to_integer(unsigned(index))) = '1' then
+            cv             := '1';
+            tv             := '1';
+            ts             := '1';
+            tag_v          := tag_cfg(TAG_WIDTH*(to_integer(unsigned(index))+1)-1 downto TAG_WIDTH*to_integer(unsigned(index)));
+          end if;
 
           if to_x01(last_pkt_valid) = '1' then
             tv := '1';
@@ -107,13 +115,7 @@ architecture Implementation of ArbiterController is
 
         end if;
 
-        for idx in NUM_INPUTS-1 downto 0 loop
-          if to_x01(cv) /= '1' and to_x01(tv) /= '1' and idx = to_integer(unsigned(index)) then
-            pkt_ready_s(idx) <= '1';
-          else
-            pkt_ready_s(idx) <= '0';
-          end if;
-        end loop;
+        
 
     
         -- Handle reset.
@@ -131,7 +133,7 @@ architecture Implementation of ArbiterController is
         tag_valid      <= tv and not reset;
         tag_strb       <= ts;
         last_pkt_ready <= not cv and not tv and not reset;
-        pkt_ready      <= pkt_ready_s;
+        pkt_ready      <= pkt_ready_v;
         tag_last       <= tl;
         tag_strb       <= ts; 
       end if;
