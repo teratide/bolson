@@ -26,7 +26,7 @@
 #include "bolson/convert/converter.h"
 #include "bolson/convert/metrics.h"
 #include "bolson/parse/parser.h"
-#include "bolson/publish/publisher.h"
+#include "bolson/publish/bench.h"
 #include "bolson/status.h"
 #include "bolson/utils.h"
 
@@ -227,53 +227,8 @@ auto BenchQueue(const QueueBenchOptions& opt) -> Status {
   return Status::OK();
 }
 
-auto BenchPulsar(const PulsarBenchOptions& opt) -> Status {
-  /*
-  if (!opt.csv) {
-    spdlog::info("Number of messages : {}", opt.num_messages);
-    spdlog::info("Message size       : {} bytes", opt.message_size);
-    spdlog::info("Pulsar URL         : {}", opt.pulsar.url);
-    spdlog::info("Pulsar topic       : {}", opt.pulsar.topic);
-  }
-  // Setup Pulsar context
-  std::shared_ptr<ConcurrentPulsarPublisher> pulsar;
-  BOLSON_ROE(ConcurrentPulsarPublisher::Make(opt.pulsar, &pulsar));
-
-  putong::Timer<> t;
-
-  // Allocate some buffer.
-  auto* junk = static_cast<uint8_t*>(std::malloc(opt.message_size));
-  // Clear the buffer.
-  std::memset(junk, 0, opt.message_size);
-
-  // Start a timer.
-  t.Start();
-  for (int i = 0; i < opt.num_messages; i++) {
-    BOLSON_ROE(Publish(pulsar.producer.get(), junk, opt.message_size));
-  }
-  t.Stop();
-
-  // Free buffer.
-  free(junk);
-
-  if (opt.csv) {
-    std::cout << opt.num_messages << "," << opt.message_size << "," << t.seconds()
-              << std::endl;
-  } else {
-    // Print stats.
-    spdlog::info("Time               : {} s", t.seconds());
-    spdlog::info(
-        "Goodput            : {} MB/s",
-        1E-6 * static_cast<double>(opt.num_messages * opt.message_size) / t.seconds());
-  }
-
-  return Status::OK();
-   */
-  return Status(Error::GenericError, "Not implemented.");
-}
-
 auto BenchClient(const illex::ClientOptions& opt) -> Status {
-  return Status(Error::GenericError, "Not yet implemented.");
+  return Status(Error::GenericError, "Not implemented.");
 }
 
 auto RunBench(const BenchOptions& opt) -> Status {

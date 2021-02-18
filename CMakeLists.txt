@@ -97,6 +97,7 @@ add_compile_unit(
     src/bolson/parse/opae/battery.cpp
     src/bolson/parse/opae/opae.cpp
     src/bolson/parse/opae/trip.cpp
+    src/bolson/publish/bench.cpp
     src/bolson/publish/metrics.cpp
     src/bolson/publish/publisher.cpp
   TSTS
