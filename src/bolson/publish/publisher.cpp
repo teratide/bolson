@@ -21,6 +21,7 @@
 #include <pulsar/Result.h>
 #include <putong/timer.h>
 
+#include <CLI/CLI.hpp>
 #include <cassert>
 #include <memory>
 #include <utility>
@@ -144,7 +145,9 @@ void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
       publish_timer.Start();
 
       // Publish the message
+      ipc_item.time_points[TimePoints::popped] = illex::Timer::now();
       auto status = Publish(producer, ipc_item.message->data(), ipc_item.message->size());
+      ipc_item.time_points[TimePoints::published] = illex::Timer::now();
 
       // Deal with Pulsar errors.
       // In case the Producer causes some error, shut everything down.
@@ -159,11 +162,9 @@ void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
         return;
       }
 
-      // Measure point in time after publishing the batch.
-      ipc_item.time_points[TimePoints::published] = illex::Timer::now();
-
       // Add number of rows in IPC message to the count, signaling the main thread how
       // many JSONs are published.
+      assert(RecordSizeOf(ipc_item) != 0);
       count->fetch_add(RecordSizeOf(ipc_item));
 
       // Update some statistics.
@@ -181,6 +182,34 @@ void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
 
   // Fulfill the promise.
   metrics.set_value(s);
+}
+
+void AddPublishOptsToCLI(CLI::App* sub, publish::Options* pulsar) {
+  sub->add_option("-u,--pulsar-url", pulsar->url, "Pulsar broker service URL.")
+      ->default_val("pulsar://localhost:6650/");
+  sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic.")
+      ->default_val("non-persistent://public/default/bolson");
+
+  sub->add_option("--pulsar-max-msg-size", pulsar->max_msg_size)
+      ->default_val(BOLSON_DEFAULT_PULSAR_MAX_MSG_SIZE);
+
+  sub->add_option("--pulsar-producers", pulsar->num_producers,
+                  "Number of concurrent Pulsar producers.")
+      ->default_val(1);
+
+  // Pulsar batching defaults taken from the Pulsar CPP client sources.
+  // pulsar-client-cpp/lib/ProducerConfigurationImpl.h
+  sub->add_flag("--pulsar-batch", pulsar->batching.enable,
+                "Enable batching Pulsar producer(s).");
+  sub->add_option("--pulsar-batch-max-messages", pulsar->batching.max_messages,
+                  "Pulsar batching max. messages.")
+      ->default_val(1000);
+  sub->add_option("--pulsar-batch-max-bytes", pulsar->batching.max_bytes,
+                  "Pulsar batching max. bytes.")
+      ->default_val(128 * 1024);
+  sub->add_option("--pulsar-batch-max-delay", pulsar->batching.max_delay_ms,
+                  "Pulsar batching max. delay (ms).")
+      ->default_val(10);
 }
 
 /// A custom logger to redirect Pulsar client log messages to the Bolson logger.

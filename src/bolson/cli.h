@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <CLI/CLI.hpp>
 #include <iostream>
 
 #include "bolson/bench.h"

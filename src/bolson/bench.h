@@ -23,6 +23,7 @@
 #include "bolson/convert/converter.h"
 #include "bolson/parse/arrow.h"
 #include "bolson/parse/parser.h"
+#include "bolson/publish/bench.h"
 #include "bolson/publish/publisher.h"
 #include "bolson/status.h"
 #include "bolson/utils.h"
@@ -35,18 +36,6 @@ struct ConvertBenchOptions {
   bool csv = false;
   size_t num_jsons = 1024;
   convert::ConverterOptions converter;
-};
-
-/// Options for Pulsar interface benchmark.
-struct PulsarBenchOptions {
-  /// Pulsar options.
-  publish::Options pulsar;
-  /// Print output as CSV-like line.
-  bool csv = false;
-  /// Number of Pulsar messages to publish.
-  size_t num_messages;
-  /// Size of each message.
-  size_t message_size;
 };
 
 /// Options for queue benchmark
@@ -75,7 +64,7 @@ struct BenchOptions {
   /// Options for convert bench
   ConvertBenchOptions convert;
   /// Options for Pulsar bench
-  PulsarBenchOptions pulsar;
+  publish::BenchOptions pulsar;
   /// Options for Queue bench
   QueueBenchOptions queue;
 };
@@ -92,9 +81,6 @@ auto RunBench(const BenchOptions& opt) -> Status;
 
 /// \brief Run the TCP client benchmark.
 auto BenchClient(const illex::ClientOptions& opt) -> Status;
-
-/// \brief Run the Pulsar producer benchmark.
-auto BenchPulsar(const PulsarBenchOptions& opt) -> Status;
 
 /// \brief Run the JSON-to-Arrow conversion benchmark.
 auto BenchConvert(const ConvertBenchOptions& opts) -> Status;

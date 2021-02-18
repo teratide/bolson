@@ -21,13 +21,8 @@
 
 namespace bolson {
 
-template <typename T>
-inline static auto GetDiff(const LatencyMeasurement& m, size_t index) -> size_t {
-  return std::chrono::duration_cast<T>(m.time[index] - m.time[index - 1]).count();
-}
-
-auto SaveLatencyMetrics(const LatencyMeasurements& measurements, const std::string& file)
-    -> Status {
+auto SaveLatencyMetrics(const LatencyMeasurements& measurements, const std::string& file,
+                        size_t from, size_t to, bool with_seq) -> Status {
   using ns = std::chrono::nanoseconds;
 
   std::ofstream ofs(file);
@@ -36,14 +31,25 @@ auto SaveLatencyMetrics(const LatencyMeasurements& measurements, const std::stri
     return Status(Error::IOError, "Could not open " + file + " to save latency metrics.");
   }
 
-  ofs << "First,Last,Parse,Resize,Serialize,Publish" << std::endl;
+  // Print header.
+  if (with_seq) ofs << "First,Last,";
+  for (size_t i = from; i <= to; i++) {
+    ofs << TimePoints::point_name(i);
+    if (i != to) ofs << ',';
+  }
+  ofs << std::endl;
+
+  // Print data.
   for (const auto& m : measurements) {
-    ofs << m.seq.first << ",";
-    ofs << m.seq.last << ",";
-    ofs << GetDiff<ns>(m, TimePoints::parsed) << ",";
-    ofs << GetDiff<ns>(m, TimePoints::resized) << ",";
-    ofs << GetDiff<ns>(m, TimePoints::serialized) << ",";
-    ofs << GetDiff<ns>(m, TimePoints::published) << std::endl;
+    if (with_seq) {
+      ofs << m.seq.first << ",";
+      ofs << m.seq.last << ",";
+    }
+    for (size_t i = from; i <= to; i++) {
+      ofs << m.time.GetDiff<ns>(i);
+      if (i != to) ofs << ',';
+    }
+    ofs << std::endl;
   }
 
   return Status::OK();
