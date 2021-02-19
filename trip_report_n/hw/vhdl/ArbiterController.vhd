@@ -76,11 +76,19 @@ architecture Implementation of ArbiterController is
           lpv := last_pkt_valid;
         end if;
 
-        pkt_ready_v  := (others => '0');
-
         -- Select the next index (RR)
         if to_x01(cv) /= '1' and to_x01(tv) /= '1'then
           ts := '0';
+
+          if pkt_valid(to_integer(unsigned(index))) = '1' and pkt_ready_v(to_integer(unsigned(index))) = '1' then
+            cv             := '1';
+            tv             := '1';
+            ts             := '1';
+            tl             := '0';
+            tag_v          := tag_cfg(TAG_WIDTH*(to_integer(unsigned(index))+1)-1 downto TAG_WIDTH*to_integer(unsigned(index)));
+            cmd_index      <= index;
+            index_r        := index;
+          end if;
 
           -- Priority init.
           for idx in NUM_INPUTS-1 downto 0 loop
@@ -98,42 +106,31 @@ architecture Implementation of ArbiterController is
             end if;
           end loop;
 
-          for idx in NUM_INPUTS-1 downto 0 loop
-            if idx = to_integer(unsigned(index)) and pkt_valid(to_integer(unsigned(index))) = '1' then
-              pkt_ready_v(idx) := '1';
-            else
-              pkt_ready_v(idx) := '0';
-            end if;
-          end loop;
-
-
-          if pkt_valid(to_integer(unsigned(index))) = '1' then
-            cv             := '1';
-            tv             := '1';
-            ts             := '1';
-            tl             := '0';
-            tag_v          := tag_cfg(TAG_WIDTH*(to_integer(unsigned(index))+1)-1 downto TAG_WIDTH*to_integer(unsigned(index)));
-          end if;
-
           if to_x01(lpv) = '1' then
             lpv := '0';
             tv  := '1';
             tl  := '1'; 
           end if;
-
         end if;
+
+        for idx in NUM_INPUTS-1 downto 0 loop
+          if idx = to_integer(unsigned(index)) and cv /= '1' and tv /= '1' then
+            pkt_ready_v(idx) := '1';
+          else
+            pkt_ready_v(idx) := '0';
+          end if;
+        end loop;
 
         -- Handle reset.
         if reset = '1' then
           index       := (others => '0');
           index_r     := (others => '0');
+          pkt_ready_v := (others => '0');
           lpv         := '0';
           cv          := '0';
           tv          := '0';
         end if;
 
-        index_r        := index;
-        cmd_index      <= index;
         tag            <= tag_v;
         cmd_valid      <= cv and not reset;
         tag_valid      <= tv and not reset;
