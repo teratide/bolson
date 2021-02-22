@@ -29,12 +29,12 @@
 
 namespace bolson::convert {
 
-#define FAIL_ON_ERROR(status)                   \
-  {                                             \
-    auto __status = (status);                   \
-    if (!__status.ok()) {                       \
-      throw std::runtime_error(__status.msg()); \
-    }                                           \
+#define FAIL_ON_ERROR(status)   \
+  {                             \
+    auto __status = (status);   \
+    if (!__status.ok()) {       \
+      FAIL() << __status.msg(); \
+    }                           \
   }
 
 /// \brief Deserialize an Arrow RecordBatch given a schema and a buffer.
@@ -68,11 +68,12 @@ auto Convert(const ConverterOptions& opts, const std::vector<illex::JSONItem>& i
   conv->Start(&shutdown);
 
   size_t rows = 0;
-  while ((rows != in.size()) && (shutdown.load() == false)) {
+  while ((rows != in.size()) && !shutdown.load()) {
     publish::IpcQueueItem item;
-    out_queue.wait_dequeue(item);
-    rows += RecordSizeOf(item);
-    out->push_back(item);
+    if (out_queue.wait_dequeue_timed(item, std::chrono::milliseconds(1))) {
+      rows += RecordSizeOf(item);
+      out->push_back(item);
+    }
   }
 
   shutdown.store(true);
