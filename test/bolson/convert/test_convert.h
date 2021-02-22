@@ -82,20 +82,23 @@ auto Convert(const ConverterOptions& opts, const std::vector<illex::JSONItem>& i
 }
 
 /**
- * \brief This function "consumes" messages from two sources, and compares them.
- *
- * The function also tests some other functional requirements.
- *
- * \param ref_data      Reference batches with converted JSONs.
- * \param uut_data      Unit under test batches with converted JSONs.
- * \param schema        The Arrow schema.
- * \param expected_rows The expected number of rows in all batches.
- * \param max_ipc_size  The maximum IPC message size to test.
+ * \brief Deserialize reference and unit under test messages.
+ * \param ref_data      Reference messages.
+ * \param uut_data      UUT messages.
+ * \param schema        The schema to which the messages should comply.
+ * \param max_ipc_size  The maximum IPC size they should comply to.
+ * \param ref_out       The deserialized reference batches.
+ * \param uut_out       The deserialized UUT batches.
  */
-void ConsumeMessages(const std::vector<publish::IpcQueueItem>& ref_data,
-                     const std::vector<publish::IpcQueueItem>& uut_data,
-                     const std::shared_ptr<arrow::Schema>& schema,
-                     const size_t expected_rows, const size_t max_ipc_size) {
+void DeserializeMessages(const std::vector<publish::IpcQueueItem>& ref_data,
+                         const std::vector<publish::IpcQueueItem>& uut_data,
+                         const std::shared_ptr<arrow::Schema>& schema,
+                         const size_t max_ipc_size,
+                         std::vector<std::shared_ptr<arrow::RecordBatch>>* ref_out,
+                         std::vector<std::shared_ptr<arrow::RecordBatch>>* uut_out) {
+  std::vector<std::shared_ptr<arrow::RecordBatch>> ref;
+  std::vector<std::shared_ptr<arrow::RecordBatch>> uut;
+
   // Validate schema.
 
   // [FNC04]: Number fields of the JSON Object only represent and are converted to
@@ -104,6 +107,8 @@ void ConsumeMessages(const std::vector<publish::IpcQueueItem>& ref_data,
   //  Arrow’s “utf8” type, not to Arrow’s “date32” nor to the “date64” type.
   for (const auto& field : schema->fields()) {
     switch (field->type()->id()) {
+      case arrow::Type::BOOL:
+      case arrow::Type::UINT8:
       case arrow::Type::UINT64:
       case arrow::Type::STRING:
         break;
@@ -117,17 +122,12 @@ void ConsumeMessages(const std::vector<publish::IpcQueueItem>& ref_data,
         // [FNC07]: Nested JSON Objects are flattened in the resulting Arrow Schema.
         // Note: If nested JSONs were not flattened, then an arrow::struct needs to be
         //   supplied, and this test will fail.
-        FAIL() << "Fields must be converted to arrow::uint64 or arrow::utf8";
+        FAIL() << "Fields must be converted to arrow::uint(8/64) or arrow::utf8";
     }
   }
 
   // Assert number of output IPC messages is the same for CPU & FPGA impl.
   ASSERT_EQ(ref_data.size(), uut_data.size());
-
-  // Below code implements the functionality of "Consume Messages"
-
-  size_t ref_rows = 0;
-  size_t uut_rows = 0;
 
   // Assert the contents of each batch is the same for CPU & FPGA impl.
   for (size_t i = 0; i < ref_data.size(); i++) {
@@ -143,11 +143,33 @@ void ConsumeMessages(const std::vector<publish::IpcQueueItem>& ref_data,
     auto ref_batch = GetRecordBatch(schema, ref_data[i].message);
     auto uut_batch = GetRecordBatch(schema, uut_data[i].message);
 
-    // Make sure batch contains some data before comparing.
-    ASSERT_TRUE(ref_batch->num_rows() > 0);
+    ref.push_back(ref_batch);
+    uut.push_back(uut_batch);
+  }
 
-    // Both batches should have an equal number of rows.
-    ASSERT_TRUE(ref_batch->num_rows() == uut_batch->num_rows());
+  *ref_out = ref;
+  *uut_out = uut;
+}
+
+void CompareBatches(const std::vector<std::shared_ptr<arrow::RecordBatch>>& ref_batches,
+                    const std::vector<std::shared_ptr<arrow::RecordBatch>>& uut_batches,
+                    const size_t expected_rows) {
+  ASSERT_EQ(ref_batches.size(), uut_batches.size());
+
+  size_t ref_rows = 0;
+  size_t uut_rows = 0;
+
+  for (size_t i = 0; i < ref_batches.size(); i++) {
+    auto ref_batch = ref_batches[i];
+    auto uut_batch = uut_batches[i];
+
+    // Make sure batch contains some data before comparing.
+    EXPECT_TRUE(ref_batch->num_rows() > 0);
+    EXPECT_TRUE(uut_batch->num_rows() > 0);
+
+    // Both batches should have an equal number of rows and columns.
+    EXPECT_TRUE(ref_batch->num_rows() == uut_batch->num_rows());
+    EXPECT_TRUE(ref_batch->num_columns() == uut_batch->num_columns());
 
     // Increment total row counts.
     ref_rows += ref_batch->num_rows();

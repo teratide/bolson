@@ -79,7 +79,11 @@ TEST(OPAE, OPAE_BATTERY_8_KERNELS) {
   std::sort(arrow_out.begin(), arrow_out.end());
   std::sort(opae_out.begin(), opae_out.end());
 
-  ConsumeMessages(arrow_out, opae_out, test_schema(), num_jsons, max_ipc_size);
+  std::vector<std::shared_ptr<arrow::RecordBatch>> arrow_batches;
+  std::vector<std::shared_ptr<arrow::RecordBatch>> opae_batches;
+  DeserializeMessages(arrow_out, opae_out, test_schema(), max_ipc_size, &arrow_batches,
+                      &opae_batches);
+  CompareBatches(arrow_batches, opae_batches, num_jsons);
 }
 
 }  // namespace bolson::convert
