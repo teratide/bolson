@@ -121,18 +121,18 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
   }
 
   SPDLOG_DEBUG("BatteryParserContext | Preparing parsers.");
-  BOLSON_ROE(result->PrepareParsers());
+  BOLSON_ROE(result->PrepareParsers(opts.seq_column));
 
   *out = result;
 
   return Status::OK();
 }
 
-auto BatteryParserContext::PrepareParsers() -> Status {
+auto BatteryParserContext::PrepareParsers(bool seq_column) -> Status {
   for (size_t i = 0; i < num_parsers_; i++) {
     parsers_.push_back(std::make_shared<BatteryParser>(
         platform.get(), context.get(), kernel.get(), &h2d_addr_map, i, num_parsers_,
-        raw_out_offsets[i], raw_out_values[i], &platform_mutex));
+        raw_out_offsets[i], raw_out_values[i], &platform_mutex, seq_column));
   }
   return Status::OK();
 }
@@ -255,10 +255,28 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
                         reinterpret_cast<uint8_t*>(raw_out_values), output_schema(),
                         &out_batch));
 
-  SPDLOG_DEBUG("BatteryParser {:2} | Parsing {} JSONs completed.", idx_,
-               out_batch->num_rows());
+  std::shared_ptr<arrow::RecordBatch> final_batch;
+  if (seq_column) {
+    std::shared_ptr<arrow::UInt64Array> seq;
+    arrow::UInt64Builder builder;
+    ARROW_ROE(builder.Reserve(in->range().last - in->range().first + 1));
+    for (uint64_t s = in->range().first; s <= in->range().last; s++) {
+      builder.UnsafeAppend(s);
+    }
+    ARROW_ROE(builder.Finish(&seq));
+    auto final_batch_result = out_batch->AddColumn(0, "bolson_seq", seq);
+    if (!final_batch_result.ok()) {
+      return Status(Error::ArrowError, final_batch_result.status().message());
+    }
+    final_batch = final_batch_result.ValueOrDie();
+  } else {
+    final_batch = out_batch;
+  }
 
-  ParsedBatch result(out_batch, in->range());
+  SPDLOG_DEBUG("BatteryParser {:2} | Parsing {} JSONs completed.", idx_,
+               final_batch->num_rows());
+
+  ParsedBatch result(final_batch, in->range());
 
   *out = result;
 
