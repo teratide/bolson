@@ -54,7 +54,7 @@ TEST(OPAE, OPAE_BATTERY_8_KERNELS) {
 
   // Generate a bunch of JSONs
   std::vector<illex::JSONItem> jsons_in;
-  auto bytes_largest =
+  auto gen_result =
       GenerateJSONs(num_jsons, *generate_schema(), illex::GenerateOptions(0), &jsons_in);
 
   // Set OPAE Converter options.
@@ -68,6 +68,7 @@ TEST(OPAE, OPAE_BATTERY_8_KERNELS) {
   ConverterOptions arrow_opts = opae_opts;
   arrow_opts.parser.impl = parse::Impl::ARROW;
   arrow_opts.parser.arrow.schema = generate_schema();
+  arrow_opts.parser.arrow.buf_capacity = gen_result.second * num_jsons;
 
   // Run both implementations.
   std::vector<publish::IpcQueueItem> arrow_out;
@@ -81,8 +82,8 @@ TEST(OPAE, OPAE_BATTERY_8_KERNELS) {
 
   std::vector<std::shared_ptr<arrow::RecordBatch>> arrow_batches;
   std::vector<std::shared_ptr<arrow::RecordBatch>> opae_batches;
-  DeserializeMessages(arrow_out, opae_out, generate_schema(), max_ipc_size, &arrow_batches,
-                      &opae_batches);
+  DeserializeMessages(arrow_out, opae_out, generate_schema(), max_ipc_size,
+                      &arrow_batches, &opae_batches);
   CompareBatches(arrow_batches, opae_batches, num_jsons);
 }
 

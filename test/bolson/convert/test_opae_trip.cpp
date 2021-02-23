@@ -201,24 +201,26 @@ void CompareTripBatches(
 /// \brief Test Arrow impl. vs. Opae FPGA impl. for battery status.
 TEST(OPAE, OPAE_TRIP_3_KERNELS) {
   StartLogger();
-  const size_t opae_trip_instances = 3;                     // Number of parser instances.
-  const size_t num_jsons = 1024;                            // Number of JSONs to test.
-  const size_t max_ipc_size = 5 * 1024 * 1024 - 10 * 1024;  // Max IPC size.
+  const size_t opae_trip_instances = 3;
+  const size_t num_jsons = 64 * 1024;
+  const size_t max_ipc_size = 100 * 1024 * 1024;
 
   // Generate a bunch of JSONs
   std::vector<illex::JSONItem> jsons_in;
-  GenerateJSONs(num_jsons, *generate_schema(), illex::GenerateOptions(0), &jsons_in);
+  auto gen_result =
+      GenerateJSONs(num_jsons, *generate_schema(), illex::GenerateOptions(0), &jsons_in);
 
   // Set OPAE Converter options.
   ConverterOptions opae_opts;
   opae_opts.parser.impl = parse::Impl::OPAE_TRIP;
   opae_opts.parser.trip.num_parsers = opae_trip_instances;
-  opae_opts.max_batch_rows = 1024;
+  opae_opts.max_batch_rows = num_jsons;
   opae_opts.max_ipc_size = max_ipc_size;
 
   // Set Arrow Converter options, using the same options where applicable.
   ConverterOptions arrow_opts = opae_opts;
   arrow_opts.parser.impl = parse::Impl::ARROW;
+  arrow_opts.parser.arrow.buf_capacity = gen_result.first + num_jsons;
   arrow_opts.parser.arrow.schema = generate_schema();
 
   // Run both implementations.

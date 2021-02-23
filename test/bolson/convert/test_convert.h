@@ -63,7 +63,7 @@ auto Convert(const ConverterOptions& opts, const std::vector<illex::JSONItem>& i
   publish::IpcQueue out_queue;
   std::shared_ptr<Converter> conv;
   BOLSON_ROE(Converter::Make(opts, &out_queue, &conv));
-  FillBuffers(conv->parser_context()->mutable_buffers(), in);
+  BOLSON_ROE(FillBuffers(conv->parser_context()->mutable_buffers(), in));
   std::atomic<bool> shutdown = false;
   conv->Start(&shutdown);
 
