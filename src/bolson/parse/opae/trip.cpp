@@ -25,6 +25,7 @@
 #include <CLI/CLI.hpp>
 #include <chrono>
 #include <memory>
+#include <thread>
 #include <utility>
 
 #include "bolson/buffer/opae_allocator.h"
@@ -219,14 +220,6 @@ auto TripParser::custom_regs_offset() const -> size_t {
          output_range_regs + out_addr_regs;
 }
 
-auto TripParser::ctrl_offset(size_t idx) const -> size_t {
-  return custom_regs_offset() + custom_regs_per_inst * idx;
-}
-
-auto TripParser::result_rows_offset_hi(size_t idx) const -> size_t {
-  return result_rows_offset_lo(idx) + 1;
-}
-
 auto TripParser::input_firstidx_offset(size_t idx) -> size_t {
   return default_regs + input_range_regs_per_inst * idx;
 }
@@ -244,12 +237,12 @@ auto TripParser::input_values_hi_offset(size_t idx) const -> size_t {
   return input_values_lo_offset(idx) + 1;
 }
 
-auto TripParser::status_offset(size_t idx) const -> size_t {
-  return ctrl_offset(idx) + 1;
+auto TripParser::tag_offset(size_t idx) const -> size_t {
+  return custom_regs_offset() + custom_regs_per_inst * idx;
 }
 
-auto TripParser::result_rows_offset_lo(size_t idx) const -> size_t {
-  return status_offset(idx) + 1;
+auto TripParser::bytes_consumed_offset(size_t idx) const -> size_t {
+  return custom_regs_offset() + custom_regs_per_inst * idx + 1;
 }
 
 auto TripParserContext::PrepareInputBatches() -> Status {
@@ -492,10 +485,6 @@ static auto FixResult(const std::shared_ptr<arrow::RecordBatch>& batch,
   auto result =
       arrow::RecordBatch::Make(TripParser::output_schema(), batch->num_rows(), columns);
 
-  std::unique_ptr<arrow::RecordBatchBuilder> bld;
-  arrow::RecordBatchBuilder::Make(TripParser::output_schema(),
-                                  arrow::default_memory_pool(), &bld);
-
   return result;
 }
 
@@ -503,10 +492,14 @@ static auto FixResult(const std::shared_ptr<arrow::RecordBatch>& batch,
                                      std::vector<ParsedBatch>* out) -> Status {
   std::vector<uint64_t> seq_nos;
 
+  size_t bytes_total = 0;
+  size_t expected_rows = 0;
   for (size_t i = 0; i < in.size(); i++) {
     SPDLOG_DEBUG("TripParser | Parsing buffer {:2}:\n{}", i, ToString(*in[i], false));
     BOLSON_ROE(WriteInputMetaData(platform_, in[i], i));
     seq_nos.push_back(in[i]->range().first);
+    bytes_total += in[i]->size();
+    expected_rows += in[i]->num_jsons();
   }
 
   // Reset kernel.
@@ -514,12 +507,44 @@ static auto FixResult(const std::shared_ptr<arrow::RecordBatch>& batch,
   // Start kernel.
   kernel_->Start();
   // Wait for finish.
-  kernel_->PollUntilDone();
+  // kernel_->PollUntilDone();
 
   // Grab the return value (number of parsed JSON objects) and wrap the output Batch.
   dau_t ret_val;
+  ret_val.full = 0;
+  uint64_t num_rows = 0;
+  uint32_t status = 0;
+
+  do {
+    // status reg @ offset 1
+    ReadMMIO(platform_, 1, &status, 0, "Status");
+#ifndef NDEBUG
+    uint64_t bytes_consumed = 0;
+    for (int i = 0; i < num_hardware_parsers_; i++) {
+      uint32_t bc = 0;
+      BOLSON_ROE(ReadMMIO(platform_, bytes_consumed_offset(i), &bc, 0,
+                          "Bytes consumed " + std::to_string(i)));
+      SPDLOG_DEBUG("TripParser | Parser {:2} bytes consumed: {}/{}", i, bc,
+                   in[i]->size());
+      bytes_consumed += bc;
+    }
+    SPDLOG_DEBUG("TripParser | Total bytes consumed: {}/{}", bytes_consumed, bytes_total);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+#else
+    std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
+#endif
+  } while ((status & stat_done) != stat_done);
+
+  // Grab the return value (number of parsed JSON objects) and wrap the output Batch.
   FLETCHER_ROE(kernel_->GetReturn(&ret_val.lo, &ret_val.hi));
-  auto num_rows = static_cast<uint64_t>(ret_val.full);
+  num_rows = static_cast<uint64_t>(ret_val.full);
+
+  if (num_rows != expected_rows) {
+    return Status(Error::OpaeError,
+                  "Expected " + std::to_string(expected_rows) +
+                      " rows, but OPAE TripParser returned batch with " +
+                      std::to_string(num_rows) + " rows.");
+  }
 
   std::shared_ptr<arrow::RecordBatch> unfixed_result;
   BOLSON_ROE(
@@ -545,7 +570,7 @@ auto TripParser::WriteInputMetaData(fletcher::Platform* platform, illex::JSONBuf
   BOLSON_ROE(WriteMMIO(platform, input_values_hi_offset(idx), input_addr.hi, idx,
                        "input values addr hi"));
 
-  BOLSON_ROE(WriteMMIO(platform, ctrl_offset(idx), idx, idx, "tag address"));
+  BOLSON_ROE(WriteMMIO(platform, tag_offset(idx), idx, idx, "tag"));
 
   return Status::OK();
 }
