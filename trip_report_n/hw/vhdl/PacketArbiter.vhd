@@ -181,7 +181,9 @@ architecture Implementation of PacketArbiter is
         variable idx : integer range 0 to 2**INDEX_WIDTH-1;
       begin
         idx := to_integer(unsigned(index));
-        outstanding_last <= glob_last_pkt_s and in_last(DIMENSIONALITY*idx+TX_LAST);
+        outstanding_last <= glob_last_pkt_s 
+                            and in_last(DIMENSIONALITY*idx+TX_LAST)
+                            and not in_last(DIMENSIONALITY*idx+PKT_LAST);
     end process;
 
     silent_last_proc : process(glob_last_pkt_s, in_last, in_strb) is
