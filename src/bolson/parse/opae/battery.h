@@ -34,6 +34,7 @@ namespace bolson::parse::opae {
 struct BatteryOptions {
   std::string afu_id;  // left empty to auto-derive by default.
   size_t num_parsers = BOLSON_DEFAULT_OPAE_BATTERY_PARSERS;
+  bool seq_column = true;
 };
 
 void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out);
@@ -50,7 +51,7 @@ class BatteryParser : public Parser {
   BatteryParser(fletcher::Platform* platform, fletcher::Context* context,
                 fletcher::Kernel* kernel, AddrMap* addr_map, size_t parser_idx,
                 size_t num_parsers, std::byte* raw_out_offsets, std::byte* raw_out_values,
-                std::mutex* platform_mutex)
+                std::mutex* platform_mutex, bool seq_column)
       : platform_(platform),
         context_(context),
         kernel_(kernel),
@@ -59,7 +60,8 @@ class BatteryParser : public Parser {
         num_parsers(num_parsers),
         raw_out_offsets(raw_out_offsets),
         raw_out_values(raw_out_values),
-        platform_mutex(platform_mutex) {}
+        platform_mutex(platform_mutex),
+        seq_column(seq_column) {}
 
   auto Parse(const std::vector<illex::JSONBuffer*>& in, std::vector<ParsedBatch>* out)
       -> Status override;
@@ -125,6 +127,7 @@ class BatteryParser : public Parser {
   std::byte* raw_out_offsets;
   std::byte* raw_out_values;
   std::mutex* platform_mutex;
+  bool seq_column;
 };
 
 class BatteryParserContext : public ParserContext {
@@ -142,7 +145,7 @@ class BatteryParserContext : public ParserContext {
 
   auto PrepareInputBatches() -> Status;
   auto PrepareOutputBatches() -> Status;
-  auto PrepareParsers() -> Status;
+  auto PrepareParsers(bool seq_column) -> Status;
 
   size_t num_parsers_;
   std::string afu_id_;

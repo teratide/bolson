@@ -48,6 +48,8 @@ struct ArrowOptions {
   size_t num_buffers = 0;
   /// Capacity of input buffers.
   size_t buf_capacity = 16 * 1024 * 1024;
+  /// Whether to store sequence numbers as a column.
+  bool seq_column = true;
 
   auto ReadSchema() -> Status;
 };
@@ -59,8 +61,10 @@ void AddArrowOptionsToCLI(CLI::App* sub, ArrowOptions* out);
 class ArrowParser : public Parser {
  public:
   explicit ArrowParser(arrow::json::ParseOptions parse_options,
-                       arrow::json::ReadOptions read_options)
-      : parse_opts(std::move(parse_options)), read_opts(read_options) {}
+                       arrow::json::ReadOptions read_options, bool seq_column)
+      : parse_opts(std::move(parse_options)),
+        read_opts(read_options),
+        seq_column(seq_column) {}
 
   auto Parse(const std::vector<illex::JSONBuffer*>& buffers_in,
              std::vector<ParsedBatch>* batches_out) -> Status override;
@@ -68,6 +72,7 @@ class ArrowParser : public Parser {
  private:
   arrow::json::ParseOptions parse_opts;
   arrow::json::ReadOptions read_opts;
+  bool seq_column;
 };
 
 /// \brief Context for Arrow parsers.

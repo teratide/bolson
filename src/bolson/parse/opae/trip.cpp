@@ -25,6 +25,7 @@
 #include <CLI/CLI.hpp>
 #include <chrono>
 #include <memory>
+#include <thread>
 #include <utility>
 
 #include "bolson/buffer/opae_allocator.h"
@@ -128,6 +129,61 @@ static auto output_schema_sw() -> std::shared_ptr<arrow::Schema> {
   return result;
 }
 
+auto TripParser::output_schema() -> std::shared_ptr<arrow::Schema> {
+  static auto result = arrow::schema(
+      {arrow::field("bolson_seq", arrow::uint64(), false),
+       arrow::field("timestamp", arrow::utf8(), false),
+       arrow::field("timezone", arrow::uint64(), false),
+       arrow::field("vin", arrow::uint64(), false),
+       arrow::field("odometer", arrow::uint64(), false),
+       arrow::field("hypermiling", arrow::boolean(), false),
+       arrow::field("avgspeed", arrow::uint64(), false),
+       arrow::field(
+           "sec_in_band",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
+           false),
+       arrow::field(
+           "miles_in_time_range",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 24),
+           false),
+       arrow::field(
+           "const_speed_miles_in_band",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
+           false),
+       arrow::field(
+           "vary_speed_miles_in_band",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
+           false),
+       arrow::field(
+           "sec_decel",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
+           false),
+       arrow::field(
+           "sec_accel",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
+           false),
+       arrow::field(
+           "braking",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6),
+           false),
+       arrow::field(
+           "accel",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6),
+           false),
+       arrow::field("orientation", arrow::boolean(), false),
+       arrow::field(
+           "small_speed_var",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
+           false),
+       arrow::field(
+           "large_speed_var",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
+           false),
+       arrow::field("accel_decel", arrow::uint64(), false),
+       arrow::field("speed_changes", arrow::uint64(), false)});
+  return result;
+}
+
 // Fletcher default regs (unused):
 // 0 control
 // 1 status
@@ -164,14 +220,6 @@ auto TripParser::custom_regs_offset() const -> size_t {
          output_range_regs + out_addr_regs;
 }
 
-auto TripParser::ctrl_offset(size_t idx) const -> size_t {
-  return custom_regs_offset() + custom_regs_per_inst * idx;
-}
-
-auto TripParser::result_rows_offset_hi(size_t idx) const -> size_t {
-  return result_rows_offset_lo(idx) + 1;
-}
-
 auto TripParser::input_firstidx_offset(size_t idx) -> size_t {
   return default_regs + input_range_regs_per_inst * idx;
 }
@@ -189,12 +237,12 @@ auto TripParser::input_values_hi_offset(size_t idx) const -> size_t {
   return input_values_lo_offset(idx) + 1;
 }
 
-auto TripParser::status_offset(size_t idx) const -> size_t {
-  return ctrl_offset(idx) + 1;
+auto TripParser::tag_offset(size_t idx) const -> size_t {
+  return custom_regs_offset() + custom_regs_per_inst * idx;
 }
 
-auto TripParser::result_rows_offset_lo(size_t idx) const -> size_t {
-  return status_offset(idx) + 1;
+auto TripParser::bytes_consumed_offset(size_t idx) const -> size_t {
+  return custom_regs_offset() + custom_regs_per_inst * idx + 1;
 }
 
 auto TripParserContext::PrepareInputBatches() -> Status {
@@ -247,13 +295,11 @@ auto TripParserContext::PrepareInputBatches() -> Status {
   return Status::OK();
 }
 
-static auto ResizeArray(const std::shared_ptr<arrow::PrimitiveArray>& array,
+template <typename T>
+static auto ResizeArray(const std::shared_ptr<T>& array,
                         const std::shared_ptr<arrow::DataType>& type, size_t num_rows)
-    -> std::shared_ptr<arrow::PrimitiveArray> {
-  const auto* data_buff = array->values()->data();
-  auto value_buffer = std::make_shared<arrow::Buffer>(data_buff, num_rows);
-  auto value_array =
-      std::make_shared<arrow::PrimitiveArray>(type, num_rows, value_buffer);
+    -> std::shared_ptr<T> {
+  auto value_array = std::make_shared<T>(num_rows, array->values(), nullptr, 0);
   return value_array;
 }
 
@@ -267,42 +313,50 @@ static auto ResizeArray(const std::shared_ptr<arrow::StringArray>& array, size_t
 static auto ResizeArray(const std::shared_ptr<arrow::FixedSizeListArray>& array,
                         const std::shared_ptr<arrow::DataType>& type, size_t num_rows)
     -> std::shared_ptr<arrow::FixedSizeListArray> {
-  const auto* data_buff = array->values()->data()->buffers[1]->data();
-  auto value_buff_size = array->length() * num_rows * sizeof(uint64_t);
-  ;
-  auto value_buffer = std::make_shared<arrow::Buffer>(data_buff, value_buff_size);
-  auto value_array = std::make_shared<arrow::PrimitiveArray>(
-      arrow::uint64(), num_rows * array->value_length(), value_buffer);
-  auto list_array = std::make_shared<arrow::FixedSizeListArray>(
-      arrow::fixed_size_list(type, array->value_length()), num_rows, value_array);
-  return list_array;
+  assert(array->type()->field(0)->type()->id() == arrow::Type::UINT64);
+  size_t list_size = array->list_type()->list_size();
+  auto values_buf = array->values()->data()->buffers[1];
+  auto num_values = num_rows * list_size;
+
+  auto values = std::make_shared<arrow::UInt64Array>(num_values, values_buf, nullptr, 0);
+
+  auto list_array = arrow::FixedSizeListArray::FromArrays(values, list_size).ValueOrDie();
+  return std::static_pointer_cast<arrow::FixedSizeListArray>(list_array);
 }
 
-auto WrapTripReport(int32_t num_rows,
-                    const std::vector<std::shared_ptr<arrow::Array>>& arrays,
-                    const std::shared_ptr<arrow::Schema>& schema)
-    -> std::shared_ptr<arrow::RecordBatch> {
+static auto WrapTripReport(int32_t num_rows,
+                           const std::vector<std::shared_ptr<arrow::Array>>& arrays,
+                           const std::shared_ptr<arrow::Schema>& schema,
+                           std::shared_ptr<arrow::RecordBatch>* out) -> Status {
   std::vector<std::shared_ptr<arrow::Array>> resized_arrays;
 
-  for (const auto& f : arrays) {
-    if (f->type()->Equals(arrow::uint64())) {
-      auto field = std::static_pointer_cast<arrow::UInt64Array>(f);
+  for (const auto& array : arrays) {
+    if (array->type()->Equals(arrow::uint64())) {
+      auto field = std::static_pointer_cast<arrow::UInt64Array>(array);
       resized_arrays.push_back(ResizeArray(field, arrow::uint64(), num_rows));
-    } else if (f->type()->Equals(arrow::uint8())) {
-      auto field = std::static_pointer_cast<arrow::UInt8Array>(f);
+    } else if (array->type()->Equals(arrow::uint8())) {
+      auto field = std::static_pointer_cast<arrow::UInt8Array>(array);
       resized_arrays.push_back(ResizeArray(field, arrow::uint8(), num_rows));
-    } else if (f->type()->id() == arrow::Type::FIXED_SIZE_LIST) {
-      if (f->type()->field(0)->type()->id() == arrow::Type::UINT64) {
-        auto field = std::static_pointer_cast<arrow::FixedSizeListArray>(f);
+    } else if (array->type()->id() == arrow::Type::FIXED_SIZE_LIST) {
+      if (array->type()->field(0)->type()->id() == arrow::Type::UINT64) {
+        auto field = std::static_pointer_cast<arrow::FixedSizeListArray>(array);
         resized_arrays.push_back(ResizeArray(field, arrow::uint64(), num_rows));
+      } else {
+        return Status(Error::GenericError,
+                      "Unexpected fixed size list item type when wrapping trip report "
+                      "parser output.");
       }
-    } else if (f->type()->Equals(arrow::utf8())) {
-      auto field = std::static_pointer_cast<arrow::StringArray>(f);
+    } else if (array->type()->Equals(arrow::utf8())) {
+      auto field = std::static_pointer_cast<arrow::StringArray>(array);
       resized_arrays.push_back(ResizeArray(field, num_rows));
+    } else {
+      return Status(Error::GenericError,
+                    "Unexpected array type when wrapping trip report parser output.");
     }
   }
 
-  return arrow::RecordBatch::Make(schema, num_rows, resized_arrays);
+  *out = arrow::RecordBatch::Make(schema, num_rows, resized_arrays);
+  return Status::OK();
 }
 
 auto TripParserContext::PrepareOutputBatch() -> Status {
@@ -311,7 +365,6 @@ auto TripParserContext::PrepareOutputBatch() -> Status {
       std::shared_ptr<arrow::PrimitiveArray> array;
       BOLSON_ROE(AllocatePrimitiveArray(&allocator, arrow::uint64(),
                                         allocator.fixed_capacity(), &array));
-
       output_arrays_sw.push_back(array);
       output_arrays_hw.push_back(array);
     } else if (f->type()->Equals(arrow::uint8())) {
@@ -334,7 +387,6 @@ auto TripParserContext::PrepareOutputBatch() -> Status {
                                         allocator.fixed_capacity(), &values_array));
       BOLSON_ROE(AllocateFixedSizeListArray(field->value_type(), values_array,
                                             field->list_size(), &fixed_size_list_array));
-
       output_arrays_sw.push_back(fixed_size_list_array);
       output_arrays_hw.push_back(values_array);
     }
@@ -346,44 +398,108 @@ auto TripParserContext::PrepareOutputBatch() -> Status {
   return Status::OK();
 }
 
-[[nodiscard]] static auto WrapOutput(int32_t num_rows, uint8_t* offsets, uint8_t* values,
-                                     std::shared_ptr<arrow::Schema> schema,
-                                     std::shared_ptr<arrow::RecordBatch>* out) -> Status {
-  auto ret = Status::OK();
+static auto ConvertTagsToSeq(const std::shared_ptr<arrow::UInt64Array>& tags,
+                             std::vector<uint64_t> seq_nos,
+                             std::shared_ptr<arrow::UInt64Array>* out) -> Status {
+  arrow::UInt64Builder bld;
+  ARROW_ROE(bld.Reserve(tags->length()));
 
-  // +1 because the last value in offsets buffer is the next free index in the values
-  // buffer.
-  int32_t num_offsets = num_rows + 1;
+  for (size_t i = 0; i < tags->length(); i++) {
+    assert(tags->Value(i) < seq_nos.size());
+    bld.UnsafeAppend(seq_nos[tags->Value(i)]++);
+  }
+  ARROW_ROE(bld.Finish(out));
+  return Status::OK();
+}
 
-  // Obtain the last value in the offsets buffer to know how many values there are.
-  int32_t num_values = (reinterpret_cast<int32_t*>(offsets))[num_rows];
+static auto ConvertUInt8ToBool(const std::shared_ptr<arrow::UInt8Array>& col,
+                               std::shared_ptr<arrow::BooleanArray>* out) -> Status {
+  arrow::BooleanBuilder bld;
+  ARROW_ROE(bld.Reserve(col->length()));
+  const uint8_t* values = col->raw_values();
+  for (size_t i = 0; i < col->length(); i++) {
+    bld.UnsafeAppend(static_cast<bool>(values[i]));
+  }
+  ARROW_ROE(bld.Finish(out));
+  return Status::OK();
+}
 
-  size_t num_offset_bytes = num_offsets * sizeof(int32_t);
-  size_t num_values_bytes = num_values * sizeof(uint64_t);
+/**
+ * \brief Work-around for a couple of limitations to Fletcher / FPGA impl.
+ *
+ * Limitations:
+ *  - no boolean ArrayWriter (this is probably supported in HW, but the type may just not
+ *    have been included in Fletchgen.
+ *  - rows from each parser are interleaved in the output in an order depending on the
+ *    data.
+ *  - rows currently get a tag saying which parser processed them, this must be turned
+ *    into sequence numbers to comply to the other out of order parser implementations
+ */
+static auto FixResult(const std::shared_ptr<arrow::RecordBatch>& batch,
+                      std::vector<uint64_t> seq_nos)
+    -> std::shared_ptr<arrow::RecordBatch> {
+  // Work-around to turn tag into sequence numbers (overwrites existing buffer)
+  assert(batch->column_name(1) == "tag");  // sanity check
+  assert(batch->column(1)->type_id() == arrow::Type::UINT64);
+  std::shared_ptr<arrow::UInt64Array> seq;
+  ConvertTagsToSeq(std::static_pointer_cast<arrow::UInt64Array>(batch->column(1)),
+                   std::move(seq_nos), &seq);
 
-  try {
-    auto values_buf = arrow::Buffer::Wrap(values, num_values_bytes);
-    auto offsets_buf = arrow::Buffer::Wrap(offsets, num_offset_bytes);
-    auto value_array =
-        std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), num_values, values_buf);
-    auto offsets_array =
-        std::make_shared<arrow::PrimitiveArray>(arrow::int32(), num_offsets, offsets_buf);
-    auto list_array = arrow::ListArray::FromArrays(*offsets_array, *value_array);
+  // Work-around to turn uint8 fields back into boolean again.
+  std::shared_ptr<arrow::BooleanArray> hypermiling, orientation;
+  ConvertUInt8ToBool(
+      std::static_pointer_cast<arrow::UInt8Array>(batch->GetColumnByName("hypermiling")),
+      &hypermiling);
+  ConvertUInt8ToBool(
+      std::static_pointer_cast<arrow::UInt8Array>(batch->GetColumnByName("orientation")),
+      &orientation);
 
-    std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array.ValueOrDie()};
-    *out = arrow::RecordBatch::Make(std::move(schema), num_rows, arrays);
-  } catch (std::exception& e) {
-    return Status(Error::ArrowError, e.what());
+  std::vector<std::shared_ptr<arrow::Array>> columns = {
+      seq,
+      batch->GetColumnByName("timestamp"),
+      batch->GetColumnByName("timezone"),
+      batch->GetColumnByName("vin"),
+      batch->GetColumnByName("odometer"),
+      hypermiling,
+      batch->GetColumnByName("avgspeed"),
+      batch->GetColumnByName("sec_in_band"),
+      batch->GetColumnByName("miles_in_time_range"),
+      batch->GetColumnByName("const_speed_miles_in_band"),
+      batch->GetColumnByName("vary_speed_miles_in_band"),
+      batch->GetColumnByName("sec_decel"),
+      batch->GetColumnByName("sec_accel"),
+      batch->GetColumnByName("braking"),
+      batch->GetColumnByName("accel"),
+      orientation,
+      batch->GetColumnByName("small_speed_var"),
+      batch->GetColumnByName("large_speed_var"),
+      batch->GetColumnByName("accel_decel"),
+      batch->GetColumnByName("speed_changes")};
+
+  // Sanity check in debug.
+  for (const auto& col : columns) {
+    assert(col != nullptr);
   }
 
-  return Status::OK();
+  // Work-around to fix schema field order (should be zero-copy)
+  auto result =
+      arrow::RecordBatch::Make(TripParser::output_schema(), batch->num_rows(), columns);
+
+  return result;
 }
 
 [[nodiscard]] auto TripParser::Parse(const std::vector<illex::JSONBuffer*>& in,
                                      std::vector<ParsedBatch>* out) -> Status {
+  std::vector<uint64_t> seq_nos;
+
+  size_t bytes_total = 0;
+  size_t expected_rows = 0;
   for (size_t i = 0; i < in.size(); i++) {
-    SPDLOG_DEBUG("TripParser | Parsing buffer {:2}:\n{}", i, ToString(*in[i], true));
+    SPDLOG_DEBUG("TripParser | Parsing buffer {:2}:\n{}", i, ToString(*in[i], false));
     BOLSON_ROE(WriteInputMetaData(platform_, in[i], i));
+    seq_nos.push_back(in[i]->range().first);
+    bytes_total += in[i]->size();
+    expected_rows += in[i]->num_jsons();
   }
 
   // Reset kernel.
@@ -391,17 +507,49 @@ auto TripParserContext::PrepareOutputBatch() -> Status {
   // Start kernel.
   kernel_->Start();
   // Wait for finish.
-  kernel_->PollUntilDone();
+  // kernel_->PollUntilDone();
 
   // Grab the return value (number of parsed JSON objects) and wrap the output Batch.
   dau_t ret_val;
+  ret_val.full = 0;
+  uint64_t num_rows = 0;
+  uint32_t status = 0;
+
+  do {
+    // status reg @ offset 1
+    ReadMMIO(platform_, 1, &status, 0, "Status");
+#ifndef NDEBUG
+    uint64_t bytes_consumed = 0;
+    for (int i = 0; i < num_hardware_parsers_; i++) {
+      uint32_t bc = 0;
+      BOLSON_ROE(ReadMMIO(platform_, bytes_consumed_offset(i), &bc, 0,
+                          "Bytes consumed " + std::to_string(i)));
+      SPDLOG_DEBUG("TripParser | Parser {:2} bytes consumed: {}/{}", i, bc,
+                   in[i]->size());
+      bytes_consumed += bc;
+    }
+    SPDLOG_DEBUG("TripParser | Total bytes consumed: {}/{}", bytes_consumed, bytes_total);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+#else
+    std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
+#endif
+  } while ((status & stat_done) != stat_done);
+
+  // Grab the return value (number of parsed JSON objects) and wrap the output Batch.
   FLETCHER_ROE(kernel_->GetReturn(&ret_val.lo, &ret_val.hi));
-  auto num_rows = static_cast<uint64_t>(ret_val.full);
+  num_rows = static_cast<uint64_t>(ret_val.full);
 
-  auto result = WrapTripReport(num_rows, *output_arrays_sw_, output_schema_sw());
+  if (num_rows != expected_rows) {
+    return Status(Error::OpaeError,
+                  "Expected " + std::to_string(expected_rows) +
+                      " rows, but OPAE TripParser returned batch with " +
+                      std::to_string(num_rows) + " rows.");
+  }
 
-  SPDLOG_DEBUG("Parsed {} rows.", result->num_rows());
-  SPDLOG_DEBUG(result->ToString());
+  std::shared_ptr<arrow::RecordBatch> unfixed_result;
+  BOLSON_ROE(
+      WrapTripReport(num_rows, *output_arrays_sw_, output_schema_sw(), &unfixed_result));
+  auto result = FixResult(unfixed_result, seq_nos);
 
   out->push_back(ParsedBatch(result, {0, static_cast<uint64_t>(result->num_rows() - 1)}));
 
@@ -422,7 +570,7 @@ auto TripParser::WriteInputMetaData(fletcher::Platform* platform, illex::JSONBuf
   BOLSON_ROE(WriteMMIO(platform, input_values_hi_offset(idx), input_addr.hi, idx,
                        "input values addr hi"));
 
-  BOLSON_ROE(WriteMMIO(platform, ctrl_offset(idx), idx, idx, "tag address"));
+  BOLSON_ROE(WriteMMIO(platform, tag_offset(idx), idx, idx, "tag"));
 
   return Status::OK();
 }
@@ -458,6 +606,47 @@ void AddTripOptionsToCLI(CLI::App* sub, TripOptions* out) {
   sub->add_option("--trip-num-parsers", out->num_parsers,
                   "OPAE \"trip report\" number of parser instances.")
       ->default_val(BOLSON_DEFAULT_OPAE_TRIP_PARSERS);
+}
+
+auto TripReportBatchToString(const arrow::RecordBatch& batch) -> std::string {
+  std::stringstream ss;
+  for (size_t r = 0; r < batch.num_rows(); r++) {
+    for (size_t c = 0; c < batch.num_columns(); c++) {
+      ss << std::setw(25) << batch.column_name(c) << " : ";
+      switch (batch.column(c)->type_id()) {
+        case arrow::Type::UINT64:
+          ss << std::static_pointer_cast<arrow::UInt64Array>(batch.column(c))->Value(r);
+          break;
+        case arrow::Type::BOOL:
+          ss << std::static_pointer_cast<arrow::BooleanArray>(batch.column(c))->Value(r);
+          break;
+        case arrow::Type::FIXED_SIZE_LIST: {
+          assert(batch.column(c)->type()->field(0)->type()->id() == arrow::Type::UINT64);
+          auto slice = std::static_pointer_cast<arrow::UInt64Array>(
+              std::static_pointer_cast<arrow::FixedSizeListArray>(batch.column(c))
+                  ->value_slice(r));
+          ss << "[";
+          for (int i = 0; i < slice->length(); i++) {
+            ss << slice->Value(i);
+            if (i != slice->length() - 1) {
+              ss << ",";
+            }
+          }
+          ss << "]";
+          break;
+        }
+        case arrow::Type::STRING:
+          ss << std::static_pointer_cast<arrow::StringArray>(batch.column(c))
+                    ->GetString(r);
+          break;
+        default:
+          ss << "INVALID TYPE!";
+      }
+      ss << std::endl;
+    }
+    ss << std::string(96, '-') << std::endl;
+  }
+  return ss.str();
 }
 
 auto TripParserContext::schema() const -> std::shared_ptr<arrow::Schema> {

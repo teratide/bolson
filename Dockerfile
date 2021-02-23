@@ -35,7 +35,7 @@ RUN git clone -b multi_battery https://github.com/teratide/fletcher-opae.git /fl
 # Temporary work-around for Arrow support for fixed size list json parsing
 RUN git clone -b json-fixed-size-list https://github.com/johanpel/arrow.git /arrow && \
     cd /arrow/cpp && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DARROW_JSON=ON . && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DARROW_JSON=ON -DARROW_COMPUTE=ON . && \
     make -j && \
     make install && \
     rm -rf /arrow

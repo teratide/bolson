@@ -52,8 +52,8 @@ auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
   return {raw_chars, largest};
 }
 
-Status FillBuffers(std::vector<illex::JSONBuffer*> buffers,
-                   const std::vector<illex::JSONItem>& jsons) {
+auto FillBuffers(std::vector<illex::JSONBuffer*> buffers,
+                 const std::vector<illex::JSONItem>& jsons) -> Status {
   auto items_per_buffer = jsons.size() / buffers.size();
   auto items_first_buf = jsons.size() % buffers.size();
   size_t item = 0;
@@ -63,8 +63,7 @@ Status FillBuffers(std::vector<illex::JSONBuffer*> buffers,
     auto buffer_num_items = items_per_buffer + (b == 0 ? items_first_buf : 0);
     auto first = item;
     for (size_t j = 0; j < buffer_num_items; j++) {
-      if (buffers[b]->mutable_data() + offset + jsons[item].string.length() >
-          buffers[b]->mutable_data() + buffers[b]->capacity()) {
+      if (offset + jsons[item].string.length() > buffers[b]->capacity()) {
         return Status(Error::GenericError,
                       "JSONs do not fit in buffers. Increase buffer capacity.");
       }
@@ -121,7 +120,7 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
                converter->parser_context()->schema()->ToString());
 
   // Fill buffers.
-  FillBuffers(converter->parser_context()->mutable_buffers(), items);
+  BOLSON_ROE(FillBuffers(converter->parser_context()->mutable_buffers(), items));
 
   // Lock all buffers, so the threads don't start parsing until we unlock all buffers
   // at the same time.

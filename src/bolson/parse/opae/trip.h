@@ -52,19 +52,26 @@ class TripParser : public Parser {
   auto Parse(const std::vector<illex::JSONBuffer*>& in, std::vector<ParsedBatch>* out)
       -> Status override;
 
+  static auto output_schema() -> std::shared_ptr<arrow::Schema>;
+
  private:
+  static const uint32_t stat_idle = (1u << 0u);
+  static const uint32_t stat_busy = (1u << 1u);
+  static const uint32_t stat_done = (1u << 2u);
+  static const uint32_t ctrl_start = (1u << 0u);
+  static const uint32_t ctrl_stop = (1u << 1u);
+  static const uint32_t ctrl_reset = (1u << 2u);
+
   auto WriteInputMetaData(fletcher::Platform* platform, illex::JSONBuffer* in, size_t idx)
       -> Status;
 
   [[nodiscard]] auto custom_regs_offset() const -> size_t;
   static auto input_firstidx_offset(size_t idx) -> size_t;
   static auto input_lastidx_offset(size_t idx) -> size_t;
-  [[nodiscard]] auto ctrl_offset(size_t idx) const -> size_t;
-  [[nodiscard]] auto status_offset(size_t idx) const -> size_t;
-  [[nodiscard]] auto result_rows_offset_lo(size_t idx) const -> size_t;
-  [[nodiscard]] auto result_rows_offset_hi(size_t idx) const -> size_t;
   [[nodiscard]] auto input_values_lo_offset(size_t idx) const -> size_t;
   [[nodiscard]] auto input_values_hi_offset(size_t idx) const -> size_t;
+  [[nodiscard]] auto tag_offset(size_t idx) const -> size_t;
+  [[nodiscard]] auto bytes_consumed_offset(size_t idx) const -> size_t;
 
   size_t num_hardware_parsers_;
   fletcher::Platform* platform_;
@@ -119,5 +126,7 @@ class TripParserContext : public ParserContext {
 
   std::shared_ptr<TripParser> parser;
 };
+
+auto TripReportBatchToString(const arrow::RecordBatch& batch) -> std::string;
 
 }  // namespace bolson::parse::opae

@@ -21,7 +21,9 @@
 
 #include <CLI/CLI.hpp>
 #include <memory>
+#include <string_view>
 
+#include "bolson/log.h"
 #include "bolson/parse/parser.h"
 
 namespace bolson::parse {
@@ -85,7 +87,7 @@ auto ArrowParserContext::Make(const ArrowOptions& opts, size_t num_parsers,
 
   // Initialize all parsers.
   result->parsers_ = std::vector<std::shared_ptr<ArrowParser>>(
-      num_parsers, std::make_shared<ArrowParser>(parse_opts, read_opts));
+      num_parsers, std::make_shared<ArrowParser>(parse_opts, read_opts, opts.seq_column));
   *out = std::static_pointer_cast<ParserContext>(result);
 
   // Allocate buffers. Use number of parsers if number of buffers is 0 in options.
@@ -113,8 +115,10 @@ auto ArrowParser::Parse(const std::vector<illex::JSONBuffer*>& buffers_in,
 
     auto tr_read_result = t_reader->Read();
     if (!tr_read_result.ok()) {
-      return Status(Error::ArrowError,
-                    "Unable to read JSON as table: " + tr_read_result.status().message());
+      SPDLOG_DEBUG("Encountered error while parsing: {}",
+                   std::string(reinterpret_cast<const char*>(in->data()), in->size()));
+      return Status(Error::ArrowError, "Unable to read JSONs to RecordBatch(es): " +
+                                           tr_read_result.status().message());
     }
     auto table = tr_read_result.ValueOrDie();
 
@@ -129,7 +133,27 @@ auto ArrowParser::Parse(const std::vector<illex::JSONBuffer*>& buffers_in,
       return Status(Error::ArrowError, table_reader_next_result.status().message());
     }
 
-    auto final_batch = table_reader_next_result.ValueOrDie();
+    auto combined_batch = table_reader_next_result.ValueOrDie();
+
+    std::shared_ptr<arrow::RecordBatch> final_batch;
+
+    if (seq_column) {
+      std::shared_ptr<arrow::UInt64Array> seq;
+      arrow::UInt64Builder builder;
+      ARROW_ROE(builder.Reserve(in->range().last - in->range().first + 1));
+      for (uint64_t s = in->range().first; s <= in->range().last; s++) {
+        builder.UnsafeAppend(s);
+      }
+      ARROW_ROE(builder.Finish(&seq));
+      auto final_batch_result = combined_batch->AddColumn(0, "bolson_seq", seq);
+      if (!final_batch_result.ok()) {
+        return Status(Error::ArrowError, final_batch_result.status().message());
+      }
+      final_batch = final_batch_result.ValueOrDie();
+    } else {
+      final_batch = combined_batch;
+    }
+
     batches_out->emplace_back(final_batch, in->range());
   }
 
@@ -148,6 +172,8 @@ void AddArrowOptionsToCLI(CLI::App* sub, ArrowOptions* out) {
   sub->add_option("input,-i,--input", out->schema_path,
                   "Serialized Arrow schema file for records to convert to.")
       ->check(CLI::ExistingFile);
+  sub->add_option("--arrow-buf-cap", out->buf_capacity, "Arrow input buffer capacity.")
+      ->default_val(16 * 1024 * 1024);
 }
 
 }  // namespace bolson::parse

@@ -212,77 +212,93 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
       m->lock();
     }
 
-    t_stages.Start();
+    // Check if there is anything to do.
+    bool skip = true;
+    for (const auto& buf : buffers) {
+      skip = skip && buf->empty();
+    }
 
-    // Prepare intermediate wrappers.
-    std::vector<parse::ParsedBatch> parsed_batches;
-    ResizedBatches resized;
-    SerializedBatches serialized;
+    if (skip) {
+      for (auto* m : mutexes) {
+        m->unlock();
+      }
+    } else {
+      t_stages.Start();
 
-    // Parse the buffers
-    {
-      metrics.status = parser->Parse(buffers, &parsed_batches);
-      SHUTDOWN_ON_FAILURE();
+      // Prepare intermediate wrappers.
+      std::vector<parse::ParsedBatch> parsed_batches;
 
-      // Update metrics
-      metrics.num_jsons += parsed_batches[0].batch->num_rows();
-      metrics.num_parsed += buffers.size();
+      // Parse the buffers
+      {
+        metrics.status = parser->Parse(buffers, &parsed_batches);
+        SHUTDOWN_ON_FAILURE();
 
-      lat[TimePoints::received] = buffers[0]->recv_time();  // init with first buf time
-      for (int i = 0; i < buffers.size(); i++) {
-        metrics.json_bytes += buffers[i]->size();
-        // Mark worst-case latency time point for the output batch.
-        if (buffers[i]->recv_time() < lat[TimePoints::received]) {
-          lat[TimePoints::received] = buffers[i]->recv_time();
+        // Update metrics
+        metrics.num_jsons += parsed_batches[0].batch->num_rows();
+        metrics.num_parsed += buffers.size();
+
+        lat[TimePoints::received] = buffers[0]->recv_time();  // init with first buf time
+        for (int i = 0; i < buffers.size(); i++) {
+          metrics.json_bytes += buffers[i]->size();
+          // Mark worst-case latency time point for the output batch.
+          if (buffers[i]->recv_time() < lat[TimePoints::received]) {
+            lat[TimePoints::received] = buffers[i]->recv_time();
+          }
+          // Reset and unlock the buffer.
+          buffers[i]->Reset();
+          mutexes[i]->unlock();
         }
-        // Reset and unlock the buffer.
-        buffers[i]->Reset();
-        mutexes[i]->unlock();
+
+        lat[TimePoints::parsed] = illex::Timer::now();
+        t_stages.Split();
       }
 
-      lat[TimePoints::parsed] = illex::Timer::now();
-      t_stages.Split();
-    }
-
-    // Resize the batch.
-    {
-      for (auto pb : parsed_batches) {
-        ResizedBatches rb;
-        metrics.status = resizer->Resize(parsed_batches[0], &rb);
-        resized.insert(resized.end(), rb.begin(), rb.end());
+      // Resize the batch.
+      ResizedBatches resized;
+      {
+        for (auto pb : parsed_batches) {
+          ResizedBatches rb;
+          metrics.status = resizer->Resize(parsed_batches[0], &rb);
+          resized.insert(resized.end(), rb.begin(), rb.end());
+        }
+        SHUTDOWN_ON_FAILURE();
+        // Mark time points resized for all batches.
+        lat[TimePoints::resized] = illex::Timer::now();
+        t_stages.Split();
       }
-      SHUTDOWN_ON_FAILURE();
-      // Mark time points resized for all batches.
-      lat[TimePoints::resized] = illex::Timer::now();
-      t_stages.Split();
-    }
 
-    // Serialize the batch.
-    {
-      metrics.status = serializer->Serialize(resized, &serialized);
-      SHUTDOWN_ON_FAILURE();
-      metrics.num_ipc += serialized.size();
-      metrics.ipc_bytes += ByteSizeOf(serialized);
-      // Mark time points serialized for all batches.
-      lat[TimePoints::serialized] = illex::Timer::now();
-      // Copy the latency statistics to all serialized batches.
-      for (auto& s : serialized) {
-        s.time_points = lat;
+      // Serialize the batch.
+      SerializedBatches serialized;
+      {
+        metrics.status = serializer->Serialize(resized, &serialized);
+        SHUTDOWN_ON_FAILURE();
+        metrics.num_ipc += serialized.size();
+        metrics.ipc_bytes += ByteSizeOf(serialized);
+        // Mark time points serialized for all batches.
+        lat[TimePoints::serialized] = illex::Timer::now();
+        // Copy the latency statistics to all serialized batches.
+        for (auto& s : serialized) {
+          s.time_points = lat;
+        }
+        t_stages.Split();
+      }
+
+      // Enqueue IPC items
+      {
+        for (const auto& sb : serialized) {
+          SPDLOG_DEBUG("Enqueued IPC message with records {}...{}", sb.seq_range.first,
+                       sb.seq_range.last);
+          out->enqueue(sb);
+        }
       }
       t_stages.Split();
-    }
 
-    // Enqueue IPC items
-    for (const auto& sb : serialized) {
-      out->enqueue(sb);
+      // Add parse time to stats.
+      metrics.t.parse += t_stages.seconds()[0];
+      metrics.t.resize += t_stages.seconds()[1];
+      metrics.t.serialize += t_stages.seconds()[2];
+      metrics.t.enqueue += t_stages.seconds()[3];
     }
-    t_stages.Split();
-
-    // Add parse time to stats.
-    metrics.t.parse += t_stages.seconds()[0];
-    metrics.t.resize += t_stages.seconds()[1];
-    metrics.t.serialize += t_stages.seconds()[2];
-    metrics.t.enqueue += t_stages.seconds()[3];
 
     std::this_thread::sleep_for(std::chrono::microseconds(BOLSON_QUEUE_WAIT_US));
   }
@@ -300,6 +316,7 @@ auto Converter::Start(std::atomic<bool>* shutdown) -> Status {
   auto buffers = parser_context()->mutable_buffers().size();
 
   if ((threads > 1) || ((threads == 1) && (buffers == 1))) {
+    SPDLOG_DEBUG("Spawning {} one-to-one parser threads.", threads);
     // One to one parsers, spawn as many threads as parser context allows, and give each
     // thread a parser to work with.
     for (int t = 0; t < num_threads_; t++) {
@@ -311,6 +328,7 @@ auto Converter::Start(std::atomic<bool>* shutdown) -> Status {
           parser_context_->mutexes(), output_queue_, shutdown_, std::move(m));
     }
   } else if (threads == 1) {
+    SPDLOG_DEBUG("Spawning many-to-one parser thread.");
     // Many to one parsers, spawn one thread, give the thread the only parser.
     // This parser can operate on all input buffers.
     assert(parser_context()->parsers().size() == 1);
@@ -392,8 +410,7 @@ Converter::Converter(std::shared_ptr<parse::ParserContext> parser_context,
       resizers_(std::move(resizers)),
       serializers_(std::move(serializers)),
       output_queue_(output_queue),
-      num_threads_(num_threads),
-      metrics_(std::vector<Metrics>(num_threads)) {
+      num_threads_(num_threads) {
   assert(output_queue_ != nullptr);
   assert(num_threads_ != 0);
 }
