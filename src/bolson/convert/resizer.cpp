@@ -26,13 +26,17 @@ auto Resizer::Resize(const parse::ParsedBatch& in, ResizedBatches* out) -> Statu
     while (remaining > 0) {
       auto first = in.seq_range.first + offset;
       if (remaining > max_rows) {
-        result.push_back(parse::ParsedBatch{in.batch->Slice(offset, max_rows),
-                                            {first, first + max_rows - 1}});
+        illex::SeqRange new_seq = {first, first + max_rows - 1};
+        result.push_back(parse::ParsedBatch{
+            parse::AddSeqAsSchemaMeta(in.batch->Slice(offset, max_rows), new_seq),
+            new_seq});
         offset += max_rows;
         remaining -= max_rows;
       } else {
-        result.push_back(parse::ParsedBatch{in.batch->Slice(offset, remaining),
-                                            {first, first + remaining - 1}});
+        illex::SeqRange new_seq = {first, first + remaining - 1};
+        result.push_back(parse::ParsedBatch{
+            parse::AddSeqAsSchemaMeta(in.batch->Slice(offset, remaining), new_seq),
+            new_seq});
         offset += remaining;
         remaining = 0;
       }

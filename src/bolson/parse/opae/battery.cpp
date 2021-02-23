@@ -276,7 +276,7 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
     }
     final_batch = final_batch_result.ValueOrDie();
   } else {
-    final_batch = out_batch;
+    final_batch = AddSeqAsSchemaMeta(out_batch, in->range());
   }
 
   SPDLOG_DEBUG("BatteryParser {:2} | Parsing {} JSONs completed.", idx_,

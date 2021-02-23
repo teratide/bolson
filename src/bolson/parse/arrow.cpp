@@ -151,7 +151,7 @@ auto ArrowParser::Parse(const std::vector<illex::JSONBuffer*>& buffers_in,
       }
       final_batch = final_batch_result.ValueOrDie();
     } else {
-      final_batch = combined_batch;
+      final_batch = AddSeqAsSchemaMeta(combined_batch, in->range());
     }
 
     batches_out->emplace_back(final_batch, in->range());
