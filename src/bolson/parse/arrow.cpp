@@ -172,6 +172,8 @@ void AddArrowOptionsToCLI(CLI::App* sub, ArrowOptions* out) {
   sub->add_option("input,-i,--input", out->schema_path,
                   "Serialized Arrow schema file for records to convert to.")
       ->check(CLI::ExistingFile);
+  sub->add_option("--arrow-buf-cap", out->buf_capacity, "Arrow input buffer capacity.")
+      ->default_val(16 * 1024 * 1024);
 }
 
 }  // namespace bolson::parse
