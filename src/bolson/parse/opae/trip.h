@@ -52,6 +52,8 @@ class TripParser : public Parser {
   auto Parse(const std::vector<illex::JSONBuffer*>& in, std::vector<ParsedBatch>* out)
       -> Status override;
 
+  static auto output_schema() -> std::shared_ptr<arrow::Schema>;
+
  private:
   auto WriteInputMetaData(fletcher::Platform* platform, illex::JSONBuffer* in, size_t idx)
       -> Status;
@@ -119,5 +121,7 @@ class TripParserContext : public ParserContext {
 
   std::shared_ptr<TripParser> parser;
 };
+
+auto TripReportBatchToString(const arrow::RecordBatch& batch) -> std::string;
 
 }  // namespace bolson::parse::opae

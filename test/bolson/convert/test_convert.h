@@ -44,8 +44,8 @@ auto GetRecordBatch(const std::shared_ptr<arrow::Schema>& schema,
   auto stream = std::dynamic_pointer_cast<arrow::io::InputStream>(
       std::make_shared<arrow::io::BufferReader>(buffer));
   assert(stream != nullptr);
-  auto batch = arrow::ipc::ReadRecordBatch(
-                   schema, nullptr, arrow::ipc::IpcReadOptions::Defaults(), stream.get())
+  auto ipc_read_opts = arrow::ipc::IpcReadOptions::Defaults();
+  auto batch = arrow::ipc::ReadRecordBatch(schema, nullptr, ipc_read_opts, stream.get())
                    .ValueOrDie();
   return batch;
 }
@@ -96,9 +96,6 @@ void DeserializeMessages(const std::vector<publish::IpcQueueItem>& ref_data,
                          const size_t max_ipc_size,
                          std::vector<std::shared_ptr<arrow::RecordBatch>>* ref_out,
                          std::vector<std::shared_ptr<arrow::RecordBatch>>* uut_out) {
-  std::vector<std::shared_ptr<arrow::RecordBatch>> ref;
-  std::vector<std::shared_ptr<arrow::RecordBatch>> uut;
-
   // Validate schema.
 
   // [FNC04]: Number fields of the JSON Object only represent and are converted to
@@ -108,7 +105,6 @@ void DeserializeMessages(const std::vector<publish::IpcQueueItem>& ref_data,
   for (const auto& field : schema->fields()) {
     switch (field->type()->id()) {
       case arrow::Type::BOOL:
-      case arrow::Type::UINT8:
       case arrow::Type::UINT64:
       case arrow::Type::STRING:
         break;
@@ -122,14 +118,15 @@ void DeserializeMessages(const std::vector<publish::IpcQueueItem>& ref_data,
         // [FNC07]: Nested JSON Objects are flattened in the resulting Arrow Schema.
         // Note: If nested JSONs were not flattened, then an arrow::struct needs to be
         //   supplied, and this test will fail.
-        FAIL() << "Fields must be converted to arrow::uint(8/64) or arrow::utf8";
+        FAIL() << "Fields must be converted to arrow::boolean, arrow::uint64 or "
+                  "arrow::utf8";
     }
   }
 
   // Assert number of output IPC messages is the same for CPU & FPGA impl.
   ASSERT_EQ(ref_data.size(), uut_data.size());
 
-  // Assert the contents of each batch is the same for CPU & FPGA impl.
+  // Assert some rules about message sizes.
   for (size_t i = 0; i < ref_data.size(); i++) {
     // FNC10: The system will aggregate JSON objects into Arrow RecordBatches such that
     // the serialized RecordBatch into a Pulsar message will not exceed the Pulsar maximum
@@ -143,12 +140,9 @@ void DeserializeMessages(const std::vector<publish::IpcQueueItem>& ref_data,
     auto ref_batch = GetRecordBatch(schema, ref_data[i].message);
     auto uut_batch = GetRecordBatch(schema, uut_data[i].message);
 
-    ref.push_back(ref_batch);
-    uut.push_back(uut_batch);
+    ref_out->push_back(ref_batch);
+    uut_out->push_back(uut_batch);
   }
-
-  *ref_out = ref;
-  *uut_out = uut;
 }
 
 void CompareBatches(const std::vector<std::shared_ptr<arrow::RecordBatch>>& ref_batches,

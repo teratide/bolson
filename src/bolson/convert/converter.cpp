@@ -216,8 +216,6 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
 
     // Prepare intermediate wrappers.
     std::vector<parse::ParsedBatch> parsed_batches;
-    ResizedBatches resized;
-    SerializedBatches serialized;
 
     // Parse the buffers
     {
@@ -245,6 +243,7 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
     }
 
     // Resize the batch.
+    ResizedBatches resized;
     {
       for (auto pb : parsed_batches) {
         ResizedBatches rb;
@@ -258,6 +257,7 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
     }
 
     // Serialize the batch.
+    SerializedBatches serialized;
     {
       metrics.status = serializer->Serialize(resized, &serialized);
       SHUTDOWN_ON_FAILURE();
@@ -273,8 +273,10 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
     }
 
     // Enqueue IPC items
-    for (const auto& sb : serialized) {
-      out->enqueue(sb);
+    {
+      for (const auto& sb : serialized) {
+        out->enqueue(sb);
+      }
     }
     t_stages.Split();
 
@@ -300,6 +302,7 @@ auto Converter::Start(std::atomic<bool>* shutdown) -> Status {
   auto buffers = parser_context()->mutable_buffers().size();
 
   if ((threads > 1) || ((threads == 1) && (buffers == 1))) {
+    SPDLOG_DEBUG("Spawning {} one-to-one parser threads.", threads);
     // One to one parsers, spawn as many threads as parser context allows, and give each
     // thread a parser to work with.
     for (int t = 0; t < num_threads_; t++) {
@@ -311,6 +314,7 @@ auto Converter::Start(std::atomic<bool>* shutdown) -> Status {
           parser_context_->mutexes(), output_queue_, shutdown_, std::move(m));
     }
   } else if (threads == 1) {
+    SPDLOG_DEBUG("Spawning many-to-one parser thread.");
     // Many to one parsers, spawn one thread, give the thread the only parser.
     // This parser can operate on all input buffers.
     assert(parser_context()->parsers().size() == 1);

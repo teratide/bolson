@@ -24,7 +24,7 @@
 namespace bolson::convert {
 
 /// \brief Opae Battery Status schema
-auto test_schema() -> std::shared_ptr<arrow::Schema> {
+auto generate_schema() -> std::shared_ptr<arrow::Schema> {
   // FNC04: Number fields of the JSON Object only represent and are converted to unsigned
   //  integers of 64 bits.
 
@@ -55,7 +55,7 @@ TEST(OPAE, OPAE_BATTERY_8_KERNELS) {
   // Generate a bunch of JSONs
   std::vector<illex::JSONItem> jsons_in;
   auto bytes_largest =
-      GenerateJSONs(num_jsons, *test_schema(), illex::GenerateOptions(0), &jsons_in);
+      GenerateJSONs(num_jsons, *generate_schema(), illex::GenerateOptions(0), &jsons_in);
 
   // Set OPAE Converter options.
   ConverterOptions opae_opts;
@@ -67,7 +67,7 @@ TEST(OPAE, OPAE_BATTERY_8_KERNELS) {
   // Set Arrow Converter options, using the same options where applicable.
   ConverterOptions arrow_opts = opae_opts;
   arrow_opts.parser.impl = parse::Impl::ARROW;
-  arrow_opts.parser.arrow.schema = test_schema();
+  arrow_opts.parser.arrow.schema = generate_schema();
 
   // Run both implementations.
   std::vector<publish::IpcQueueItem> arrow_out;
@@ -81,7 +81,7 @@ TEST(OPAE, OPAE_BATTERY_8_KERNELS) {
 
   std::vector<std::shared_ptr<arrow::RecordBatch>> arrow_batches;
   std::vector<std::shared_ptr<arrow::RecordBatch>> opae_batches;
-  DeserializeMessages(arrow_out, opae_out, test_schema(), max_ipc_size, &arrow_batches,
+  DeserializeMessages(arrow_out, opae_out, generate_schema(), max_ipc_size, &arrow_batches,
                       &opae_batches);
   CompareBatches(arrow_batches, opae_batches, num_jsons);
 }
