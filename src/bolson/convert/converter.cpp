@@ -410,8 +410,7 @@ Converter::Converter(std::shared_ptr<parse::ParserContext> parser_context,
       resizers_(std::move(resizers)),
       serializers_(std::move(serializers)),
       output_queue_(output_queue),
-      num_threads_(num_threads),
-      metrics_(std::vector<Metrics>(num_threads)) {
+      num_threads_(num_threads) {
   assert(output_queue_ != nullptr);
   assert(num_threads_ != 0);
 }
