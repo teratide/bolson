@@ -219,6 +219,17 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
   BOLSON_ROE(WriteMMIO(p, ctrl_offset(idx_), ctrl_start, idx_, "ctrl"));
   BOLSON_ROE(WriteMMIO(p, ctrl_offset(idx_), 0, idx_, "ctrl"));
 
+  // While FPGA is busy, prepare sequence number column if necessary.
+  std::shared_ptr<arrow::UInt64Array> seq;
+  if (seq_column) {
+    arrow::UInt64Builder builder;
+    ARROW_ROE(builder.Reserve(in->range().last - in->range().first + 1));
+    for (uint64_t s = in->range().first; s <= in->range().last; s++) {
+      builder.UnsafeAppend(s);
+    }
+    ARROW_ROE(builder.Finish(&seq));
+  }
+
   // FLETCHER_ROE(kernel_->PollUntilDone());
   bool done = false;
   uint32_t status = 0;
@@ -256,14 +267,9 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
                         &out_batch));
 
   std::shared_ptr<arrow::RecordBatch> final_batch;
+
+  // Prepend the sequence number column that was potentially made earlier.
   if (seq_column) {
-    std::shared_ptr<arrow::UInt64Array> seq;
-    arrow::UInt64Builder builder;
-    ARROW_ROE(builder.Reserve(in->range().last - in->range().first + 1));
-    for (uint64_t s = in->range().first; s <= in->range().last; s++) {
-      builder.UnsafeAppend(s);
-    }
-    ARROW_ROE(builder.Finish(&seq));
     auto final_batch_result = out_batch->AddColumn(0, "bolson_seq", seq);
     if (!final_batch_result.ok()) {
       return Status(Error::ArrowError, final_batch_result.status().message());
