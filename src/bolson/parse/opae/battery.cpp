@@ -351,6 +351,10 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
   sub->add_option("--battery-num-parsers", out->num_parsers,
                   "OPAE \"battery status\" number of parser instances.")
       ->default_val(BOLSON_DEFAULT_OPAE_BATTERY_PARSERS);
+  sub->add_flag("--battery-seq-col", out->seq_column,
+                "OPAE \"battery status\" parser, retain ordering information by adding a "
+                "sequence number column.")
+      ->default_val(false);
 }
 
 }  // namespace bolson::parse::opae
