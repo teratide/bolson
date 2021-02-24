@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "bolson/latency.h"
+#include "bolson/metrics.h"
 #include "bolson/publish/publisher.h"
 #include "bolson/status.h"
 #include "bolson/utils.h"
@@ -96,6 +97,9 @@ static auto LogStreamMetrics(const StreamOptions& opt, const StreamTimers& timer
 
       if (!opt.latency_file.empty()) {
         BOLSON_ROE(SaveLatencyMetrics(p.latencies, opt.latency_file));
+      }
+      if (!opt.metrics_file.empty()) {
+        BOLSON_ROE(SaveMetrics(c, p, opt));
       }
     }
   }
