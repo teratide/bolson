@@ -36,7 +36,7 @@ auto SaveMetrics(const bolson::convert::Metrics& converter_metrics,
   }
 
   // Write header.
-  ofs << "Producer threads,Converter threads,Parser,Persistent topic,Batched mode,";
+  ofs << "Producer threads,Converter threads,Parser,Persistent topic,Batched mode,JSONs,";
   for (size_t i = TimePoints::received; i <= TimePoints::published; i++) {
     ofs << TimePoints::point_name(i);
     if (i != TimePoints::published) ofs << ',';
@@ -50,6 +50,7 @@ auto SaveMetrics(const bolson::convert::Metrics& converter_metrics,
     ofs << bolson::parse::ToString(opt.converter.parser.impl) << ",";
     ofs << (opt.pulsar.topic.find("non-persistent") == std::string::npos) << ",";
     ofs << opt.pulsar.batching.enable << ",";
+    ofs << converter_metrics.num_jsons << ",";
 
     for (size_t i = TimePoints::received; i <= TimePoints::published; i++) {
       ofs << m.time.GetDiff<ns>(i);
