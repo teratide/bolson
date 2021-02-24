@@ -37,6 +37,8 @@ struct StreamOptions {
   bool statistics = true;
   /// Latency stats output file. If empty, no latency stats will be written.
   std::string latency_file;
+  /// Metrics output file. If empty, no metrics file is written.
+  std::string metrics_file;
   /// Whether to produce succinct statistics.
   bool succinct = false;
   /// Options related to conversion.
