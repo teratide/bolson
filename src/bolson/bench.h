@@ -32,14 +32,23 @@ namespace bolson {
 
 /// Options for the Convert benchmark
 struct ConvertBenchOptions {
+  /// JSON generator options
   illex::GenerateOptions generate;
-  bool csv = false;
+  /// Number of JSONs to generate
   size_t num_jsons = 1024;
+  /// Converter implementation options.
   convert::ConverterOptions converter;
+  /// Latency stats output file. If empty, no latency stats will be written.
+  std::string latency_file;
+  /// Metrics output file. If empty, no metrics file is written.
+  std::string metrics_file;
+  /// Number of times to repeat the measurement.
+  size_t repeats = 1;
 };
 
 /// Options for queue benchmark
 struct QueueBenchOptions {
+  /// Number of items to queue.
   size_t num_items = 256;
 };
 

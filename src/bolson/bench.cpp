@@ -84,22 +84,19 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   putong::Timer<> t_gen, t_init, t_conv;
   auto o = opts;
 
+  spdlog::info("Converting {} randomly generated JSONs to Arrow IPC messages...",
+               o.num_jsons);
+
   BOLSON_ROE(o.converter.parser.arrow.ReadSchema());
 
-  if (!o.csv) {
-    spdlog::info("Converting {} JSONs to Arrow IPC messages...", o.num_jsons);
-  } else {
-    std::cout << o.num_jsons << ",";
-  }
   // Generate JSONs
   spdlog::info("Generating JSONs...");
 
   t_gen.Start();
-  std::vector<illex::JSONItem> items;
-  auto bytes_largest =
-      GenerateJSONs(o.num_jsons, *o.converter.parser.arrow.schema, o.generate, &items);
+  std::vector<illex::JSONItem> input_items;
+  auto bytes_largest = GenerateJSONs(o.num_jsons, *o.converter.parser.arrow.schema,
+                                     o.generate, &input_items);
   t_gen.Stop();
-
   auto gen_bytes = bytes_largest.first;
 
   spdlog::info("Initializing converter...");
@@ -108,58 +105,101 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   // Fix options if not supplied.
   convert::ConverterOptions conv_opts = o.converter;
 
-  // Set up output queue.
+  // Set up output queue & vector.
   publish::IpcQueue ipc_queue;
-  publish::IpcQueueItem ipc_item;
 
   // Construct converter.
   std::shared_ptr<convert::Converter> converter;
   BOLSON_ROE(convert::Converter::Make(conv_opts, &ipc_queue, &converter));
 
+  // Grab the input buffers from the parser context.
+  auto buffers = converter->parser_context()->mutable_buffers();
+
   spdlog::info("Converter schema:\n{}",
                converter->parser_context()->schema()->ToString());
 
   // Fill buffers.
-  BOLSON_ROE(FillBuffers(converter->parser_context()->mutable_buffers(), items));
+  BOLSON_ROE(FillBuffers(buffers, input_items));
+
+  // Remember how much data is in the buffers so we can quickly reset.
+  std::vector<size_t> buffer_sizes;
+  std::vector<illex::SeqRange> buffer_seq_ranges;
+  for (const auto& buf : buffers) {
+    buffer_sizes.push_back(buf->size());
+    buffer_seq_ranges.push_back(buf->range());
+  }
+
+  // Reserve a vector for latency measurements.
+  LatencyMeasurements latencies;
+  latencies.reserve(opts.repeats * buffers.size());
+
+  // Other metrics
+  size_t total_records_dequeued = 0;
+  size_t total_bytes_dequeued = 0;
+  size_t total_messages_dequeued = 0;
+
+  // Start converter threads.
+  std::atomic<bool> shutdown = false;
 
   // Lock all buffers, so the threads don't start parsing until we unlock all buffers
   // at the same time.
   converter->parser_context()->LockBuffers();
-
-  // Start converter threads.
-  std::atomic<bool> shutdown = false;
-  size_t num_rows = 0;
-  size_t ipc_size = 0;
-  size_t num_ipc = 0;
 
   converter->Start(&shutdown);
   t_init.Stop();
 
   spdlog::info("All threads spawned. Unlocking buffers and start converting...");
 
-  // Start conversion by unlocking the buffers.
   t_conv.Start();
+  // Repeat measurement.
+  for (size_t r = 0; r < opts.repeats; r++) {
+    size_t num_records_dequeued = 0;
+    size_t num_bytes_dequeued = 0;
+    size_t num_messages_dequeued = 0;
+
+    for (size_t b = 0; b < buffers.size(); b++) {
+      // Set the size/seq range of the buffer in case we repeat.
+      buffers[b]->SetSize(buffer_sizes[b]);
+      buffers[b]->SetRange(buffer_seq_ranges[b]);
+      // Mark "receive time" point for buffer to be converted, just before we unlock.
+      buffers[b]->SetRecvTime(illex::Timer::now());
+    }
+    // Start conversion by unlocking the buffers.
+    converter->parser_context()->UnlockBuffers();
+
+    // Pull JSON ipc items from the queue to check when we are done.
+    while ((num_records_dequeued != o.num_jsons) && !shutdown.load()) {
+      publish::IpcQueueItem ipc_item;
+      // Wait for an IPC message to appear.
+      if (ipc_queue.wait_dequeue_timed(ipc_item,
+                                       std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
+        // Mark time point popped from IPC message queue.
+        ipc_item.time_points[TimePoints::popped] = illex::Timer::now();
+        // Update some metrics.
+        num_records_dequeued += RecordSizeOf(ipc_item);
+        num_bytes_dequeued += ipc_item.message->size();
+        num_messages_dequeued++;
+        latencies.emplace_back(
+            LatencyMeasurement{ipc_item.seq_range, ipc_item.time_points});
+      }
+    }
+    converter->parser_context()->LockBuffers();
+    total_bytes_dequeued += num_bytes_dequeued;
+    total_messages_dequeued += num_messages_dequeued;
+    total_records_dequeued += num_records_dequeued;
+  }
   converter->parser_context()->UnlockBuffers();
 
-  // Pull JSON ipc items from the queue to check when we are done.
-  while (num_rows != o.num_jsons) {
-    ipc_queue.wait_dequeue(ipc_item);
-    num_rows += RecordSizeOf(ipc_item);
-    SPDLOG_DEBUG("Popped IPC item of {} rows. Progress: {}/{}", RecordSizeOf(ipc_item),
-                 num_rows, o.num_jsons);
-    ipc_size += ipc_item.message->size();
-    num_ipc++;
-  }
+  t_conv.Stop();
 
   // Stop converting.
   shutdown.store(true);
   converter->Finish();
-  t_conv.Stop();
 
   // Print all statistics:
-  auto json_MB = static_cast<double>(gen_bytes) / (1e6);
+  auto json_MB = static_cast<double>(opts.repeats * gen_bytes) / (1e6);
   auto json_M = static_cast<double>(opts.num_jsons) / (1e6);
-  auto ipc_MB = static_cast<double>(ipc_size / (1e6));
+  auto ipc_MB = static_cast<double>(total_bytes_dequeued / (1e6));
 
   spdlog::info("JSON Generation:");
   spdlog::info("  Bytes (no newlines) : {} B", gen_bytes);
@@ -169,7 +209,7 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   spdlog::info("  Throughput          : {} MJ/s", json_M / t_gen.seconds());
 
   spdlog::info("End-to-end conversion:");
-  spdlog::info("  IPC messages        : {}", num_ipc);
+  spdlog::info("  IPC messages        : {}", total_messages_dequeued);
   spdlog::info("  Time                : {} s", t_conv.seconds());
   spdlog::info("  Throughput (in)     : {} MB/s", json_MB / t_conv.seconds());
   spdlog::info("  Throughput (out)    : {} MB/s", ipc_MB / t_conv.seconds());
@@ -178,7 +218,8 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   auto a = Aggregate(converter->metrics());
   spdlog::info("Details:");
   LogConvertMetrics(a, opts.converter.num_threads, "  ");
-
+  SaveLatencyMetrics(latencies, opts.latency_file, TimePoints::parsed,
+                     TimePoints::popped);
   return Status::OK();
 }
 

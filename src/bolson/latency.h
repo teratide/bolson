@@ -67,7 +67,7 @@ struct LatencyMeasurement {
 using LatencyMeasurements = std::vector<LatencyMeasurement>;
 
 auto SaveLatencyMetrics(const LatencyMeasurements& measurements, const std::string& file,
-                        size_t from = TimePoints::received,
+                        size_t from = TimePoints::parsed,
                         size_t to = TimePoints::published, bool with_seq = true)
     -> Status;
 
