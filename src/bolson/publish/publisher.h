@@ -22,6 +22,7 @@
 #include <pulsar/Producer.h>
 #include <putong/timer.h>
 
+#include <CLI/CLI.hpp>
 #include <future>
 #include <memory>
 
@@ -72,6 +73,9 @@ struct Options {
   /// Log these options.
   void Log() const;
 };
+
+/// Add Pulsar options to CLI.
+void AddPublishOptsToCLI(CLI::App* sub, publish::Options* pulsar);
 
 /**
  * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.

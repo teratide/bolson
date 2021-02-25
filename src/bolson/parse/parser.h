@@ -17,43 +17,105 @@
 #include <arrow/api.h>
 #include <illex/client_buffering.h>
 
+#include <utility>
+#include <variant>
+
+#include "bolson/buffer/allocator.h"
 #include "bolson/latency.h"
 #include "bolson/status.h"
+#include "bolson/utils.h"
 
-/// Contains all constructs to parse JSONs.
+/// Contains all constructs to parse JSONs to Arrow RecordBatches
 namespace bolson::parse {
 
 /**
  * \brief The result of parsing a raw JSON buffer.
  */
 struct ParsedBatch {
+  ParsedBatch() = default;
+  ParsedBatch(std::shared_ptr<arrow::RecordBatch> batch, illex::SeqRange seq_range)
+      : batch(std::move(batch)), seq_range(seq_range){};
   /// The resulting Arrow RecordBatch.
-  std::shared_ptr<arrow::RecordBatch> batch;
+  std::shared_ptr<arrow::RecordBatch> batch = nullptr;
   /// Range of sequence numbers in batch.
-  illex::SeqRange seq_range;
+  illex::SeqRange seq_range = {0, 0};
 };
 
 /**
- * \brief Abstract class for implementations of parsing JSONs to Arrow RecordBatch.
+ * \brief Abstract class for implementations of parsing supplied buffers to RecordBatches.
  */
 class Parser {
  public:
   /**
-   * \brief Parse a buffer containing raw JSON data.
-   * \param in  The buffer with the raw JSON data.
-   * \param out The buffer with the parsed data represented as Arrow RecordBatch.
+   * \brief Parse buffers containing raw JSON data.
+   *
+   * Appends parsed buffers as RecordBatches to batches_out.
+   * No guarantees are made about the relation between the input buffers and output
+   * batches, other than that for each valid JSON object, there will be one corresponding
+   * Arrow record in one of the resulting batches.
+   *
+   * \param buffers_in  The buffers with the raw JSON data.
+   * \param batches_out The parsed data represented as Arrow RecordBatches.
    * \return Status::OK() if successful, some error otherwise.
    */
-  virtual auto Parse(illex::JSONBuffer* in, ParsedBatch* out) -> Status = 0;
+  virtual auto Parse(const std::vector<illex::JSONBuffer*>& buffers_in,
+                     std::vector<ParsedBatch>* batches_out) -> Status = 0;
 };
 
-/// Available parser implementations.
-enum class Impl {
-  ARROW,        ///< A CPU version based on Arrow's internal JSON parser using RapidJSON.
-  OPAE_BATTERY  ///< An FPGA version for only one specific schema.
+/**
+ * \brief Abstract class for implementations to define contexts around parsers.
+ */
+class ParserContext {
+ public:
+  /// \brief Return the parsers managed by this context.
+  virtual auto parsers() -> std::vector<std::shared_ptr<Parser>> = 0;
+
+  /// \brief Return no. threads allowed by impl. based on desired no. threads.
+  [[nodiscard]] virtual auto CheckThreadCount(size_t num_threads) const -> size_t {
+    return num_threads;
+  }
+
+  /// \brief Return no. input buffers allowed by impl. based on desired no. buffers.
+  [[nodiscard]] virtual auto CheckBufferCount(size_t num_buffers) const -> size_t {
+    return num_buffers;
+  }
+
+  /// \brief Return the Arrow schema used by the parsers to convert JSONs.
+  [[nodiscard]] virtual auto schema() const -> std::shared_ptr<arrow::Schema> = 0;
+
+  /**
+   * \brief Return pointers to all input buffers.
+   *
+   * Buffers should only be accessed after obtaining a lock using mutexes().
+   */
+  auto mutable_buffers() -> std::vector<illex::JSONBuffer*>;
+
+  /// \brief Return pointers to the mutexes of all input buffers.
+  auto mutexes() -> std::vector<std::mutex*>;
+
+  /// \brief Lock all mutexes of all buffers.
+  void LockBuffers();
+
+  /// \brief Unlock all mutexes of all buffers.
+  void UnlockBuffers();
+
+ protected:
+  virtual auto AllocateBuffers(size_t num_buffers, size_t capacity) -> Status;
+  virtual auto FreeBuffers() -> Status;
+
+  // The allocator used for the buffers.
+  std::shared_ptr<buffer::Allocator> allocator_ = nullptr;
+  /// The input buffers.
+  std::vector<illex::JSONBuffer> buffers_;
+  /// The mutexes for the input buffers.
+  std::vector<std::mutex> mutexes_;
 };
 
-/// \brief Convert an implementation enum to a human-readable string.
-auto ToString(const Impl& impl) -> std::string;
+/// \brief Print properties of the buffer in human-readable format.
+auto ToString(const illex::JSONBuffer& buffer, bool show_contents = true) -> std::string;
+
+/// \brief Add sequence numbers as schema metadata to a batch.
+auto AddSeqAsSchemaMeta(const std::shared_ptr<arrow::RecordBatch>& batch,
+                        illex::SeqRange seq_range) -> std::shared_ptr<arrow::RecordBatch>;
 
 }  // namespace bolson::parse

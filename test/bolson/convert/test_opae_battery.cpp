@@ -19,12 +19,12 @@
 #include "bolson/bench.h"
 #include "bolson/convert/converter.h"
 #include "bolson/convert/test_convert.h"
-#include "bolson/parse/opae_battery_impl.h"
+#include "bolson/parse/opae/battery.h"
 
 namespace bolson::convert {
 
 /// \brief Opae Battery Status schema
-auto test_schema() -> std::shared_ptr<arrow::Schema> {
+auto generate_schema() -> std::shared_ptr<arrow::Schema> {
   // FNC04: Number fields of the JSON Object only represent and are converted to unsigned
   //  integers of 64 bits.
 
@@ -43,7 +43,7 @@ auto test_schema() -> std::shared_ptr<arrow::Schema> {
 }
 
 /// \brief Test Arrow impl. vs. Opae FPGA impl. for battery status.
-TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
+TEST(OPAE, OPAE_BATTERY_8_KERNELS) {
   // [FNC01]: The system performs the Convert JSON objects function, where JSON Objects
   //  are streamed into the system, aggregated in JSON Objects Messages, and converted to
   //  Pulsar Messages containing Arrow IPC messages containing Arrow RecordBatches.
@@ -54,24 +54,21 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
 
   // Generate a bunch of JSONs
   std::vector<illex::JSONItem> jsons_in;
-  auto bytes_largest =
-      GenerateJSONs(num_jsons, *test_schema(), illex::GenerateOptions(0), &jsons_in);
+  auto gen_result =
+      GenerateJSONs(num_jsons, *generate_schema(), illex::GenerateOptions(0), &jsons_in);
 
   // Set OPAE Converter options.
   ConverterOptions opae_opts;
-  opae_opts.implementation = parse::Impl::OPAE_BATTERY;
-  opae_opts.buf_capacity = buffer::OpaeAllocator::opae_fixed_capacity;
+  opae_opts.parser.impl = parse::Impl::OPAE_BATTERY;
   opae_opts.num_threads = opae_battery_parsers_instances;
-  opae_opts.num_buffers = opae_battery_parsers_instances;
   opae_opts.max_batch_rows = 1024;
   opae_opts.max_ipc_size = max_ipc_size;
 
   // Set Arrow Converter options, using the same options where applicable.
   ConverterOptions arrow_opts = opae_opts;
-  arrow_opts.implementation = parse::Impl::ARROW;
-  arrow_opts.buf_capacity = 2 * bytes_largest.first;
-  arrow_opts.arrow.read.use_threads = false;
-  arrow_opts.arrow.parse.explicit_schema = test_schema();
+  arrow_opts.parser.impl = parse::Impl::ARROW;
+  arrow_opts.parser.arrow.schema = generate_schema();
+  arrow_opts.parser.arrow.buf_capacity = gen_result.second * num_jsons;
 
   // Run both implementations.
   std::vector<publish::IpcQueueItem> arrow_out;
@@ -83,7 +80,11 @@ TEST(FPGA, OPAE_BATTERY_8_KERNELS) {
   std::sort(arrow_out.begin(), arrow_out.end());
   std::sort(opae_out.begin(), opae_out.end());
 
-  ConsumeMessages(arrow_out, opae_out, test_schema(), num_jsons, max_ipc_size);
+  std::vector<std::shared_ptr<arrow::RecordBatch>> arrow_batches;
+  std::vector<std::shared_ptr<arrow::RecordBatch>> opae_batches;
+  DeserializeMessages(arrow_out, opae_out, generate_schema(), max_ipc_size,
+                      &arrow_batches, &opae_batches);
+  CompareBatches(arrow_batches, opae_batches, num_jsons);
 }
 
 }  // namespace bolson::convert

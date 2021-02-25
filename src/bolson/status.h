@@ -56,7 +56,7 @@ using MultiThreadStatus = std::vector<Status>;
  * \param prefix Prefix for error messages.
  * \return A single status.
  */
-auto Aggregate(const MultiThreadStatus& status, const std::string& prefix) -> Status;
+auto Aggregate(const MultiThreadStatus& status, const std::string& prefix = "") -> Status;
 
 /// Return on error status.
 #define BOLSON_ROE(s)                    \

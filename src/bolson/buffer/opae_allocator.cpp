@@ -23,13 +23,13 @@
 namespace bolson::buffer {
 
 auto OpaeAllocator::Allocate(size_t size, std::byte** out) -> Status {
-  if (size != opae_fixed_capacity) {
+  if (size != fixed_capacity_) {
     spdlog::warn(
         "OpaeAllocator requested to allocate {} bytes, "
-        "but only allows allocating exactly {} bytes for now.",
-        size, opae_fixed_capacity);
+        "but implementation only allows allocating exactly {} bytes.",
+        size, fixed_capacity_);
   }
-  size = opae_fixed_capacity;
+  size = fixed_capacity_;
 
   // TODO(mbrobbel): explain this
   void* addr = mmap(nullptr, size, (PROT_READ | PROT_WRITE),

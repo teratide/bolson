@@ -24,9 +24,9 @@ namespace bolson::convert {
 /// A serialized RecordBatch.
 struct SerializedBatch {
   /// The serialized batch.
-  std::shared_ptr<arrow::Buffer> message;
+  std::shared_ptr<arrow::Buffer> message = nullptr;
   /// The range of sequence numbers it contains.
-  illex::SeqRange seq_range;
+  illex::SeqRange seq_range = {0, 0};
   /// When the batch was where in the pipeline.
   TimePoints time_points;
 };

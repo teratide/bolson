@@ -21,8 +21,9 @@
 #include <putong/timer.h>
 
 #include "bolson/convert/converter.h"
-#include "bolson/parse/arrow_impl.h"
+#include "bolson/parse/arrow.h"
 #include "bolson/parse/parser.h"
+#include "bolson/publish/bench.h"
 #include "bolson/publish/publisher.h"
 #include "bolson/status.h"
 #include "bolson/utils.h"
@@ -31,23 +32,10 @@ namespace bolson {
 
 /// Options for the Convert benchmark
 struct ConvertBenchOptions {
-  std::shared_ptr<arrow::Schema> schema;
   illex::GenerateOptions generate;
   bool csv = false;
   size_t num_jsons = 1024;
   convert::ConverterOptions converter;
-};
-
-/// Options for Pulsar interface benchmark.
-struct PulsarBenchOptions {
-  /// Pulsar options.
-  publish::Options pulsar;
-  /// Print output as CSV-like line.
-  bool csv = false;
-  /// Number of Pulsar messages to publish.
-  size_t num_messages;
-  /// Size of each message.
-  size_t message_size;
 };
 
 /// Options for queue benchmark
@@ -76,7 +64,7 @@ struct BenchOptions {
   /// Options for convert bench
   ConvertBenchOptions convert;
   /// Options for Pulsar bench
-  PulsarBenchOptions pulsar;
+  publish::BenchOptions pulsar;
   /// Options for Queue bench
   QueueBenchOptions queue;
 };
@@ -94,11 +82,8 @@ auto RunBench(const BenchOptions& opt) -> Status;
 /// \brief Run the TCP client benchmark.
 auto BenchClient(const illex::ClientOptions& opt) -> Status;
 
-/// \brief Run the Pulsar producer benchmark.
-auto BenchPulsar(const PulsarBenchOptions& opt) -> Status;
-
 /// \brief Run the JSON-to-Arrow conversion benchmark.
-auto BenchConvert(ConvertBenchOptions opt) -> Status;
+auto BenchConvert(const ConvertBenchOptions& opts) -> Status;
 
 /// \brief Generate a bunch of JSONs, returns number of bytes and largest JSON size.
 auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
@@ -110,7 +95,7 @@ auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
  * \param buffers   The buffers to fill.
  * \param jsons     The JSONs to copy into the buffers.
  */
-void FillBuffers(std::vector<illex::JSONBuffer*> buffers,
-                 const std::vector<illex::JSONItem>& jsons);
+auto FillBuffers(std::vector<illex::JSONBuffer*> buffers,
+                 const std::vector<illex::JSONItem>& jsons) -> Status;
 
 }  // namespace bolson

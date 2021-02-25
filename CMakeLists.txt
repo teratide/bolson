@@ -83,6 +83,7 @@ add_compile_unit(
     src/bolson/bench.cpp
     src/bolson/cli.cpp
     src/bolson/latency.cpp
+    src/bolson/metrics.cpp
     src/bolson/status.cpp
     src/bolson/stream.cpp
     src/bolson/utils.cpp
@@ -92,13 +93,17 @@ add_compile_unit(
     src/bolson/convert/resizer.cpp
     src/bolson/convert/serializer.cpp
     src/bolson/convert/metrics.cpp
-    src/bolson/parse/arrow_impl.cpp
-    src/bolson/parse/opae_battery_impl.cpp
+    src/bolson/parse/arrow.cpp
     src/bolson/parse/parser.cpp
+    src/bolson/parse/opae/battery.cpp
+    src/bolson/parse/opae/opae.cpp
+    src/bolson/parse/opae/trip.cpp
+    src/bolson/publish/bench.cpp
     src/bolson/publish/metrics.cpp
     src/bolson/publish/publisher.cpp
   TSTS
     test/bolson/convert/test_opae_battery.cpp
+    test/bolson/convert/test_opae_trip.cpp
   DEPS
     arrow_shared
     CLI11::CLI11

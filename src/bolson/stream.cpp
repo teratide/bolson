@@ -16,12 +16,12 @@
 
 #include <putong/timer.h>
 
-#include <iostream>
 #include <memory>
 #include <thread>
 #include <vector>
 
 #include "bolson/latency.h"
+#include "bolson/metrics.h"
 #include "bolson/publish/publisher.h"
 #include "bolson/status.h"
 #include "bolson/utils.h"
@@ -40,7 +40,7 @@ struct StreamThreads {
   std::atomic<size_t> publish_count = 0;
 
   /// Shut down the threads.
-  auto Shutdown(const std::shared_ptr<convert::ConcurrentConverter>& converter,
+  auto Shutdown(const std::shared_ptr<convert::Converter>& converter,
                 const std::shared_ptr<publish::ConcurrentPublisher>& publisher)
       -> Status {
     shutdown.store(true);
@@ -53,7 +53,7 @@ struct StreamThreads {
 /// \brief Log the statistics.
 static auto LogStreamMetrics(const StreamOptions& opt, const StreamTimers& timers,
                              const illex::BufferingClient& client,
-                             const convert::ConcurrentConverter& converter,
+                             const convert::Converter& converter,
                              const publish::ConcurrentPublisher& publisher) -> Status {
   // Report some statistics.
   if (opt.statistics) {
@@ -65,8 +65,7 @@ static auto LogStreamMetrics(const StreamOptions& opt, const StreamTimers& timer
 
       spdlog::info("Initialization");
       spdlog::info("  Time                    : {}", timers.init.seconds());
-      spdlog::info("  Implementation          : {}",
-                   ToString(opt.converter.implementation));
+      spdlog::info("  Conversion impl.        : {}", ToString(opt.converter.parser.impl));
       spdlog::info("  Conversion threads      : {}", opt.converter.num_threads);
       spdlog::info("  TCP clients             : {}", 1);
       opt.pulsar.Log();
@@ -99,6 +98,9 @@ static auto LogStreamMetrics(const StreamOptions& opt, const StreamTimers& timer
       if (!opt.latency_file.empty()) {
         BOLSON_ROE(SaveLatencyMetrics(p.latencies, opt.latency_file));
       }
+      if (!opt.metrics_file.empty()) {
+        BOLSON_ROE(SaveMetrics(c, p, opt));
+      }
     }
   }
   return Status::OK();
@@ -123,7 +125,7 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
       BOLSON_PUBLISH_IPC_QUEUE_SIZE);  // IPC queue to Pulsar producer.
 
   illex::BufferingClient client;                            // TCP client.
-  std::shared_ptr<convert::ConcurrentConverter> converter;  // Converters.
+  std::shared_ptr<convert::Converter> converter;            // Converters.
   std::shared_ptr<publish::ConcurrentPublisher> publisher;  // Pulsar producers.
 
   timers.init.Start();
@@ -132,11 +134,12 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
                                                 &threads.publish_count, &publisher));
 
   spdlog::info("Initializing converter(s)...");
-  BOLSON_ROE(convert::ConcurrentConverter::Make(opt.converter, &ipc_queue, &converter));
+  BOLSON_ROE(convert::Converter::Make(opt.converter, &ipc_queue, &converter));
 
   spdlog::info("Initializing stream source client...");
-  BILLEX_ROE(illex::BufferingClient::Create(opt.client, converter->mutable_buffers(),
-                                            converter->mutexes(), &client));
+  BILLEX_ROE(illex::BufferingClient::Create(
+      opt.client, converter->parser_context()->mutable_buffers(),
+      converter->parser_context()->mutexes(), &client));
   timers.init.Stop();
 
   spdlog::info("Starting JSON-to-Arrow converter thread(s)...");

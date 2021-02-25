@@ -22,8 +22,10 @@
 #include "bolson/convert/metrics.h"
 #include "bolson/convert/resizer.h"
 #include "bolson/convert/serializer.h"
-#include "bolson/parse/arrow_impl.h"
-#include "bolson/parse/opae_battery_impl.h"
+#include "bolson/parse/arrow.h"
+#include "bolson/parse/implementations.h"
+#include "bolson/parse/opae/battery.h"
+#include "bolson/parse/opae/trip.h"
 #include "bolson/parse/parser.h"
 #include "bolson/publish/publisher.h"
 #include "bolson/status.h"
@@ -35,36 +37,34 @@ namespace bolson::convert {
  * \brief Converter options.
  */
 struct ConverterOptions {
-  /// Maximum size of an IPC message.
+  /// Number of desired converter threads.
+  /// May not be possible, depending on implementation.
+  size_t num_threads = 1;
+  /// Maximum size of an IPC message in bytes.
   size_t max_ipc_size = 0;
   /// Maximum number of rows in a RecordBatch.
   size_t max_batch_rows = 0;
-  /// Number of threads.
-  size_t num_threads = 1;
-  /// Number of buffers.
-  std::optional<size_t> num_buffers = std::nullopt;
-  /// Capacity for each buffer.
-  size_t buf_capacity = 32 * 1024 * 1024;
-  /// Parser implementation to use.
-  parse::Impl implementation = parse::Impl::ARROW;
-  /// Options for Arrow built-in parser implementation.
-  parse::ArrowOptions arrow;
-  /// Options for Opae Battery parser implementation.
-  parse::OpaeBatteryOptions opae_battery;
+
+  /// Parser options.
+  parse::ParserOptions parser;
 };
 
 /**
  * \brief Converter for JSON to Arrow IPC messages.
  *
- * When started, this unit spawns multiple threads performing the conversion
- * simultaneously.
+ * The converter spawns at least one (but typically multiple) thread(s) after
+ * calling Start(). These threads produce IPC messages and push them onto the output
+ * queue whenever data appears in input buffers.
+ *
+ * The converter can be stopped by storing "false" in the shutdown signal, and calling
+ * Finish(). After the converter is finished, conversion metrics may be extracted by
+ * calling metrics(), where each metric in the output vector are the metrics for each
+ * converter thread.
  */
-class ConcurrentConverter {
+class Converter {
  public:
   /**
-   * \brief Construct a converter instance.
-   *
-   * Allocates buffers that should be accessed only by obtaining a lock using mutexes().
+   * \brief Construct an AllToOneConverter instance.
    *
    * \param opts        Conversion options.
    * \param ipc_queue   The IPC queue to push converted batches to.
@@ -72,72 +72,54 @@ class ConcurrentConverter {
    * \return Status::OK() if successful, some error otherwise.
    */
   static auto Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
-                   std::shared_ptr<ConcurrentConverter>* out) -> Status;
+                   std::shared_ptr<Converter>* out) -> Status;
 
   /**
-   * \brief Start the converter, spawning the supplied number of converter threads.
+   * \brief Start the converter (non-blocking).
    * \param shutdown Shutdown signal.
+   * \return Status::OK() if successful, some error otherwise.
    */
-  void Start(std::atomic<bool>* shutdown);
+  auto Start(std::atomic<bool>* shutdown) -> Status;
 
-  /// \brief Stop the converter, joining all converter threads.
+  /**
+   * \brief Stop the converter, joining all converter threads.
+   *
+   * If the shutdown signal supplied to Start() was not set to true, this function will
+   * block until the shutdown signal is set to true.
+   */
   auto Finish() -> MultiThreadStatus;
 
-  /// \brief Return a pointer to the buffers.
-  auto mutable_buffers() -> std::vector<illex::JSONBuffer*>;
-
-  /// \brief Return a pointer to the buffers.
-  auto mutexes() -> std::vector<std::mutex*>;
-
-  /// \brief Lock all mutexes of all buffers.
-  void LockBuffers();
-
-  /// brief Lock all mutexes of all buffers.
-  void UnlockBuffers();
+  /// \brief Return the parser context.
+  [[nodiscard]] auto parser_context() const -> std::shared_ptr<parse::ParserContext>;
 
   /// \brief Return converter metrics.
   [[nodiscard]] auto metrics() const -> std::vector<Metrics>;
 
- private:
-  ConcurrentConverter(publish::IpcQueue* output_queue,
-                      std::shared_ptr<buffer::Allocator> allocator,
-                      size_t num_buffers = 1, size_t num_threads = 1)
-      : output_queue_(output_queue),
-        allocator_(std::move(allocator)),
-        num_buffers_(num_buffers),
-        num_threads_(num_threads),
-        mutexes_(std::vector<std::mutex>(num_buffers)) {}
+ protected:
+  /// Converter constructor.
+  Converter(std::shared_ptr<parse::ParserContext> parser_context,
+            std::vector<convert::Resizer> resizers,
+            std::vector<convert::Serializer> serializers, publish::IpcQueue* output_queue,
+            size_t num_threads = 1);
 
-  /**
-   * \brief Allocate all buffers using the supplied allocator.
-   * \param capacity The capacity of the buffers to allocate.
-   * \return Status::OK() if successful, some error otherwise.
-   */
-  auto AllocateBuffers(size_t capacity) -> Status;
-
-  /**
-   * \brief Free the buffers for this converter.
-   * \return Status::OK() if successful, some error otherwise.
-   */
-  auto FreeBuffers() -> Status;
-
+  /// The output queue.
   publish::IpcQueue* output_queue_ = nullptr;
-  std::shared_ptr<buffer::Allocator> allocator_ = nullptr;
-  size_t num_threads_ = 1;
-  size_t num_buffers_ = 1;
+  /// Shutdown signal.
   std::atomic<bool>* shutdown_ = nullptr;
-  std::vector<std::shared_ptr<parse::Parser>> parsers;
-  std::vector<convert::Resizer> resizers;
-  std::vector<convert::Serializer> serializers;
-  std::vector<illex::JSONBuffer> buffers;
-  std::vector<std::mutex> mutexes_;
-  std::vector<std::thread> threads;
-  std::vector<std::future<Metrics>> metrics_futures;
+  /// Number of threads.
+  size_t num_threads_ = 1;
+  /// Converter threads.
+  std::vector<std::thread> threads_;
+  /// Parser manager implementations.
+  std::shared_ptr<parse::ParserContext> parser_context_;
+  /// Resizer instances.
+  std::vector<convert::Resizer> resizers_;
+  /// Serializer instances.
+  std::vector<convert::Serializer> serializers_;
+  /// Metrics of converter thread(s).
   std::vector<Metrics> metrics_;
-
-  // TODO: work-around for OPAE because it needs a manager.
-  //  This should be abstracted.
-  std::shared_ptr<parse::OpaeBatteryParserManager> opae_battery_manager;
+  /// Metrics futures of running threads.
+  std::vector<std::future<Metrics>> metrics_futures_;
 };
 
 }  // namespace bolson::convert

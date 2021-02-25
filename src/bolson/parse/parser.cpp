@@ -18,14 +18,83 @@
 
 namespace bolson::parse {
 
-auto ToString(const Impl& impl) -> std::string {
-  switch (impl) {
-    case Impl::ARROW:
-      return "Arrow (CPU)";
-    case Impl::OPAE_BATTERY:
-      return "OPAE Battery status (FPGA)";
+auto ToString(const illex::JSONBuffer& buffer, bool show_contents) -> std::string {
+  std::stringstream ss;
+  ss << "Buffer    : " << buffer.data() << "\n"
+     << "Capacity  : " << buffer.capacity() << "\n"
+     << "Size      : " << buffer.size() << "\n"
+     << "JSON data : " << buffer.num_jsons();
+  if (show_contents) {
+    ss << "\n";
+    ss << std::string_view(reinterpret_cast<const char*>(buffer.data()), buffer.size());
   }
-  throw std::runtime_error("Corrupt impl.");
+  return ss.str();
 }
+
+auto AddSeqAsSchemaMeta(const std::shared_ptr<arrow::RecordBatch>& batch,
+                        illex::SeqRange seq_range)
+    -> std::shared_ptr<arrow::RecordBatch> {
+  auto additional_meta = arrow::key_value_metadata(
+      {"bolson_seq_first", "bolson_seq_last"},
+      {std::to_string(seq_range.first), std::to_string(seq_range.last)});
+  auto current_meta = batch->schema()->metadata();
+  if (current_meta != nullptr) {
+    auto new_meta = current_meta->Merge(*additional_meta);
+    return batch->ReplaceSchemaMetadata(new_meta);
+  } else {
+    return batch->ReplaceSchemaMetadata(additional_meta);
+  }
+}
+
+auto ParserContext::AllocateBuffers(size_t num_buffers, size_t capacity) -> Status {
+  // Sanity check.
+  if (allocator_ == nullptr) {
+    return Status(Error::GenericError,
+                  "Parser context has no allocator to allocate buffers.");
+  }
+  // Allocate all buffers and create mutexes.
+  for (size_t b = 0; b < num_buffers; b++) {
+    std::byte* raw = nullptr;
+    BOLSON_ROE(allocator_->Allocate(capacity, &raw));
+    illex::JSONBuffer buf;
+    BILLEX_ROE(illex::JSONBuffer::Create(raw, capacity, &buf));
+    buffers_.push_back(buf);
+  }
+
+  mutexes_ = std::vector<std::mutex>(num_buffers);
+
+  return Status::OK();
+}
+
+auto ParserContext::FreeBuffers() -> Status {
+  // Sanity check.
+  if (allocator_ == nullptr) {
+    return Status(Error::GenericError,
+                  "Parser context has no allocator to free buffers.");
+  }
+  // Free all buffers.
+  for (auto& buffer : buffers_) {
+    BOLSON_ROE(allocator_->Free(buffer.mutable_data()));
+  }
+  return Status::OK();
+}
+
+void ParserContext::LockBuffers() {
+  for (auto& mutex : mutexes_) {
+    mutex.lock();
+  }
+}
+
+void ParserContext::UnlockBuffers() {
+  for (auto& mutex : mutexes_) {
+    mutex.unlock();
+  }
+}
+
+auto ParserContext::mutable_buffers() -> std::vector<illex::JSONBuffer*> {
+  return ToPointers(buffers_);
+}
+
+auto ParserContext::mutexes() -> std::vector<std::mutex*> { return ToPointers(mutexes_); }
 
 }  // namespace bolson::parse
