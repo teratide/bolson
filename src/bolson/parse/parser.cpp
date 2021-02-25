@@ -31,6 +31,21 @@ auto ToString(const illex::JSONBuffer& buffer, bool show_contents) -> std::strin
   return ss.str();
 }
 
+auto AddSeqAsSchemaMeta(const std::shared_ptr<arrow::RecordBatch>& batch,
+                        illex::SeqRange seq_range)
+    -> std::shared_ptr<arrow::RecordBatch> {
+  auto additional_meta = arrow::key_value_metadata(
+      {"bolson_seq_first", "bolson_seq_last"},
+      {std::to_string(seq_range.first), std::to_string(seq_range.last)});
+  auto current_meta = batch->schema()->metadata();
+  if (current_meta != nullptr) {
+    auto new_meta = current_meta->Merge(*additional_meta);
+    return batch->ReplaceSchemaMetadata(new_meta);
+  } else {
+    return batch->ReplaceSchemaMetadata(additional_meta);
+  }
+}
+
 auto ParserContext::AllocateBuffers(size_t num_buffers, size_t capacity) -> Status {
   // Sanity check.
   if (allocator_ == nullptr) {

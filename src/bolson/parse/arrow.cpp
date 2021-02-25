@@ -151,7 +151,7 @@ auto ArrowParser::Parse(const std::vector<illex::JSONBuffer*>& buffers_in,
       }
       final_batch = final_batch_result.ValueOrDie();
     } else {
-      final_batch = combined_batch;
+      final_batch = AddSeqAsSchemaMeta(combined_batch, in->range());
     }
 
     batches_out->emplace_back(final_batch, in->range());
@@ -174,6 +174,10 @@ void AddArrowOptionsToCLI(CLI::App* sub, ArrowOptions* out) {
       ->check(CLI::ExistingFile);
   sub->add_option("--arrow-buf-cap", out->buf_capacity, "Arrow input buffer capacity.")
       ->default_val(16 * 1024 * 1024);
+  sub->add_flag(
+         "--arrow-seq-col", out->seq_column,
+         "Arrow parser, retain ordering information by adding a sequence number column.")
+      ->default_val(false);
 }
 
 }  // namespace bolson::parse

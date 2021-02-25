@@ -219,6 +219,17 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
   BOLSON_ROE(WriteMMIO(p, ctrl_offset(idx_), ctrl_start, idx_, "ctrl"));
   BOLSON_ROE(WriteMMIO(p, ctrl_offset(idx_), 0, idx_, "ctrl"));
 
+  // While FPGA is busy, prepare sequence number column if necessary.
+  std::shared_ptr<arrow::UInt64Array> seq;
+  if (seq_column) {
+    arrow::UInt64Builder builder;
+    ARROW_ROE(builder.Reserve(in->range().last - in->range().first + 1));
+    for (uint64_t s = in->range().first; s <= in->range().last; s++) {
+      builder.UnsafeAppend(s);
+    }
+    ARROW_ROE(builder.Finish(&seq));
+  }
+
   // FLETCHER_ROE(kernel_->PollUntilDone());
   bool done = false;
   uint32_t status = 0;
@@ -256,21 +267,16 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
                         &out_batch));
 
   std::shared_ptr<arrow::RecordBatch> final_batch;
+
+  // Prepend the sequence number column that was potentially made earlier.
   if (seq_column) {
-    std::shared_ptr<arrow::UInt64Array> seq;
-    arrow::UInt64Builder builder;
-    ARROW_ROE(builder.Reserve(in->range().last - in->range().first + 1));
-    for (uint64_t s = in->range().first; s <= in->range().last; s++) {
-      builder.UnsafeAppend(s);
-    }
-    ARROW_ROE(builder.Finish(&seq));
     auto final_batch_result = out_batch->AddColumn(0, "bolson_seq", seq);
     if (!final_batch_result.ok()) {
       return Status(Error::ArrowError, final_batch_result.status().message());
     }
     final_batch = final_batch_result.ValueOrDie();
   } else {
-    final_batch = out_batch;
+    final_batch = AddSeqAsSchemaMeta(out_batch, in->range());
   }
 
   SPDLOG_DEBUG("BatteryParser {:2} | Parsing {} JSONs completed.", idx_,
@@ -351,6 +357,10 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
   sub->add_option("--battery-num-parsers", out->num_parsers,
                   "OPAE \"battery status\" number of parser instances.")
       ->default_val(BOLSON_DEFAULT_OPAE_BATTERY_PARSERS);
+  sub->add_flag("--battery-seq-col", out->seq_column,
+                "OPAE \"battery status\" parser, retain ordering information by adding a "
+                "sequence number column.")
+      ->default_val(false);
 }
 
 }  // namespace bolson::parse::opae

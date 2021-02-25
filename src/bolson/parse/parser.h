@@ -114,4 +114,8 @@ class ParserContext {
 /// \brief Print properties of the buffer in human-readable format.
 auto ToString(const illex::JSONBuffer& buffer, bool show_contents = true) -> std::string;
 
+/// \brief Add sequence numbers as schema metadata to a batch.
+auto AddSeqAsSchemaMeta(const std::shared_ptr<arrow::RecordBatch>& batch,
+                        illex::SeqRange seq_range) -> std::shared_ptr<arrow::RecordBatch>;
+
 }  // namespace bolson::parse
