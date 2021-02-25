@@ -83,6 +83,7 @@ add_compile_unit(
     src/bolson/bench.cpp
     src/bolson/cli.cpp
     src/bolson/latency.cpp
+    src/bolson/metrics.cpp
     src/bolson/status.cpp
     src/bolson/stream.cpp
     src/bolson/utils.cpp
