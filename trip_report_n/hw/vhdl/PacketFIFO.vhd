@@ -103,14 +103,15 @@ architecture Implementation of PacketFIFO is
         else
           ov := '0';
         end if;
-        packet_valid      <= ov and not reset;
-        packet_count      <= std_logic_vector(cnt);
 
         -- Handle reset.
         if reset = '1' then
           cnt := (others => '0');
           ov  := '0';
         end if;
+
+        packet_valid      <= ov and not reset;
+        packet_count      <= std_logic_vector(cnt);
 
       end if;
     end process;

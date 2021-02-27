@@ -277,7 +277,7 @@ end trip_report_sub;
 architecture Implementation of trip_report_sub is
     
   constant INDEX_WIDTH : natural := log2ceil(NUM_PARSERS+1);
-  constant PKT_COUNT_WIDTH : natural := 2;
+  constant PKT_COUNT_WIDTH : natural := 8;
 
   --
   -- Packet FIFO depths

@@ -90,7 +90,7 @@ architecture Implementation of PacketArbiter is
       variable ier           : std_logic;
       variable last_pkt_v    : std_logic;
       variable lock_v        : std_logic;
-      variable last_pkt_cntr : unsigned(INDEX_WIDTH downto 0) := (others => '0');
+      variable last_pkt_cntr : unsigned(INDEX_WIDTH downto 0);
       variable ie_popcnt     : unsigned(INDEX_WIDTH-1 downto 0);
       variable idx           : std_logic_vector(INDEX_WIDTH-1 downto 0);
     begin 
@@ -112,7 +112,7 @@ architecture Implementation of PacketArbiter is
 
         -- Lock on new command.
         if to_x01(cv) = '1' and last_pkt_v = '0' then
-          if lock = '0' then
+          if lock_v = '0' then
             idx         := cmd_index;
           end if;
           lock_v      := '1';
@@ -168,7 +168,7 @@ architecture Implementation of PacketArbiter is
       end if;
     end process;
 
-    global_last_packet_proc: process(last_pkt_cntr_s,inp_en_popcnt_v) is
+    global_last_packet_proc: process(inp_en_popcnt, inp_en_popcnt_v, last_pkt_cntr_s) is
       begin
         if last_pkt_cntr_s = inp_en_popcnt-1 and inp_en_popcnt_v = '1' then
           glob_last_pkt_s <= '1';
@@ -198,7 +198,7 @@ architecture Implementation of PacketArbiter is
     end process;
 
     -- Input mux
-    inp_mux_proc: process(index, in_data, in_valid, in_last, in_strb, lock, glob_last_pkt_s, outstanding_last) is
+    inp_mux_proc: process(index, in_data, in_valid, in_last, in_strb, lock, outstanding_last) is
         variable idx : integer range 0 to 2**INDEX_WIDTH-1;
     begin
         idx := to_integer(unsigned(index));
