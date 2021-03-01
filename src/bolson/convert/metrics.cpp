@@ -19,6 +19,7 @@
 namespace bolson::convert {
 
 auto Metrics::operator+=(const bolson::convert::Metrics& r) -> Metrics& {
+  num_threads += r.num_threads;
   num_jsons += r.num_jsons;
   json_bytes += r.json_bytes;
   num_ipc += r.num_ipc;
@@ -35,7 +36,7 @@ auto Metrics::operator+=(const bolson::convert::Metrics& r) -> Metrics& {
   return *this;
 }
 
-void LogConvertMetrics(const Metrics& stats, size_t num_threads, const std::string& t) {
+void LogConvertMetrics(const Metrics& stats, const std::string& t) {
   // Input stats.
   auto json_MiB = static_cast<double>(stats.json_bytes) / (1024 * 1024);
 
@@ -44,20 +45,21 @@ void LogConvertMetrics(const Metrics& stats, size_t num_threads, const std::stri
   spdlog::info("{}  Raw JSON bytes        : {} MiB", t, json_MiB);
 
   // Parsing stats.
-  auto parse_tt = stats.t.parse / num_threads;
+  auto parse_tt = stats.t.parse / stats.num_threads;
   auto json_MB = stats.json_bytes / 1e6;
   auto json_M = stats.num_jsons / 1e6;
 
   spdlog::info("{}Parsing:", t);
-  spdlog::info("{}  Time in {:2} threads    : {} s", t, num_threads, stats.t.parse);
+  spdlog::info("{}  Time in {:2} threads    : {} s", t, stats.num_threads, stats.t.parse);
   spdlog::info("{}  Avg. time             : {} s", t, parse_tt);
   spdlog::info("{}  Avg. throughput       : {} MB/s", t, json_MB / parse_tt);
   spdlog::info("{}  Avg. throughput       : {} MJ/s", t, json_M / parse_tt);
 
   // Resizing stats
-  auto resize_tt = stats.t.resize / num_threads;
+  auto resize_tt = stats.t.resize / stats.num_threads;
   spdlog::info("{}Resizing:", t);
-  spdlog::info("{}  Time in {:2} threads    : {} s", t, num_threads, stats.t.resize);
+  spdlog::info("{}  Time in {:2} threads    : {} s", t, stats.num_threads,
+               stats.t.resize);
   spdlog::info("{}  Avg. time             : {} s", t, resize_tt);
   spdlog::info("{}  Avg. throughput       : {} MJ/s", t, json_M / resize_tt);
   spdlog::info("{}  Batches (in)          : {}", t, stats.num_parsed);
@@ -67,22 +69,24 @@ void LogConvertMetrics(const Metrics& stats, size_t num_threads, const std::stri
   auto ipc_bpj = static_cast<double>(stats.ipc_bytes) / stats.num_jsons;
   auto ipc_bpi = (stats.num_ipc > 0) ? (stats.ipc_bytes / stats.num_ipc) : 0;
   auto ipc_MB = static_cast<double>(stats.ipc_bytes) / 1e6;
-  auto ser_tt = stats.t.serialize / num_threads;
+  auto ser_tt = stats.t.serialize / stats.num_threads;
 
   spdlog::info("{}Serializing:", t);
   spdlog::info("{}  IPC messages          : {}", t, stats.num_ipc);
   spdlog::info("{}  IPC bytes             : {}", t, stats.ipc_bytes);
   spdlog::info("{}  Avg. IPC bytes/json   : {} B/J", t, ipc_bpj);
   spdlog::info("{}  Avg. IPC bytes/msg    : {} B/I", t, ipc_bpi);
-  spdlog::info("{}  Time in {:2} threads    : {} s", t, num_threads, stats.t.serialize);
+  spdlog::info("{}  Time in {:2} threads    : {} s", t, stats.num_threads,
+               stats.t.serialize);
   spdlog::info("{}  Avg. time             : {} s", t, ser_tt);
   spdlog::info("{}  Avg. throughput (out) : {} MB/s", t, ipc_MB / ser_tt);
   spdlog::info("{}  Avg. throughput       : {} MJ/s", t, json_M / ser_tt);
 
   // Enqueueing
-  auto enq_tt = stats.t.enqueue / num_threads;
+  auto enq_tt = stats.t.enqueue / stats.num_threads;
   spdlog::info("{}Enqueueing:", t);
-  spdlog::info("{}  Time in {:2} threads    : {} s", t, num_threads, stats.t.enqueue);
+  spdlog::info("{}  Time in {:2} threads    : {} s", t, stats.num_threads,
+               stats.t.enqueue);
   spdlog::info("{}  Avg. time             : {} s", t, enq_tt);
   spdlog::info("{}  Avg. throughput       : {} MJ/s", t, json_M / enq_tt);
 }

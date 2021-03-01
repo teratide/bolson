@@ -83,7 +83,7 @@ static auto LogStreamMetrics(const StreamOptions& opt, const StreamTimers& timer
       spdlog::info("  Throughput              : {} MB/s", tcp_MB / timers.tcp.seconds());
 
       spdlog::info("JSONs to IPC conversion:");
-      LogConvertMetrics(c, converter.metrics().size(), "  ");
+      LogConvertMetrics(c, "  ");
 
       // Pulsar producer / publishing statistics
       auto pub_MJs = p.rows / 1E6;

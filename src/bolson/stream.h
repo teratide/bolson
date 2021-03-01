@@ -43,8 +43,6 @@ struct StreamOptions {
   bool succinct = false;
   /// Options related to conversion.
   convert::ConverterOptions converter;
-  /// Size of the TCP buffers.
-  size_t tcp_buffer_capacity = ILLEX_DEFAULT_TCP_BUFSIZE;
 };
 
 /**

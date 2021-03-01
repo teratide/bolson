@@ -61,6 +61,14 @@ static void AddBenchOptionsToCLI(CLI::App* bench, BenchOptions* out) {
       ->default_val(1024);
   bench_conv->add_option("--seed", out->convert.generate.seed, "Generation seed.")
       ->default_val(0);
+  bench_conv->add_option("--latency", out->convert.latency_file,
+                         "Enable batch latency measurements and write to supplied file.");
+  bench_conv->add_option("--metrics", out->convert.metrics_file,
+                         "Write other metrics to supplied file.");
+  bench_conv
+      ->add_option("--repeats", out->convert.repeats,
+                   "Number of time to repeat parsing the same input.")
+      ->default_val(1);
 
   // 'bench queue' subcommand
   auto* bench_queue = bench->add_subcommand("queue", "Run queue microbenchmark.");
@@ -73,8 +81,6 @@ static void AddBenchOptionsToCLI(CLI::App* bench, BenchOptions* out) {
 }
 
 auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status {
-  bool csv = false;
-
   CLI::App app{"bolson : A JSON to Arrow IPC converter and Pulsar publishing tool."};
 
   app.require_subcommand();
@@ -112,15 +118,12 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
 
   if (stream->parsed()) {
     out->sub = SubCommand::STREAM;
-    out->stream.succinct = csv;
-
   } else if (bench->parsed()) {
     out->sub = SubCommand::BENCH;
     if (bench->get_subcommand_ptr("client")->parsed()) {
       out->bench.bench = Bench::CLIENT;
     } else if (bench->get_subcommand_ptr("convert")->parsed()) {
       out->bench.bench = Bench::CONVERT;
-      out->bench.convert.csv = csv;
     } else if (bench->get_subcommand_ptr("pulsar")->parsed()) {
       out->bench.bench = Bench::PULSAR;
     } else if (bench->get_subcommand_ptr("queue")->parsed()) {
