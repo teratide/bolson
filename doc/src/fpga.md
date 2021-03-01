@@ -56,7 +56,7 @@ with `<subcommand> --help`.
 Example:
 
 ```bash
-./bolson bench convert path/to/schema.as -p opae-battery --threads 8
+bolson bench convert path/to/schema.as -p opae-battery
 ```
 
 [Fletcher OPAE]: https://teratide.github.io/fletcher-opae
