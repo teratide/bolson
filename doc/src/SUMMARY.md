@@ -1,13 +1,8 @@
 # Summary
 
 - [Introduction](./introduction.md)
-- [Design](./design-overview.md)
-    - [Overview](./design-overview.md)
-    - [Software architecture](./design-hardware.md)
-    - [Hardware parsing](./design-software.md)
 - [Usage](./usage.md)
   - [FPGA](./fpga.md)
-- [Results](./results.md)
   - [Micro-benchmarks](./microbench.md)
     - [TCP client](./microbench-tcp.md)
     - [Parsing](./microbench-parse.md)
@@ -27,5 +22,6 @@
       - [Baseline](./stream-trip.md)
       - [FPGA-accelerated](./stream-trip.md)
       - [Optane](./stream-trip.md)
-- [Recommendations](./recommendations.md)
-- [Conclusion](./conclusion.md)
+- [Design](./design-overview.md)
+  - [Overview](./design-overview.md)
+  - [Hardware parsing](./design-hardware.md)

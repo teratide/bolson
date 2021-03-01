@@ -4,3 +4,6 @@ language = "en"
 multilingual = false
 src = "src"
 title = "Bolson"
+
+[preprocessor.graphviz]
+command = "mdbook-graphviz" # Requires: cargo install mdbook-graphviz
