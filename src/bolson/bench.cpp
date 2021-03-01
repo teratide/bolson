@@ -217,7 +217,7 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
 
   auto a = Aggregate(converter->metrics());
   spdlog::info("Details:");
-  LogConvertMetrics(a, opts.converter.num_threads, "  ");
+  LogConvertMetrics(a, "  ");
   SaveLatencyMetrics(latencies, opts.latency_file, TimePoints::parsed,
                      TimePoints::popped);
   return Status::OK();

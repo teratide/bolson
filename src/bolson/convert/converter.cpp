@@ -78,6 +78,7 @@ static void OneToOneConvertThread(size_t id, parse::Parser* parser, Resizer* res
     return;                                                                             \
   }
   Metrics metrics;
+  metrics.num_threads = 1;
 
   // Thread timer.
   putong::Timer<> t_thread(true);
@@ -196,6 +197,7 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
   void()
 
   Metrics metrics;
+  metrics.num_threads = 1;
 
   // Thread timer.
   putong::Timer<> t_thread(true);

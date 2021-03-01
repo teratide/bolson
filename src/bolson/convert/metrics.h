@@ -24,6 +24,8 @@ namespace bolson::convert {
  * \brief Converter metrics.
  */
 struct Metrics {
+  /// Number of threads used.
+  size_t num_threads = 0;
   /// Number of converted JSONs.
   size_t num_jsons = 0;
   /// Number of converted JSON bytes.
@@ -56,10 +58,8 @@ struct Metrics {
 /**
  * \brief Print some stats about conversion.
  * \param stats The stats to print.
- * \param num_threads The number of threads used.
  * \param t Prefix for indenting.
  */
-void LogConvertMetrics(const Metrics& stats, size_t num_threads,
-                       const std::string& t = "");
+void LogConvertMetrics(const Metrics& stats, const std::string& t = "");
 
 }  // namespace bolson::convert
