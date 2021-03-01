@@ -1,0 +1,306 @@
+metadata:
+  name: mmio
+
+entity:
+  bus-flatten:  yes
+  bus-prefix:   mmio_
+  clock-name:   kcd_clk
+  reset-name:   kcd_reset
+
+features:
+  bus-width:    64
+  optimize:     yes
+
+interface:
+  flatten:      yes
+
+fields:
+  - address: 0b0---
+    name: AFU_DHF
+    behavior: constant
+    value: 17293826967149215744 # [63:60]: 1 && [40]: 1
+
+  - address: 0b1---
+    name: AFU_ID_L
+    behavior: constant
+    value: 10412098887342654772 # check trip_report.json
+
+  - address: 0b10---
+    name: AFU_ID_H
+    behavior: constant
+    value: 6903219584361648107 # check trip_report.json
+
+  - address: 0b11---
+    name: DFH_RSVD0
+    behavior: constant
+    value: 0
+
+  - address: 0b100---
+    name: DFH_RSVD1
+    behavior: constant
+    value: 0
+
+  - address: 64
+    name: start
+    doc: Start the kernel.
+    bitrange: 0
+    behavior: strobe
+
+  - address: 64
+    name: stop
+    doc: Stop the kernel.
+    bitrange: 1
+    behavior: strobe
+
+  - address: 64
+    name: reset
+    doc: Reset the kernel.
+    bitrange: 2
+    behavior: strobe
+
+  - address: 68
+    name: idle
+    doc: Kernel idle status.
+    bitrange: 32
+    behavior: status
+
+  - address: 68
+    name: busy
+    doc: Kernel busy status.
+    bitrange: 33
+    behavior: status
+
+  - address: 68
+    name: done
+    doc: Kernel done status.
+    bitrange: 34
+    behavior: status
+
+  - address: 72
+    name: result
+    doc: Result.
+    bitrange: 63..0
+    behavior: status
+
+  - address: 80
+    name: input_firstidx
+    doc: input first index.
+    bitrange: 31..0
+    behavior: control
+
+  - address: 84
+    name: input_lastidx
+    doc: input last index (exclusive).
+    bitrange: 63..32
+    behavior: control
+
+  - address: 88
+    name: output_firstidx
+    doc: output first index.
+    bitrange: 31..0
+    behavior: control
+
+  - address: 92
+    name: output_lastidx
+    doc: output last index (exclusive).
+    bitrange: 63..32
+    behavior: control
+
+  - address: 96
+    name: input_input_values
+    doc: Buffer address for input input_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 104
+    name: output_timestamp_offsets
+    doc: Buffer address for output timestamp_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 112
+    name: output_timestamp_values
+    doc: Buffer address for output timestamp_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 120
+    name: output_timezone_values
+    doc: Buffer address for output timezone_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 128
+    name: output_vin_values
+    doc: Buffer address for output vin_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 136
+    name: output_odometer_values
+    doc: Buffer address for output odometer_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 144
+    name: output_hypermiling_values
+    doc: Buffer address for output hypermiling_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 152
+    name: output_avgspeed_values
+    doc: Buffer address for output avgspeed_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 160
+    name: output_sec_in_band_offsets
+    doc: Buffer address for output sec_in_band_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 168
+    name: output_sec_in_band_values
+    doc: Buffer address for output sec_in_band_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 176
+    name: output_miles_in_time_range_offsets
+    doc: Buffer address for output miles_in_time_range_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 184
+    name: output_miles_in_time_range_values
+    doc: Buffer address for output miles_in_time_range_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 192
+    name: output_const_speed_miles_in_band_offsets
+    doc: Buffer address for output const_speed_miles_in_band_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 200
+    name: output_const_speed_miles_in_band_values
+    doc: Buffer address for output const_speed_miles_in_band_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 208
+    name: output_vary_speed_miles_in_band_offsets
+    doc: Buffer address for output vary_speed_miles_in_band_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 216
+    name: output_vary_speed_miles_in_band_values
+    doc: Buffer address for output vary_speed_miles_in_band_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 224
+    name: output_sec_decel_offsets
+    doc: Buffer address for output sec_decel_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 232
+    name: output_sec_decel_values
+    doc: Buffer address for output sec_decel_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 240
+    name: output_sec_accel_offsets
+    doc: Buffer address for output sec_accel_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 248
+    name: output_sec_accel_values
+    doc: Buffer address for output sec_accel_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 256
+    name: output_braking_offsets
+    doc: Buffer address for output braking_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 264
+    name: output_braking_values
+    doc: Buffer address for output braking_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 272
+    name: output_accel_offsets
+    doc: Buffer address for output accel_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 280
+    name: output_accel_values
+    doc: Buffer address for output accel_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 288
+    name: output_orientation_values
+    doc: Buffer address for output orientation_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 296
+    name: output_small_speed_var_offsets
+    doc: Buffer address for output small_speed_var_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 304
+    name: output_small_speed_var_values
+    doc: Buffer address for output small_speed_var_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 312
+    name: output_large_speed_var_offsets
+    doc: Buffer address for output large_speed_var_offsets
+    bitrange: 63..0
+    behavior: control
+
+  - address: 320
+    name: output_large_speed_var_values
+    doc: Buffer address for output large_speed_var_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 328
+    name: output_accel_decel_values
+    doc: Buffer address for output accel_decel_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 336
+    name: output_speed_changes_values
+    doc: Buffer address for output speed_changes_values
+    bitrange: 63..0
+    behavior: control
+
+  - address: 344
+    name: Profile_enable
+    doc: Activates profiler counting when this bit is high.
+    bitrange: 0
+    behavior: control
+
+  - address: 348
+    name: Profile_clear
+    doc: Resets profiler counters when this bit is asserted.
+    bitrange: 32
+    behavior: strobe
+
