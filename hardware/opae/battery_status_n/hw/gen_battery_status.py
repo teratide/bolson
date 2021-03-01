@@ -5,7 +5,8 @@ from pyfletchgen.lib import fletchgen
 
 import vhdmmio
 
-parser = argparse.ArgumentParser(description="Generate a kernel with N parser instances.")
+parser = argparse.ArgumentParser(
+    description="Generate a kernel with N parser instances.")
 parser.add_argument("parsers", type=int, help="Number of parser instances.")
 args = parser.parse_args()
 
@@ -21,7 +22,8 @@ def emphasize(s):
 
 def input_schema(idx):
     return pa.schema([
-        pa.field("input", pa.uint8(), False).with_metadata({b"fletcher_epc": b"8"})
+        pa.field("input", pa.uint8(), False).with_metadata(
+            {b"fletcher_epc": b"8"})
     ]).with_metadata({
         b"fletcher_mode": b"read",
         b"fletcher_name": "input_{:02}".format(idx).encode('ascii')
@@ -30,7 +32,8 @@ def input_schema(idx):
 
 def output_schema(idx):
     return pa.schema([
-        pa.field("voltage", pa.list_(pa.field("item", pa.uint64(), False)), False)
+        pa.field("voltage", pa.list_(
+            pa.field("item", pa.uint64(), False)), False)
     ]).with_metadata({
         b"fletcher_mode": b"write",
         b"fletcher_name": "output_{:02}".format(idx).encode('ascii')
@@ -325,12 +328,12 @@ vhdl/mmio.gen.vhd
 {rbws}
 {rbrs}
 
-vhdl/json/Json_pkg.vhd
-vhdl/json/JsonRecordParser.vhd
-vhdl/json/JsonArrayParser.vhd
-vhdl/json/IntParser.vhd
-vhdl/json/battery_status_pkg.vhd
-vhdl/json/BattSchemaParser.vhd
+../../../tydi-json/component/Json_pkg.vhd
+../../../tydi-json/component/JsonRecordParser.vhd
+../../../tydi-json/component/JsonArrayParser.vhd
+../../../tydi-json/component/IntParser.vhd
+../../../tydi-json/schemas/battery_status/battery_status_pkg.vhd
+../../../tydi-json/schemas/battery_status/BattSchemaParser.vhd
 
 vhdl/battery_status_sub.vhd
 vhdl/battery_status.gen.vhd
@@ -402,7 +405,8 @@ base_afu_id += args.parsers
 with open("fletchgen.mmio.yaml") as f:
     fletchgen_yaml_part = f.readlines()[18:]
 
-vhdmmio_source = VHDMMIO_YAML.format(afuidint=base_afu_id, fletchgen=''.join(fletchgen_yaml_part))
+vhdmmio_source = VHDMMIO_YAML.format(
+    afuidint=base_afu_id, fletchgen=''.join(fletchgen_yaml_part))
 vhdmmio_file = "{}.mmio.yml".format(KERNEL_NAME)
 
 with open(vhdmmio_file, 'w') as f:
@@ -421,8 +425,10 @@ with open(opae_json_file, 'w') as f:
 emphasize("Generating OPAE source list ...")
 
 # Create list of recordbatch readers and writers
-rbrs = '\n'.join(["vhdl/battery_status_input_{:02}.gen.vhd".format(i) for i in range(0, args.parsers)])
-rbws = '\n'.join(["vhdl/battery_status_output_{:02}.gen.vhd".format(i) for i in range(0, args.parsers)])
+rbrs = '\n'.join(
+    ["vhdl/battery_status_input_{:02}.gen.vhd".format(i) for i in range(0, args.parsers)])
+rbws = '\n'.join(
+    ["vhdl/battery_status_output_{:02}.gen.vhd".format(i) for i in range(0, args.parsers)])
 
 opae_sources_source = OPAE_SOURCES.format(rbrs=rbrs, rbws=rbws)
 opae_sources_file = "sources.txt"

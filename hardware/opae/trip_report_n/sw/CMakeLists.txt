@@ -20,11 +20,11 @@ FetchContent_MakeAvailable(spdlog)
 # spdlog
 FetchContent_Declare(fletcher
   GIT_REPOSITORY  https://github.com/abs-tudelft/fletcher
-  GIT_TAG         0.0.18
+  GIT_TAG         0.0.19
   )
 FetchContent_MakeAvailable(fletcher)
 
-find_package(Arrow 1.0 CONFIG REQUIRED)
+find_package(Arrow 3.0 CONFIG REQUIRED)
 
 add_compile_unit(
     NAME trip_report
