@@ -11,7 +11,7 @@ include(FetchContent)
 # CMake Modules
 FetchContent_Declare(cmake-modules
   GIT_REPOSITORY  https://github.com/abs-tudelft/cmake-modules.git
-  GIT_TAG         master
+  GIT_TAG         141e793b42c0702e7b73570960bf7f6e23501496
 )
 FetchContent_MakeAvailable(cmake-modules)
 include(CompileUnits)
@@ -55,21 +55,21 @@ include_directories("${concurrentqueue_SOURCE_DIR}")
 # Putong
 FetchContent_Declare(putong
   GIT_REPOSITORY  https://github.com/abs-tudelft/putong
-  GIT_TAG         master
+  GIT_TAG         4a2bf644f899bb46dd8512edf95235280dc484bc
 )
 FetchContent_MakeAvailable(putong)
 
 # Illex
 FetchContent_Declare(illex
   GIT_REPOSITORY  https://github.com/teratide/illex
-  GIT_TAG         master
+  GIT_TAG         v0.1.0
 )
 FetchContent_MakeAvailable(illex)
 
 # Fletcher
 FetchContent_Declare(fletcher
   GIT_REPOSITORY  https://github.com/abs-tudelft/fletcher
-  GIT_TAG         develop
+  GIT_TAG         0.0.19
 )
 FetchContent_MakeAvailable(fletcher)
 
