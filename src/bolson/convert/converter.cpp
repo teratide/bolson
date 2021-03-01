@@ -314,11 +314,10 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
 
 auto Converter::Start(std::atomic<bool>* shutdown) -> Status {
   shutdown_ = shutdown;
-  auto threads = parser_context()->CheckThreadCount(num_threads_);
   auto buffers = parser_context()->mutable_buffers().size();
 
-  if ((threads > 1) || ((threads == 1) && (buffers == 1))) {
-    SPDLOG_DEBUG("Spawning {} one-to-one parser threads.", threads);
+  if ((num_threads_ > 1) || ((num_threads_ == 1) && (buffers == 1))) {
+    SPDLOG_DEBUG("Spawning {} one-to-one parser threads.", num_threads_);
     // One to one parsers, spawn as many threads as parser context allows, and give each
     // thread a parser to work with.
     for (int t = 0; t < num_threads_; t++) {
@@ -329,8 +328,8 @@ auto Converter::Start(std::atomic<bool>* shutdown) -> Status {
           &serializers_[t], parser_context_->mutable_buffers(),
           parser_context_->mutexes(), output_queue_, shutdown_, std::move(m));
     }
-  } else if (threads == 1) {
-    SPDLOG_DEBUG("Spawning many-to-one parser thread.");
+  } else if (num_threads_ == 1) {
+    SPDLOG_DEBUG("Spawning one many-to-one parser thread.");
     // Many to one parsers, spawn one thread, give the thread the only parser.
     // This parser can operate on all input buffers.
     assert(parser_context()->parsers().size() == 1);
@@ -385,6 +384,13 @@ auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
       break;
   }
 
+  // Determine how many threads this context allows to use.
+  auto num_threads = parser_context->CheckThreadCount(opts.num_threads);
+  if (num_threads != opts.num_threads) {
+    spdlog::warn("Parser implementation cannot use {} threads, using {} threads instead.",
+                 opts.num_threads, num_threads);
+  }
+
   // Set up Resizers and Serializers.
   for (size_t t = 0; t < opts.num_threads; t++) {
     resizers.emplace_back(opts.max_batch_rows);
@@ -393,7 +399,7 @@ auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
 
   // Create the converter.
   auto result = std::shared_ptr<convert::Converter>(new convert::Converter(
-      parser_context, resizers, serializers, ipc_queue, opts.num_threads));
+      parser_context, resizers, serializers, ipc_queue, num_threads));
 
   *out = std::move(result);
 
