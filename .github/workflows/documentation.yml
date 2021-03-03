@@ -31,7 +31,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: mdbook-graphviz
+        args: --debug mdbook-graphviz
     - name: Build
       run: mdbook build
       working-directory: doc
