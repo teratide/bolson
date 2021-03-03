@@ -1,0 +1,11 @@
+digraph "src/bolson/parse/opae" {
+  compound=true
+  node [ fontsize="10", fontname="Helvetica"];
+  edge [ labelfontsize="10", labelfontname="Helvetica"];
+  subgraph clusterdir_5bda8ca26246f1a645e0f185832836d2 {
+    graph [ bgcolor="#ddddee", pencolor="black", label="parse" fontname="Helvetica", fontsize="10", URL="dir_5bda8ca26246f1a645e0f185832836d2.html"]
+  dir_4bbb09dfd54a396683658715cc301817 [shape=box, label="opae", style="filled", fillcolor="#eeeeff", pencolor="black", URL="dir_4bbb09dfd54a396683658715cc301817.html"];
+  }
+  dir_9edda71f92c8b6af057dced869ae5ddc [shape=box label="buffer" URL="dir_9edda71f92c8b6af057dced869ae5ddc.html"];
+  dir_4bbb09dfd54a396683658715cc301817->dir_9edda71f92c8b6af057dced869ae5ddc [headlabel="3", labeldistance=1.5 headhref="dir_000006_000003.html"];
+}

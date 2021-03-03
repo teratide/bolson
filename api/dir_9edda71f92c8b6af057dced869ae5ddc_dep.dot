@@ -1,0 +1,9 @@
+digraph "src/bolson/buffer" {
+  compound=true
+  node [ fontsize="10", fontname="Helvetica"];
+  edge [ labelfontsize="10", labelfontname="Helvetica"];
+  subgraph clusterdir_ccdd1d919cfc9cac7f8aaa91b24e2c45 {
+    graph [ bgcolor="#ddddee", pencolor="black", label="bolson" fontname="Helvetica", fontsize="10", URL="dir_ccdd1d919cfc9cac7f8aaa91b24e2c45.html"]
+  dir_9edda71f92c8b6af057dced869ae5ddc [shape=box, label="buffer", style="filled", fillcolor="#eeeeff", pencolor="black", URL="dir_9edda71f92c8b6af057dced869ae5ddc.html"];
+  }
+}

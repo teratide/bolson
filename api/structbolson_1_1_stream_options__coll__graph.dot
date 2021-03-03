@@ -1,0 +1,22 @@
+digraph "bolson::StreamOptions"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="bolson::StreamOptions",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip="Stream subcommand options."];
+  Node2 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" converter" ,fontname="Helvetica"];
+  Node2 [label="bolson::convert::Converter\lOptions",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structbolson_1_1convert_1_1_converter_options.html",tooltip="Converter options."];
+  Node3 -> Node2 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" parser" ,fontname="Helvetica"];
+  Node3 [label="bolson::parse::ParserOptions",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structbolson_1_1parse_1_1_parser_options.html",tooltip="All parser options."];
+  Node4 -> Node3 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" battery" ,fontname="Helvetica"];
+  Node4 [label="bolson::parse::opae\l::BatteryOptions",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structbolson_1_1parse_1_1opae_1_1_battery_options.html",tooltip=" "];
+  Node5 -> Node3 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" trip" ,fontname="Helvetica"];
+  Node5 [label="bolson::parse::opae\l::TripOptions",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structbolson_1_1parse_1_1opae_1_1_trip_options.html",tooltip=" "];
+  Node6 -> Node3 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" arrow" ,fontname="Helvetica"];
+  Node6 [label="bolson::parse::ArrowOptions",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structbolson_1_1parse_1_1_arrow_options.html",tooltip="Options for Arrow's built-in JSON parser."];
+  Node7 -> Node1 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" pulsar" ,fontname="Helvetica"];
+  Node7 [label="bolson::publish::Options",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structbolson_1_1publish_1_1_options.html",tooltip="Pulsar options."];
+  Node8 -> Node7 [dir="back",color="darkorchid3",fontsize="10",style="dashed",label=" batching" ,fontname="Helvetica"];
+  Node8 [label="bolson::publish::Batching\lOptions",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structbolson_1_1publish_1_1_batching_options.html",tooltip="Pulsar batching producer options."];
+}
