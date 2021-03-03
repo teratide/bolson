@@ -1,3 +1,28 @@
+This sections lists snippets to write Arrow schema files for the supported FPGA parser implementations in Bolson.
+
+## Battery status
+
+```python
+import pyarrow as pa
+
+output_schema = pa.schema([
+    pa.field("voltage", pa.list_(
+        pa.field("item", pa.uint64(), False).with_metadata(
+            {"illex_MIN": "0", "illex_MAX": "2047"})
+    ), False).with_metadata(
+        {"illex_MIN_LENGTH": "1", "illex_MAX_LENGTH": "16"}
+    )
+]).with_metadata({
+    b'fletcher_mode': b'write',
+    b'fletcher_name': b'output'
+})
+
+pa.output_stream("battery.as").write(output_schema.serialize())
+```
+
+## Trip report
+
+```python
 import pyarrow as pa
 
 schema_fields = [pa.field("timestamp", pa.utf8(), False),
@@ -24,3 +49,4 @@ schema_fields = [pa.field("timestamp", pa.utf8(), False),
 schema = pa.schema(schema_fields)
 serialized_schema = schema.serialize()
 pa.output_stream('tripreport.as').write(serialized_schema)
+```
