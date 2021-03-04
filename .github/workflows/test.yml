@@ -24,9 +24,9 @@ jobs:
         sudo apt-get install -y libarrow-dev=$ARROW_VERSION-1
     - name: Install Pulsar
       run: |
-        curl -L -O https://downloads.apache.org/pulsar/pulsar-$PULSAR_VERSION/DEB/apache-pulsar-client.deb && \
-        sudo dpkg -i apache-pulsar-client.deb && \
-        curl -L -O https://downloads.apache.org/pulsar/pulsar-$PULSAR_VERSION/DEB/apache-pulsar-client-dev.deb && \
+        curl -L -O https://downloads.apache.org/pulsar/pulsar-$PULSAR_VERSION/DEB/apache-pulsar-client.deb
+        sudo dpkg -i apache-pulsar-client.deb
+        curl -L -O https://downloads.apache.org/pulsar/pulsar-$PULSAR_VERSION/DEB/apache-pulsar-client-dev.deb
         sudo dpkg -i apache-pulsar-client-dev.deb
     - name: CMake
       env:
@@ -35,7 +35,3 @@ jobs:
       run: cmake . -DBUILD_TESTS=ON
     - name: Build
       run: make -j
-
-# Skip tests for now, as there are no meaningful tests that can practically pass run on current CI setup
-#    - name: Test
-#      run: make test

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
-project(bolson VERSION 0.0.1 LANGUAGES CXX)
+project(bolson VERSION 0.1.0 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 find_package(Arrow 3.0.0 CONFIG REQUIRED)
@@ -11,7 +11,7 @@ include(FetchContent)
 # CMake Modules
 FetchContent_Declare(cmake-modules
   GIT_REPOSITORY  https://github.com/abs-tudelft/cmake-modules.git
-  GIT_TAG         master
+  GIT_TAG         141e793b42c0702e7b73570960bf7f6e23501496
 )
 FetchContent_MakeAvailable(cmake-modules)
 include(CompileUnits)
@@ -55,21 +55,21 @@ include_directories("${concurrentqueue_SOURCE_DIR}")
 # Putong
 FetchContent_Declare(putong
   GIT_REPOSITORY  https://github.com/abs-tudelft/putong
-  GIT_TAG         master
+  GIT_TAG         4a2bf644f899bb46dd8512edf95235280dc484bc
 )
 FetchContent_MakeAvailable(putong)
 
 # Illex
 FetchContent_Declare(illex
   GIT_REPOSITORY  https://github.com/teratide/illex
-  GIT_TAG         master
+  GIT_TAG         v0.1.0
 )
 FetchContent_MakeAvailable(illex)
 
 # Fletcher
 FetchContent_Declare(fletcher
   GIT_REPOSITORY  https://github.com/abs-tudelft/fletcher
-  GIT_TAG         develop
+  GIT_TAG         0.0.19
 )
 FetchContent_MakeAvailable(fletcher)
 
@@ -128,3 +128,45 @@ add_compile_unit(
 )
 
 compile_units()
+
+execute_process (
+    COMMAND bash -c "awk -F= '/^ID=/{print $2}' /etc/os-release |tr -d '\n' | tr -d '\"'"
+    OUTPUT_VARIABLE OS_NAME
+)
+
+execute_process (
+    COMMAND bash -c "awk -F= '/^VERSION_ID=/{print $2}' /etc/os-release |tr -d '\n' | tr -d '\"'"
+    OUTPUT_VARIABLE OS_VERSION
+)
+
+if(OS_NAME MATCHES "ubuntu")
+  set(CPACK_DEBIAN_PACKAGE_RELEASE "ubuntu${OS_VERSION}")
+  set(CPACK_GENERATOR "DEB")
+elseif(OS_NAME MATCHES "centos")
+  set(CPACK_RPM_PACKAGE_RELEASE_DIST "el${OS_VERSION}")
+  if(OS_VERSION MATCHES "7")
+    set(CPACK_GENERATOR "RPM;TGZ")
+  else()
+    set(CPACK_GENERATOR "RPM")
+  endif()
+endif()
+
+set(CPACK_PACKAGE_VENDOR "Teratide")
+set(CPACK_PACKAGE_VERSION_MAJOR "${bolson_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${bolson_VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${bolson_VERSION_PATCH}")
+set(CPACK_PACKAGE_RELOCATABLE ON)
+
+set(CPACK_DEBIAN_PACKAGE_NAME "${CMAKE_PROJECT_NAME}")
+set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+# set(CPACK_DEBIAN_PACKAGE_DEPENDS "libarrow-dev (>= 3.0.0), libarrow-dev (<< 4.0.0)")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_VENDOR}")
+
+set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
+set(CPACK_RPM_PACKAGE_DESCRIPTION "${CPACK_PACKAGE_DESCRIPTION}")
+set(CPACK_RPM_PACKAGE_LICENSE "ASL 2.0")
+# set(CPACK_RPM_PACKAGE_REQUIRES "arrow-libs >= 3.0.0, arrow-libs < 4.0.0")
+
+set(CPACK_ARCHIVE_FILE_NAME "${CMAKE_PROJECT_NAME}-${bolson_VERSION}-${CMAKE_SYSTEM_NAME}")
+
+include(CPack)
