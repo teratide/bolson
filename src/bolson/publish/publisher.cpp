@@ -132,7 +132,7 @@ void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
                    std::promise<Metrics>&& metrics) {
   // Set up timers.
   auto thread_timer = putong::Timer(true);
-  auto publish_timer = putong::Timer();
+  auto publish_timer = putong::Timer(false);
 
   Metrics s;
 

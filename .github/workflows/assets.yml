@@ -59,7 +59,7 @@ jobs:
       matrix:
         version:
         - 7
-        - 8
+        # - 8
     container: centos:${{ matrix.version }}
     steps:
     - name: Install dependencies
@@ -69,9 +69,7 @@ jobs:
         yum install -y curl make rpm-build devtoolset-9-gcc-c++ git
     - name: Install dependencies
       if: ${{ matrix.version == '8' }}
-      run: |
-        dnf install -y epel-release
-        dnf install -y curl make rpm-build gcc-toolset-9-gcc-c++ git
+      run: dnf install -y curl make rpm-build gcc-c++ git
     - name: Install CMake
       run: curl -L https://github.com/Kitware/CMake/releases/download/v$CMAKE_VERSION/cmake-$CMAKE_VERSION-Linux-x86_64.tar.gz | tar xz --strip-components=1 -C /usr
     - name: Install Apache Arrow
@@ -102,7 +100,6 @@ jobs:
     - name: Package
       if: ${{ matrix.version == '8' }}
       run: |
-        source /opt/rh/gcc-toolset-9/enable
         cmake -DCMAKE_BUILD_TYPE=Release .
         make -j package
     - id: rpm
