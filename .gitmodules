@@ -1,0 +1,3 @@
+[submodule "hardware/tydi-json"]
+	path = hardware/tydi-json
+	url = https://github.com/teratide/tydi-json.git

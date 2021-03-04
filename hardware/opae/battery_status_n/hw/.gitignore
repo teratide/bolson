@@ -1,0 +1,8 @@
+fletchgen.mmio.yaml
+vhdmmio-doc
+vhdmmio.log
+*.rb
+*.as
+battery_status.json
+battery_status.mmio.yml
+sources.txt
