@@ -168,13 +168,11 @@
 <h2 id="requirements"><a class="header" href="#requirements">Requirements</a></h2>
 <p>To use Bolson, you need the following:</p>
 <ul>
-<li>A source of JSON data that acts as a TCP server. Bolson will operate as long
-as the connection is alive.</li>
-<li>A Pulsar broker.</li>
-<li>An <a href="#arrow-schema">Arrow Schema</a>
+<li>A source of JSON data that acts as a TCP server. Bolson operates as long as the connection is alive.</li>
+<li>An <a href="https://pulsar.apache.org">Apache Pulsar</a> broker.</li>
+<li>An <a href="https://arrow.apache.org">Apache Arrow</a> <a href="#arrow-schema">Schema</a>
 <ul>
-<li>Unless fixed schema parsing implementations are used, such as specific
-FPGA implementations.</li>
+<li>Unless fixed schema parsing implementations are used, such as specific FPGA implementations.</li>
 </ul>
 </li>
 </ul>
@@ -189,16 +187,15 @@ pyarrow.output_stream(&quot;example.as&quot;).write(schema.serialize())
 </code></pre>
 <h3 id="json-data-source"><a class="header" href="#json-data-source">JSON data source</a></h3>
 <p>If you do not have a JSON data source that can act as a TCP server, it is
-possible to generate random JSON data using a companion project of Bolson named
-<a href="https://github.com/teratide/illex">Illex</a>.</p>
-<p>We will use Illex throughout this example.</p>
+possible to generate random JSON data using a companion project of Bolson named <a href="https://github.com/teratide/illex">Illex</a>.</p>
+<p>Illex is used throughout this example.</p>
 <p>The requirements for a JSON data source acting as a TCP are simple. When Bolson
 connects, the source can start sending data, without any additional protocol,
 with the exception that each JSON object must be terminated by the newline
 character <code>'\n'</code>.</p>
 <h3 id="pulsar-broker"><a class="header" href="#pulsar-broker">Pulsar broker</a></h3>
 <p>If you do not have a Pulsar broker, it can easily be spawned locally using
-Docker:</p>
+<a href="https://docker.com">Docker</a>:</p>
 <pre><code class="language-bash">docker run -it --rm -p 6650:6650 -p 8080:8080 apachepulsar/pulsar bin/pulsar standalone
 </code></pre>
 <h2 id="subcommands"><a class="header" href="#subcommands">Subcommands</a></h2>
@@ -208,7 +205,56 @@ Docker:</p>
 <li><strong>Bench</strong>: Run micro-benchmarks of specific components of Bolson.</li>
 </ul>
 <h3 id="stream"><a class="header" href="#stream">Stream</a></h3>
+<pre><code>Produce Pulsar messages from a JSON TCP stream.
+Usage: bolson stream [OPTIONS] [input]
+
+Positionals:
+  input TEXT:FILE                                 Serialized Arrow schema file for records to convert to.
+
+Options:
+  -h,--help                                       Print this help message and exit
+  --latency TEXT                                  Enable batch latency measurements and write to supplied file.
+  --metrics TEXT                                  Write metrics to supplied file.
+  --max-rows UINT=1024                            Maximum number of rows per RecordBatch.
+  --max-ipc UINT=5232640                          Maximum size of IPC messages in bytes.
+  --threads UINT=1                                Number of threads to use for conversion.
+  -p,--parser ENUM:value in {arrow-&gt;0,opae-battery-&gt;1,opae-trip-&gt;2} OR {0,1,2}=0
+                                                  Parser implementation. OPAE parsers have fixed schema and ignore schema supplied to -i.
+  -i,--input TEXT:FILE                            Serialized Arrow schema file for records to convert to.
+  --arrow-buf-cap UINT=16777216                   Arrow input buffer capacity.
+  --arrow-seq-col=0                               Arrow parser, retain ordering information by adding a sequence number column.
+  --battery-afu-id TEXT                           OPAE &quot;battery status&quot; AFU ID. If not supplied, it is derived from number of parser instances.
+  --battery-num-parsers UINT=8                    OPAE &quot;battery status&quot; number of parser instances.
+  --battery-seq-col=0                             OPAE &quot;battery status&quot; parser, retain ordering information by adding a sequence number column.
+  --trip-afu-id TEXT                              OPAE &quot;trip report&quot; AFU ID. If not supplied, it is derived from number of parser instances.
+  --trip-num-parsers UINT=4                       OPAE &quot;trip report&quot; number of parser instances.
+  -u,--pulsar-url TEXT=pulsar://localhost:6650/   Pulsar broker service URL.
+  -t,--pulsar-topic TEXT=non-persistent://public/default/bolson
+                                                  Pulsar topic.
+  --pulsar-max-msg-size UINT=5232640
+  --pulsar-producers UINT=1                       Number of concurrent Pulsar producers.
+  --pulsar-batch                                  Enable batching Pulsar producer(s).
+  --pulsar-batch-max-messages UINT=1000           Pulsar batching max. messages.
+  --pulsar-batch-max-bytes UINT=131072            Pulsar batching max. bytes.
+  --pulsar-batch-max-delay UINT=10                Pulsar batching max. delay (ms).
+  --host TEXT=localhost                           JSON source TCP server hostname.
+  --port UINT=10197                               JSON source TCP server port.
+
+</code></pre>
 <h3 id="bench"><a class="header" href="#bench">Bench</a></h3>
+<pre><code>Run micro-benchmarks on isolated pipeline stages.
+Usage: bolson bench [OPTIONS] SUBCOMMAND
+
+Options:
+  -h,--help                                       Print this help message and exit
+
+Subcommands:
+  client                                          Run TCP client interface microbenchmark.
+  convert                                         Run JSON to Arrow IPC convert microbenchmark.
+  queue                                           Run queue microbenchmark.
+  pulsar                                          Run Pulsar publishing microbenchmark.
+
+</code></pre>
 
                     </main>
 
