@@ -77,6 +77,11 @@ auto ArrowParserContext::Make(const ArrowOptions& opts, size_t num_parsers,
     result->schema_ = opts.schema;
   }
 
+  // Add the sequence number field to the schema if specified.
+  if (opts.seq_column) {
+    BOLSON_ROE(WithSeqField(*result->schema_, &result->schema_));
+  }
+
   parse_opts.explicit_schema = result->schema_;
   parse_opts.unexpected_field_behavior = arrow::json::UnexpectedFieldBehavior::Error;
 

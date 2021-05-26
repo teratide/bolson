@@ -46,6 +46,19 @@ auto AddSeqAsSchemaMeta(const std::shared_ptr<arrow::RecordBatch>& batch,
   }
 }
 
+auto WithSeqField(const arrow::Schema& schema, std::shared_ptr<arrow::Schema>* output)
+    -> Status {
+  auto add_result =
+      schema.AddField(schema.num_fields(), arrow::field("bolson_seq", arrow::uint64()));
+  if (!add_result.ok()) {
+    return Status(Error::ArrowError,
+                  "Could not add sequence number field \"bolson_seq\" to schema: " +
+                      schema.ToString());
+  }
+  *output = add_result.ValueOrDie();
+  return Status::OK();
+}
+
 auto ParserContext::AllocateBuffers(size_t num_buffers, size_t capacity) -> Status {
   // Sanity check.
   if (allocator_ == nullptr) {

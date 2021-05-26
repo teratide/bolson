@@ -118,4 +118,8 @@ auto ToString(const illex::JSONBuffer& buffer, bool show_contents = true) -> std
 auto AddSeqAsSchemaMeta(const std::shared_ptr<arrow::RecordBatch>& batch,
                         illex::SeqRange seq_range) -> std::shared_ptr<arrow::RecordBatch>;
 
+/// \brief Return a new schema with the sequence number field added.
+auto WithSeqField(const arrow::Schema& schema, std::shared_ptr<arrow::Schema>* output)
+    -> Status;
+
 }  // namespace bolson::parse
