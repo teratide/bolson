@@ -70,6 +70,9 @@ struct Options {
   BatchingOptions batching;
   /// Number of Pulsar producers.
   size_t num_producers;
+  /// The topic schema.
+  /// Note this is an Arrow schema, which is not yet supported by Pulsar.
+  std::shared_ptr<arrow::Schema> arrow_schema;
   /// Log these options.
   void Log() const;
 };

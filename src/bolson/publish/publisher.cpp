@@ -14,6 +14,7 @@
 
 #include "bolson/publish/publisher.h"
 
+#include <arrow/io/api.h>
 #include <pulsar/Client.h>
 #include <pulsar/ClientConfiguration.h>
 #include <pulsar/Logger.h>
@@ -56,7 +57,7 @@ auto ConcurrentPublisher::Make(const Options& opts, IpcQueue* ipc_queue,
   // Configure producer
   auto producer_config = pulsar::ProducerConfiguration();
 
-  // Explicitly not setting Schema:
+  // Explicitly not setting a Pulsar schema:
   // producer_config.setSchema()
 
   // Handle batching
@@ -67,15 +68,79 @@ auto ConcurrentPublisher::Make(const Options& opts, IpcQueue* ipc_queue,
         .setBatchingMaxPublishDelayMs(opts.batching.max_delay_ms);
   }
 
-  // Set up client.
+  SPDLOG_DEBUG("Setting up Pulsar client.");
   result->client = std::make_unique<pulsar::Client>(opts.url, client_config);
 
-  // Create producer instances.
+  SPDLOG_DEBUG("Creating producer instances.");
   for (int i = 0; i < opts.num_producers; i++) {
     std::unique_ptr<pulsar::Producer>& prod =
         result->producers.emplace_back(new pulsar::Producer);
     CHECK_PULSAR(result->client->createProducer(opts.topic, producer_config, *prod));
   }
+
+  SPDLOG_DEBUG("Setting up reader instance.");
+  // Create consumer instance to check if the schema is as expected.
+  // If there is no schema, then the schema must first be published.
+  auto reader_config = pulsar::ReaderConfiguration();
+  pulsar::Reader reader;
+  CHECK_PULSAR(result->client->createReader(opts.topic, pulsar::MessageId::earliest(),
+                                            reader_config, reader));
+
+  SPDLOG_DEBUG("Checking if topic " + opts.topic + " is empty.");
+  bool reader_has_message = false;
+  CHECK_PULSAR(reader.hasMessageAvailable(reader_has_message));
+
+  if (reader_has_message) {
+    SPDLOG_DEBUG("Topic is not empty. Checking schema.");
+    pulsar::Message reader_message;
+    CHECK_PULSAR(reader.readNext(reader_message));
+
+    // Move the message into Arrow land.
+    auto message_buffer =
+        arrow::Buffer::Wrap(reinterpret_cast<const uint8_t*>(reader_message.getData()),
+                            reader_message.getLength());
+
+    // Attempt to read the schema from the message.
+    auto arrow_reader = arrow::io::BufferReader(message_buffer);
+    arrow::ipc::DictionaryMemo arrow_dict;  // is ignored for now.
+
+    // Attempt to read a schema from the message.
+    auto read_schema_result = arrow::ipc::ReadSchema(&arrow_reader, &arrow_dict);
+    if (!read_schema_result.ok()) {
+      CHECK_PULSAR(reader.close());
+      return Status(Error::ArrowError,
+                    "Cannot read schema from first message in topic. Arrow error: " +
+                        read_schema_result.status().message());
+    }
+    auto topic_schema = read_schema_result.ValueOrDie();
+
+    // Check if the schema is expected schema
+    if (!topic_schema->Equals(opts.arrow_schema)) {
+      CHECK_PULSAR(reader.close());
+      return Status(Error::GenericError, "Schema of topic " + opts.topic +
+                                             " does not match expected schema."
+                                             "\nTopic: " +
+                                             topic_schema->ToString() + "\nExpected:" +
+                                             opts.arrow_schema->ToString());
+    }
+    SPDLOG_DEBUG("Topic schema matches expected schema.");
+  } else {
+    SPDLOG_DEBUG("Topic is empty. Serializing schema.");
+    // Send the schema as first message
+    auto serialize_result = arrow::ipc::SerializeSchema(*opts.arrow_schema);
+    if (!serialize_result.ok()) {
+      CHECK_PULSAR(reader.close());
+      return Status(Error::ArrowError, "Unable to serialize schema. Arrow error: " +
+                                           serialize_result.status().message());
+    }
+    auto serialized_schema = serialize_result.ValueOrDie();
+    SPDLOG_DEBUG("Schema serialized to " + std::to_string(serialized_schema->size()) +
+                 " bytes.");
+    BOLSON_ROE(Publish(result->producers[0].get(), serialized_schema->data(),
+                       serialized_schema->size()));
+    SPDLOG_DEBUG("Schema published.");
+  }
+  CHECK_PULSAR(reader.close());
 
   *out = std::shared_ptr<ConcurrentPublisher>(result);
 
@@ -188,7 +253,7 @@ void AddPublishOptsToCLI(CLI::App* sub, publish::Options* pulsar) {
   sub->add_option("-u,--pulsar-url", pulsar->url, "Pulsar broker service URL.")
       ->default_val("pulsar://localhost:6650/");
   sub->add_option("-t,--pulsar-topic", pulsar->topic, "Pulsar topic.")
-      ->default_val("non-persistent://public/default/bolson");
+      ->default_val("persistent://public/default/bolson");
 
   sub->add_option("--pulsar-max-msg-size", pulsar->max_msg_size)
       ->default_val(BOLSON_DEFAULT_PULSAR_MAX_MSG_SIZE);
