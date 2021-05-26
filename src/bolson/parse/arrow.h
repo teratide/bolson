@@ -83,10 +83,12 @@ class ArrowParserContext : public ParserContext {
 
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;
 
-  [[nodiscard]] auto schema() const -> std::shared_ptr<arrow::Schema> override;
+  [[nodiscard]] auto input_schema() const -> std::shared_ptr<arrow::Schema> override;
+  [[nodiscard]] auto output_schema() const -> std::shared_ptr<arrow::Schema> override;
 
  private:
-  std::shared_ptr<arrow::Schema> schema_;
+  std::shared_ptr<arrow::Schema> input_schema_;
+  std::shared_ptr<arrow::Schema> output_schema_;
   std::vector<std::shared_ptr<ArrowParser>> parsers_;
 };
 

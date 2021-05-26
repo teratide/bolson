@@ -134,7 +134,7 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
 
   // Get the schema that the parsers will attempt to parse.
   publish::Options pulsar_options = opt.pulsar;
-  pulsar_options.arrow_schema = converter->parser_context()->schema();
+  pulsar_options.arrow_schema = converter->parser_context()->output_schema();
 
   spdlog::info("Initializing Pulsar client and producer...");
   BOLSON_ROE(publish::ConcurrentPublisher::Make(pulsar_options, &ipc_queue,

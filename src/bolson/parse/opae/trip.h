@@ -52,6 +52,7 @@ class TripParser : public Parser {
   auto Parse(const std::vector<illex::JSONBuffer*>& in, std::vector<ParsedBatch>* out)
       -> Status override;
 
+  static auto input_schema() -> std::shared_ptr<arrow::Schema>;
   static auto output_schema() -> std::shared_ptr<arrow::Schema>;
 
  private:
@@ -92,7 +93,8 @@ class TripParserContext : public ParserContext {
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;
   [[nodiscard]] auto CheckThreadCount(size_t num_threads) const -> size_t override;
   [[nodiscard]] auto CheckBufferCount(size_t num_buffers) const -> size_t override;
-  [[nodiscard]] auto schema() const -> std::shared_ptr<arrow::Schema> override;
+  [[nodiscard]] auto input_schema() const -> std::shared_ptr<arrow::Schema> override;
+  [[nodiscard]] auto output_schema() const -> std::shared_ptr<arrow::Schema> override;
 
  private:
   explicit TripParserContext(const TripOptions& opts);

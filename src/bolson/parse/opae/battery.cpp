@@ -34,6 +34,11 @@
 
 namespace bolson::parse::opae {
 
+static auto voltage_type() -> std::shared_ptr<arrow::DataType> {
+  static auto result = arrow::list(arrow::field("item", arrow::uint64(), false));
+  return result;
+}
+
 auto BatteryParserContext::PrepareInputBatches() -> Status {
   for (const auto& buf : buffers_) {
     auto wrapped = arrow::Buffer::Wrap(buf.data(), buf.capacity());
@@ -56,13 +61,13 @@ auto BatteryParserContext::PrepareOutputBatches() -> Status {
     auto values_buffer = arrow::Buffer::Wrap(values, allocator_->fixed_capacity());
     auto values_array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, values_buffer);
-    auto list_array = std::make_shared<arrow::ListArray>(BatteryParser::output_type(), 0,
-                                                         offset_buffer, values_array);
+    auto list_array = std::make_shared<arrow::ListArray>(voltage_type(), 0, offset_buffer,
+                                                         values_array);
     std::vector<std::shared_ptr<arrow::Array>> arrays = {list_array};
     raw_out_offsets.push_back(offsets);
     raw_out_values.push_back(values);
     batches_out.push_back(
-        arrow::RecordBatch::Make(BatteryParser::output_schema(), 0, arrays));
+        arrow::RecordBatch::Make(BatteryParser::input_schema(), 0, arrays));
   }
 
   return Status::OK();
@@ -123,6 +128,14 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
   SPDLOG_DEBUG("BatteryParserContext | Preparing parsers.");
   BOLSON_ROE(result->PrepareParsers(opts.seq_column));
 
+  // Determine input and output schema.
+  result->input_schema_ = BatteryParser::input_schema();
+  if (opts.seq_column) {
+    BOLSON_ROE(WithSeqField(*BatteryParser::input_schema(), &result->output_schema_));
+  } else {
+    result->output_schema_ = BatteryParser::input_schema();
+  }
+
   *out = result;
 
   return Status::OK();
@@ -149,12 +162,16 @@ auto BatteryParserContext::CheckBufferCount(size_t num_buffers) const -> size_t 
   return parsers_.size();
 }
 
-auto BatteryParserContext::schema() const -> std::shared_ptr<arrow::Schema> {
-  return BatteryParser::output_schema();
+auto BatteryParserContext::input_schema() const -> std::shared_ptr<arrow::Schema> {
+  return input_schema_;
+}
+
+auto BatteryParserContext::output_schema() const -> std::shared_ptr<arrow::Schema> {
+  return output_schema_;
 }
 
 BatteryParserContext::BatteryParserContext(const BatteryOptions& opts)
-    : num_parsers_(opts.num_parsers), afu_id_(opts.afu_id) {
+    : num_parsers_(opts.num_parsers), afu_id_(opts.afu_id), seq_column(opts.seq_column) {
   allocator_ = std::make_shared<buffer::OpaeAllocator>();
 }
 
@@ -263,7 +280,7 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
 
   std::shared_ptr<arrow::RecordBatch> out_batch;
   BOLSON_ROE(WrapOutput(num_rows.full, reinterpret_cast<uint8_t*>(raw_out_offsets),
-                        reinterpret_cast<uint8_t*>(raw_out_values), output_schema(),
+                        reinterpret_cast<uint8_t*>(raw_out_values), input_schema(),
                         &out_batch));
 
   std::shared_ptr<arrow::RecordBatch> final_batch;
@@ -300,14 +317,9 @@ auto BatteryParser::Parse(const std::vector<illex::JSONBuffer*>& in,
   return Status::OK();
 }
 
-auto BatteryParser::output_type() -> std::shared_ptr<arrow::DataType> {
-  static auto result = arrow::list(arrow::field("item", arrow::uint64(), false));
-  return result;
-}
-
-auto BatteryParser::output_schema() -> std::shared_ptr<arrow::Schema> {
+auto BatteryParser::input_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = fletcher::WithMetaRequired(
-      *arrow::schema({arrow::field("voltage", output_type(), false)}), "output",
+      *arrow::schema({arrow::field("voltage", voltage_type(), false)}), "output",
       fletcher::Mode::WRITE);
   return result;
 }

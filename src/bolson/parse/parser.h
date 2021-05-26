@@ -80,8 +80,11 @@ class ParserContext {
     return num_buffers;
   }
 
-  /// \brief Return the Arrow schema used by the parsers to convert JSONs.
-  [[nodiscard]] virtual auto schema() const -> std::shared_ptr<arrow::Schema> = 0;
+  /// \brief Return the Arrow input schema used by the parsers to convert JSONS.
+  [[nodiscard]] virtual auto input_schema() const -> std::shared_ptr<arrow::Schema> = 0;
+
+  /// \brief Return the Arrow output schema used by the parsers to convert JSONs.
+  [[nodiscard]] virtual auto output_schema() const -> std::shared_ptr<arrow::Schema> = 0;
 
   /**
    * \brief Return pointers to all input buffers.

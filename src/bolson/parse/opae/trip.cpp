@@ -45,6 +45,60 @@
 
 namespace bolson::parse::opae {
 
+auto TripParser::input_schema() -> std::shared_ptr<arrow::Schema> {
+  static auto result = arrow::schema(
+      {arrow::field("timestamp", arrow::utf8(), false),
+       arrow::field("timezone", arrow::uint64(), false),
+       arrow::field("vin", arrow::uint64(), false),
+       arrow::field("odometer", arrow::uint64(), false),
+       arrow::field("hypermiling", arrow::boolean(), false),
+       arrow::field("avgspeed", arrow::uint64(), false),
+       arrow::field(
+           "sec_in_band",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
+           false),
+       arrow::field(
+           "miles_in_time_range",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 24),
+           false),
+       arrow::field(
+           "const_speed_miles_in_band",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
+           false),
+       arrow::field(
+           "vary_speed_miles_in_band",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
+           false),
+       arrow::field(
+           "sec_decel",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
+           false),
+       arrow::field(
+           "sec_accel",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
+           false),
+       arrow::field(
+           "braking",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6),
+           false),
+       arrow::field(
+           "accel",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6),
+           false),
+       arrow::field("orientation", arrow::boolean(), false),
+       arrow::field(
+           "small_speed_var",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
+           false),
+       arrow::field(
+           "large_speed_var",
+           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
+           false),
+       arrow::field("accel_decel", arrow::uint64(), false),
+       arrow::field("speed_changes", arrow::uint64(), false)});
+  return result;
+}
+
 static auto output_schema_hw() -> std::shared_ptr<arrow::Schema> {
   static auto result = fletcher::WithMetaRequired(
       *arrow::schema(
@@ -649,8 +703,12 @@ auto TripReportBatchToString(const arrow::RecordBatch& batch) -> std::string {
   return ss.str();
 }
 
-auto TripParserContext::schema() const -> std::shared_ptr<arrow::Schema> {
-  return output_schema_sw();
+auto TripParserContext::input_schema() const -> std::shared_ptr<arrow::Schema> {
+  return TripParser::input_schema();
+}
+
+auto TripParserContext::output_schema() const -> std::shared_ptr<arrow::Schema> {
+  return TripParser::output_schema();
 }
 
 auto TripParserContext::CheckThreadCount(size_t num_threads) const -> size_t { return 1; }

@@ -49,7 +49,7 @@ auto AddSeqAsSchemaMeta(const std::shared_ptr<arrow::RecordBatch>& batch,
 auto WithSeqField(const arrow::Schema& schema, std::shared_ptr<arrow::Schema>* output)
     -> Status {
   auto add_result =
-      schema.AddField(schema.num_fields(), arrow::field("bolson_seq", arrow::uint64()));
+      schema.AddField(schema.num_fields(), arrow::field("bolson_seq", arrow::uint64(), false));
   if (!add_result.ok()) {
     return Status(Error::ArrowError,
                   "Could not add sequence number field \"bolson_seq\" to schema: " +

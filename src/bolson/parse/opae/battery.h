@@ -41,11 +41,8 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out);
 
 class BatteryParser : public Parser {
  public:
-  /// \brief Return the Arrow type list<uint64>
-  static auto output_type() -> std::shared_ptr<arrow::DataType>;
-
   /// \brief Return the Arrow schema with an output_type field.
-  static auto output_schema() -> std::shared_ptr<arrow::Schema>;
+  static auto input_schema() -> std::shared_ptr<arrow::Schema>;
 
   /// \brief OpaeBatteryParser constructor.
   BatteryParser(fletcher::Platform* platform, fletcher::Context* context,
@@ -138,7 +135,8 @@ class BatteryParserContext : public ParserContext {
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;
   [[nodiscard]] auto CheckThreadCount(size_t num_threads) const -> size_t override;
   [[nodiscard]] auto CheckBufferCount(size_t num_buffers) const -> size_t override;
-  [[nodiscard]] auto schema() const -> std::shared_ptr<arrow::Schema> override;
+  [[nodiscard]] auto input_schema() const -> std::shared_ptr<arrow::Schema> override;
+  [[nodiscard]] auto output_schema() const -> std::shared_ptr<arrow::Schema> override;
 
  private:
   explicit BatteryParserContext(const BatteryOptions& opts);
@@ -164,6 +162,11 @@ class BatteryParserContext : public ParserContext {
   std::vector<std::shared_ptr<BatteryParser>> parsers_;
 
   std::mutex platform_mutex;
+
+  std::shared_ptr<arrow::Schema> input_schema_;
+  std::shared_ptr<arrow::Schema> output_schema_;
+
+  bool seq_column;
 };
 
 }  // namespace bolson::parse::opae
