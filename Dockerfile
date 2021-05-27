@@ -35,7 +35,7 @@ ARG PULSAR_VERSION=2.7.0
 ENV PULSAR_VERSION ${PULSAR_VERSION}
 ARG FLETCHER_VERSION=0.0.19
 ARG FLETCHER_OPAE_VERSION=0.2.1
-COPY --from=opae /opae-${OPAE_VERSION}.x86_64-libs.deb opae-${OPAE_VERSION}.x86_64-libs.deb
+COPY --from=opae /opae-*.x86_64-libs.deb opae-${OPAE_VERSION}.x86_64-libs.deb
 RUN apt-get update && \
     # TODO(johanpel)
     apt-get install -y curl wget lsb-release gnupg cmake g++ make git && \
