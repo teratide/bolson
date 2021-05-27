@@ -116,7 +116,7 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   auto buffers = converter->parser_context()->mutable_buffers();
 
   spdlog::info("Converter schema:\n{}",
-               converter->parser_context()->schema()->ToString());
+               converter->parser_context()->output_schema()->ToString());
 
   // Fill buffers.
   BOLSON_ROE(FillBuffers(buffers, input_items));

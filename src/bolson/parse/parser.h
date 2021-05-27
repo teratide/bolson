@@ -80,8 +80,11 @@ class ParserContext {
     return num_buffers;
   }
 
-  /// \brief Return the Arrow schema used by the parsers to convert JSONs.
-  [[nodiscard]] virtual auto schema() const -> std::shared_ptr<arrow::Schema> = 0;
+  /// \brief Return the Arrow input schema used by the parsers to convert JSONS.
+  [[nodiscard]] virtual auto input_schema() const -> std::shared_ptr<arrow::Schema> = 0;
+
+  /// \brief Return the Arrow output schema used by the parsers to convert JSONs.
+  [[nodiscard]] virtual auto output_schema() const -> std::shared_ptr<arrow::Schema> = 0;
 
   /**
    * \brief Return pointers to all input buffers.
@@ -117,5 +120,9 @@ auto ToString(const illex::JSONBuffer& buffer, bool show_contents = true) -> std
 /// \brief Add sequence numbers as schema metadata to a batch.
 auto AddSeqAsSchemaMeta(const std::shared_ptr<arrow::RecordBatch>& batch,
                         illex::SeqRange seq_range) -> std::shared_ptr<arrow::RecordBatch>;
+
+/// \brief Return a new schema with the sequence number field added.
+auto WithSeqField(const arrow::Schema& schema, std::shared_ptr<arrow::Schema>* output)
+    -> Status;
 
 }  // namespace bolson::parse

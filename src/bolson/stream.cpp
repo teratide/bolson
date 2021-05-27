@@ -129,12 +129,16 @@ auto ProduceFromStream(const StreamOptions& opt) -> Status {
   std::shared_ptr<publish::ConcurrentPublisher> publisher;  // Pulsar producers.
 
   timers.init.Start();
-  spdlog::info("Initializing Pulsar client and producer...");
-  BOLSON_ROE(publish::ConcurrentPublisher::Make(opt.pulsar, &ipc_queue,
-                                                &threads.publish_count, &publisher));
-
   spdlog::info("Initializing converter(s)...");
   BOLSON_ROE(convert::Converter::Make(opt.converter, &ipc_queue, &converter));
+
+  // Get the schema that the parsers will attempt to parse.
+  publish::Options pulsar_options = opt.pulsar;
+  pulsar_options.arrow_schema = converter->parser_context()->output_schema();
+
+  spdlog::info("Initializing Pulsar client and producer...");
+  BOLSON_ROE(publish::ConcurrentPublisher::Make(pulsar_options, &ipc_queue,
+                                                &threads.publish_count, &publisher));
 
   spdlog::info("Initializing stream source client...");
   BILLEX_ROE(illex::BufferingClient::Create(

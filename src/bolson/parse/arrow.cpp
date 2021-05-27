@@ -72,12 +72,19 @@ auto ArrowParserContext::Make(const ArrowOptions& opts, size_t num_parsers,
   // Determine Arrow JSON parser options.
   arrow::json::ParseOptions parse_opts;
   if (opts.schema == nullptr) {
-    BOLSON_ROE(ReadSchemaFromFile(opts.schema_path, &result->schema_));
+    BOLSON_ROE(ReadSchemaFromFile(opts.schema_path, &result->input_schema_));
   } else {
-    result->schema_ = opts.schema;
+    result->input_schema_ = opts.schema;
   }
 
-  parse_opts.explicit_schema = result->schema_;
+  // Add the sequence number field to the output schema if specified.
+  if (opts.seq_column) {
+    BOLSON_ROE(WithSeqField(*result->input_schema_, &result->output_schema_));
+  } else {
+    result->output_schema_ = result->input_schema_;
+  }
+
+  parse_opts.explicit_schema = result->input_schema_;
   parse_opts.unexpected_field_behavior = arrow::json::UnexpectedFieldBehavior::Error;
 
   // Determine Arrow JSON table reader options.
@@ -164,8 +171,12 @@ auto ArrowParserContext::parsers() -> std::vector<std::shared_ptr<Parser>> {
   return CastPtrs<Parser>(parsers_);
 }
 
-auto ArrowParserContext::schema() const -> std::shared_ptr<arrow::Schema> {
-  return schema_;
+auto ArrowParserContext::output_schema() const -> std::shared_ptr<arrow::Schema> {
+  return output_schema_;
+}
+
+auto ArrowParserContext::input_schema() const -> std::shared_ptr<arrow::Schema> {
+  return std::shared_ptr<arrow::Schema>();
 }
 
 void AddArrowOptionsToCLI(CLI::App* sub, ArrowOptions* out) {
