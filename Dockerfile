@@ -39,7 +39,7 @@ COPY --from=opae /opae-*.x86_64-libs.deb opae-${OPAE_VERSION}.x86_64-libs.deb
 RUN apt-get update && \
     # TODO(johanpel)
     apt-get install -y curl wget lsb-release gnupg cmake g++ make git && \
-    git clone --single-branch --branch json-fixed-size-list https://github.com/johanpel/arrow.git /arrow && \
+    git clone --single-branch --branch 3.0-with-fixed-size-list-json https://github.com/johanpel/arrow.git /arrow && \
     cd /arrow/cpp && \
     cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DARROW_JSON=ON . && \
     make -j4 && \
