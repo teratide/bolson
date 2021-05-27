@@ -31,8 +31,9 @@ var searchData=
   ['arrow_2ecpp_29',['arrow.cpp',['../arrow_8cpp.html',1,'']]],
   ['arrow_2eh_30',['arrow.h',['../arrow_8h.html',1,'']]],
   ['arrow_5froe_31',['ARROW_ROE',['../status_8h.html#a43e0cd62e1627bf88710bfdce5646218',1,'status.h']]],
-  ['arrowerror_32',['ArrowError',['../namespacebolson.html#a124eb1676bfaa4cf12d50fceae00d053a23c92beca28d9939df06c7a804e5fe81',1,'bolson']]],
-  ['arrowoptions_33',['ArrowOptions',['../structbolson_1_1parse_1_1_arrow_options.html',1,'bolson::parse']]],
-  ['arrowparser_34',['ArrowParser',['../classbolson_1_1parse_1_1_arrow_parser.html',1,'bolson::parse::ArrowParser'],['../classbolson_1_1parse_1_1_arrow_parser.html#acd7debfc48ed40a8ca3957f88540bc63',1,'bolson::parse::ArrowParser::ArrowParser()']]],
-  ['arrowparsercontext_35',['ArrowParserContext',['../classbolson_1_1parse_1_1_arrow_parser_context.html',1,'bolson::parse']]]
+  ['arrow_5fschema_32',['arrow_schema',['../structbolson_1_1publish_1_1_options.html#a5f54528c514e600cfea39654488217b5',1,'bolson::publish::Options']]],
+  ['arrowerror_33',['ArrowError',['../namespacebolson.html#a124eb1676bfaa4cf12d50fceae00d053a23c92beca28d9939df06c7a804e5fe81',1,'bolson']]],
+  ['arrowoptions_34',['ArrowOptions',['../structbolson_1_1parse_1_1_arrow_options.html',1,'bolson::parse']]],
+  ['arrowparser_35',['ArrowParser',['../classbolson_1_1parse_1_1_arrow_parser.html',1,'bolson::parse::ArrowParser'],['../classbolson_1_1parse_1_1_arrow_parser.html#acd7debfc48ed40a8ca3957f88540bc63',1,'bolson::parse::ArrowParser::ArrowParser()']]],
+  ['arrowparsercontext_36',['ArrowParserContext',['../classbolson_1_1parse_1_1_arrow_parser_context.html',1,'bolson::parse']]]
 ];

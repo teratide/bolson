@@ -137,6 +137,9 @@ Functions</h2></td></tr>
 <tr class="memitem:aa3cf9ef851deb4d9275b9b04807db467"><td class="memItemLeft" align="right" valign="top">auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacebolson_1_1parse.html#aa3cf9ef851deb4d9275b9b04807db467">AddSeqAsSchemaMeta</a> (const std::shared_ptr&lt; arrow::RecordBatch &gt; &amp;batch, illex::SeqRange seq_range) -&gt; std::shared_ptr&lt; arrow::RecordBatch &gt;</td></tr>
 <tr class="memdesc:aa3cf9ef851deb4d9275b9b04807db467"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add sequence numbers as schema metadata to a batch.  <a href="namespacebolson_1_1parse.html#aa3cf9ef851deb4d9275b9b04807db467">More...</a><br /></td></tr>
 <tr class="separator:aa3cf9ef851deb4d9275b9b04807db467"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a09ff0735c796bd6fe939a11aa32a07a9"><td class="memItemLeft" align="right" valign="top">auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacebolson_1_1parse.html#a09ff0735c796bd6fe939a11aa32a07a9">WithSeqField</a> (const arrow::Schema &amp;schema, std::shared_ptr&lt; arrow::Schema &gt; *output) -&gt; <a class="el" href="namespacebolson.html#a7b63343d68ed82fbf837157755204b74">Status</a></td></tr>
+<tr class="memdesc:a09ff0735c796bd6fe939a11aa32a07a9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return a new schema with the sequence number field added.  <a href="namespacebolson_1_1parse.html#a09ff0735c796bd6fe939a11aa32a07a9">More...</a><br /></td></tr>
+<tr class="separator:a09ff0735c796bd6fe939a11aa32a07a9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Contains all constructs to parse JSONs to Arrow RecordBatches. </p>
@@ -361,6 +364,36 @@ Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
+
+</div>
+</div>
+<a id="a09ff0735c796bd6fe939a11aa32a07a9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a09ff0735c796bd6fe939a11aa32a07a9">&#9670;&nbsp;</a></span>WithSeqField()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">auto bolson::parse::WithSeqField </td>
+          <td>(</td>
+          <td class="paramtype">const arrow::Schema &amp;&#160;</td>
+          <td class="paramname"><em>schema</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::shared_ptr&lt; arrow::Schema &gt; *&#160;</td>
+          <td class="paramname"><em>output</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> -&gt;  <a class="el" href="namespacebolson.html#a7b63343d68ed82fbf837157755204b74">Status</a></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Return a new schema with the sequence number field added. </p>
 
 </div>
 </div>

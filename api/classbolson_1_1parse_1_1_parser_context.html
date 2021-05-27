@@ -98,9 +98,12 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a86e4327a8bd8f7813f6d7ded62261b76"><td class="memItemLeft" align="right" valign="top">virtual auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_parser_context.html#a86e4327a8bd8f7813f6d7ded62261b76">CheckBufferCount</a> (size_t num_buffers) const -&gt; size_t</td></tr>
 <tr class="memdesc:a86e4327a8bd8f7813f6d7ded62261b76"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return no. input buffers allowed by impl. based on desired no. buffers.  <a href="classbolson_1_1parse_1_1_parser_context.html#a86e4327a8bd8f7813f6d7ded62261b76">More...</a><br /></td></tr>
 <tr class="separator:a86e4327a8bd8f7813f6d7ded62261b76"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a48fe6984f6068b30ab43ef3b80af9c03"><td class="memItemLeft" align="right" valign="top">virtual auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_parser_context.html#a48fe6984f6068b30ab43ef3b80af9c03">schema</a> () const -&gt; std::shared_ptr&lt; arrow::Schema &gt;=0</td></tr>
-<tr class="memdesc:a48fe6984f6068b30ab43ef3b80af9c03"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the Arrow schema used by the parsers to convert JSONs.  <a href="classbolson_1_1parse_1_1_parser_context.html#a48fe6984f6068b30ab43ef3b80af9c03">More...</a><br /></td></tr>
-<tr class="separator:a48fe6984f6068b30ab43ef3b80af9c03"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abe10b167a05696e31fe3c36f09908d39"><td class="memItemLeft" align="right" valign="top">virtual auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_parser_context.html#abe10b167a05696e31fe3c36f09908d39">input_schema</a> () const -&gt; std::shared_ptr&lt; arrow::Schema &gt;=0</td></tr>
+<tr class="memdesc:abe10b167a05696e31fe3c36f09908d39"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the Arrow input schema used by the parsers to convert JSONS.  <a href="classbolson_1_1parse_1_1_parser_context.html#abe10b167a05696e31fe3c36f09908d39">More...</a><br /></td></tr>
+<tr class="separator:abe10b167a05696e31fe3c36f09908d39"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5727a9e88c54c636c3dfef3f4beff8b1"><td class="memItemLeft" align="right" valign="top">virtual auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_parser_context.html#a5727a9e88c54c636c3dfef3f4beff8b1">output_schema</a> () const -&gt; std::shared_ptr&lt; arrow::Schema &gt;=0</td></tr>
+<tr class="memdesc:a5727a9e88c54c636c3dfef3f4beff8b1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the Arrow output schema used by the parsers to convert JSONs.  <a href="classbolson_1_1parse_1_1_parser_context.html#a5727a9e88c54c636c3dfef3f4beff8b1">More...</a><br /></td></tr>
+<tr class="separator:a5727a9e88c54c636c3dfef3f4beff8b1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0e0b8fe97afac2ff31bbbc5c801aa01e"><td class="memItemLeft" align="right" valign="top">auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_parser_context.html#a0e0b8fe97afac2ff31bbbc5c801aa01e">mutable_buffers</a> () -&gt; std::vector&lt; illex::JSONBuffer * &gt;</td></tr>
 <tr class="memdesc:a0e0b8fe97afac2ff31bbbc5c801aa01e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return pointers to all input buffers.  <a href="classbolson_1_1parse_1_1_parser_context.html#a0e0b8fe97afac2ff31bbbc5c801aa01e">More...</a><br /></td></tr>
 <tr class="separator:a0e0b8fe97afac2ff31bbbc5c801aa01e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -256,6 +259,35 @@ Protected Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="abe10b167a05696e31fe3c36f09908d39"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abe10b167a05696e31fe3c36f09908d39">&#9670;&nbsp;</a></span>input_schema()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual auto bolson::parse::ParserContext::input_schema </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const -&gt;  std::shared_ptr&lt; arrow::Schema &gt;</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">pure virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Return the Arrow input schema used by the parsers to convert JSONS. </p>
+
+<p>Implemented in <a class="el" href="classbolson_1_1parse_1_1opae_1_1_battery_parser_context.html#adb0c930362a2f5183762bb8801c0eebe">bolson::parse::opae::BatteryParserContext</a>, <a class="el" href="classbolson_1_1parse_1_1opae_1_1_trip_parser_context.html#a4be6c71b911f7dd29b183b88a22572f6">bolson::parse::opae::TripParserContext</a>, and <a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#a4c122dba8de9570decffa70558d0c3f3">bolson::parse::ArrowParserContext</a>.</p>
+
+</div>
+</div>
 <a id="a05c0d5fad89dd2ad2e27fadac7edc4a9"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a05c0d5fad89dd2ad2e27fadac7edc4a9">&#9670;&nbsp;</a></span>LockBuffers()</h2>
 
@@ -314,6 +346,35 @@ Protected Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="a5727a9e88c54c636c3dfef3f4beff8b1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5727a9e88c54c636c3dfef3f4beff8b1">&#9670;&nbsp;</a></span>output_schema()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual auto bolson::parse::ParserContext::output_schema </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const -&gt;  std::shared_ptr&lt; arrow::Schema &gt;</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">pure virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Return the Arrow output schema used by the parsers to convert JSONs. </p>
+
+<p>Implemented in <a class="el" href="classbolson_1_1parse_1_1opae_1_1_battery_parser_context.html#a2a93cf6f7073b482e3cdcbdb05e5f2fd">bolson::parse::opae::BatteryParserContext</a>, <a class="el" href="classbolson_1_1parse_1_1opae_1_1_trip_parser_context.html#ae13b42cc423877d01311cd3252be2668">bolson::parse::opae::TripParserContext</a>, and <a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#a241a7c202a1c856a73267a9e05cefb16">bolson::parse::ArrowParserContext</a>.</p>
+
+</div>
+</div>
 <a id="a06914b6a74eafe6502ccd41c3f9ccdf6"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a06914b6a74eafe6502ccd41c3f9ccdf6">&#9670;&nbsp;</a></span>parsers()</h2>
 
@@ -340,35 +401,6 @@ Protected Attributes</h2></td></tr>
 <p>Return the parsers managed by this context. </p>
 
 <p>Implemented in <a class="el" href="classbolson_1_1parse_1_1opae_1_1_battery_parser_context.html#aeaf35af51bc42b89da4edbaea6c23d8f">bolson::parse::opae::BatteryParserContext</a>, <a class="el" href="classbolson_1_1parse_1_1opae_1_1_trip_parser_context.html#a694f2aec76983ee76b611647e97fee9e">bolson::parse::opae::TripParserContext</a>, and <a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#ad22e7705def3a7913eed87247bbea5fa">bolson::parse::ArrowParserContext</a>.</p>
-
-</div>
-</div>
-<a id="a48fe6984f6068b30ab43ef3b80af9c03"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a48fe6984f6068b30ab43ef3b80af9c03">&#9670;&nbsp;</a></span>schema()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">virtual auto bolson::parse::ParserContext::schema </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td> const -&gt;  std::shared_ptr&lt; arrow::Schema &gt;</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">pure virtual</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Return the Arrow schema used by the parsers to convert JSONs. </p>
-
-<p>Implemented in <a class="el" href="classbolson_1_1parse_1_1opae_1_1_battery_parser_context.html#a6b1b16404e9ddd06497912ed9d749d24">bolson::parse::opae::BatteryParserContext</a>, <a class="el" href="classbolson_1_1parse_1_1opae_1_1_trip_parser_context.html#a96e0b2f1edcf9e4577f2b1b13b928189">bolson::parse::opae::TripParserContext</a>, and <a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#ac47e30fc0d40763ecfd3fd06aa5120ea">bolson::parse::ArrowParserContext</a>.</p>
 
 </div>
 </div>

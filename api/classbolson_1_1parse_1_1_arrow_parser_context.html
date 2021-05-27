@@ -97,9 +97,12 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ad22e7705def3a7913eed87247bbea5fa"><td class="memItemLeft" align="right" valign="top">auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#ad22e7705def3a7913eed87247bbea5fa">parsers</a> () -&gt; std::vector&lt; std::shared_ptr&lt; <a class="el" href="classbolson_1_1parse_1_1_parser.html">Parser</a> &gt;&gt; override</td></tr>
 <tr class="memdesc:ad22e7705def3a7913eed87247bbea5fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the parsers managed by this context.  <a href="classbolson_1_1parse_1_1_arrow_parser_context.html#ad22e7705def3a7913eed87247bbea5fa">More...</a><br /></td></tr>
 <tr class="separator:ad22e7705def3a7913eed87247bbea5fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac47e30fc0d40763ecfd3fd06aa5120ea"><td class="memItemLeft" align="right" valign="top">auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#ac47e30fc0d40763ecfd3fd06aa5120ea">schema</a> () const -&gt; std::shared_ptr&lt; arrow::Schema &gt; override</td></tr>
-<tr class="memdesc:ac47e30fc0d40763ecfd3fd06aa5120ea"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the Arrow schema used by the parsers to convert JSONs.  <a href="classbolson_1_1parse_1_1_arrow_parser_context.html#ac47e30fc0d40763ecfd3fd06aa5120ea">More...</a><br /></td></tr>
-<tr class="separator:ac47e30fc0d40763ecfd3fd06aa5120ea"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4c122dba8de9570decffa70558d0c3f3"><td class="memItemLeft" align="right" valign="top">auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#a4c122dba8de9570decffa70558d0c3f3">input_schema</a> () const -&gt; std::shared_ptr&lt; arrow::Schema &gt; override</td></tr>
+<tr class="memdesc:a4c122dba8de9570decffa70558d0c3f3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the Arrow input schema used by the parsers to convert JSONS.  <a href="classbolson_1_1parse_1_1_arrow_parser_context.html#a4c122dba8de9570decffa70558d0c3f3">More...</a><br /></td></tr>
+<tr class="separator:a4c122dba8de9570decffa70558d0c3f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a241a7c202a1c856a73267a9e05cefb16"><td class="memItemLeft" align="right" valign="top">auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#a241a7c202a1c856a73267a9e05cefb16">output_schema</a> () const -&gt; std::shared_ptr&lt; arrow::Schema &gt; override</td></tr>
+<tr class="memdesc:a241a7c202a1c856a73267a9e05cefb16"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the Arrow output schema used by the parsers to convert JSONs.  <a href="classbolson_1_1parse_1_1_arrow_parser_context.html#a241a7c202a1c856a73267a9e05cefb16">More...</a><br /></td></tr>
+<tr class="separator:a241a7c202a1c856a73267a9e05cefb16"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_methods_classbolson_1_1parse_1_1_parser_context"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_classbolson_1_1parse_1_1_parser_context')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="classbolson_1_1parse_1_1_parser_context.html">bolson::parse::ParserContext</a></td></tr>
 <tr class="memitem:af1a3521d36fdaa6c4508be34321e36d4 inherit pub_methods_classbolson_1_1parse_1_1_parser_context"><td class="memItemLeft" align="right" valign="top">virtual auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_parser_context.html#af1a3521d36fdaa6c4508be34321e36d4">CheckThreadCount</a> (size_t num_threads) const -&gt; size_t</td></tr>
 <tr class="memdesc:af1a3521d36fdaa6c4508be34321e36d4 inherit pub_methods_classbolson_1_1parse_1_1_parser_context"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return no. threads allowed by impl. based on desired no. threads.  <a href="classbolson_1_1parse_1_1_parser_context.html#af1a3521d36fdaa6c4508be34321e36d4">More...</a><br /></td></tr>
@@ -127,8 +130,10 @@ Static Public Member Functions</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
-<tr class="memitem:aad27803f36db770818c97b73ce99b164"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; arrow::Schema &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#aad27803f36db770818c97b73ce99b164">schema_</a></td></tr>
-<tr class="separator:aad27803f36db770818c97b73ce99b164"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab3a3ddf374c73d35192e7b1f3988f19b"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; arrow::Schema &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#ab3a3ddf374c73d35192e7b1f3988f19b">input_schema_</a></td></tr>
+<tr class="separator:ab3a3ddf374c73d35192e7b1f3988f19b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acccaf2caea95ae8c73809490ef41e35e"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; arrow::Schema &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#acccaf2caea95ae8c73809490ef41e35e">output_schema_</a></td></tr>
+<tr class="separator:acccaf2caea95ae8c73809490ef41e35e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1561cfadb65804c43bfa61ab2405f7e9"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::shared_ptr&lt; <a class="el" href="classbolson_1_1parse_1_1_arrow_parser.html">ArrowParser</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1_arrow_parser_context.html#a1561cfadb65804c43bfa61ab2405f7e9">parsers_</a></td></tr>
 <tr class="separator:a1561cfadb65804c43bfa61ab2405f7e9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -152,6 +157,35 @@ Additional Inherited Members</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Context for Arrow parsers. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a4c122dba8de9570decffa70558d0c3f3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4c122dba8de9570decffa70558d0c3f3">&#9670;&nbsp;</a></span>input_schema()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">auto bolson::parse::ArrowParserContext::input_schema </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const -&gt;  std::shared_ptr&lt; arrow::Schema &gt;</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">override</span><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Return the Arrow input schema used by the parsers to convert JSONS. </p>
+
+<p>Implements <a class="el" href="classbolson_1_1parse_1_1_parser_context.html#abe10b167a05696e31fe3c36f09908d39">bolson::parse::ParserContext</a>.</p>
+
+</div>
+</div>
 <a id="ad63a6e158116b6c92c213ab119ae6600"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ad63a6e158116b6c92c213ab119ae6600">&#9670;&nbsp;</a></span>Make()</h2>
 
@@ -194,6 +228,35 @@ Additional Inherited Members</h2></td></tr>
 
 </div>
 </div>
+<a id="a241a7c202a1c856a73267a9e05cefb16"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a241a7c202a1c856a73267a9e05cefb16">&#9670;&nbsp;</a></span>output_schema()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">auto bolson::parse::ArrowParserContext::output_schema </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const -&gt;  std::shared_ptr&lt; arrow::Schema &gt;</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">override</span><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Return the Arrow output schema used by the parsers to convert JSONs. </p>
+
+<p>Implements <a class="el" href="classbolson_1_1parse_1_1_parser_context.html#a5727a9e88c54c636c3dfef3f4beff8b1">bolson::parse::ParserContext</a>.</p>
+
+</div>
+</div>
 <a id="ad22e7705def3a7913eed87247bbea5fa"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ad22e7705def3a7913eed87247bbea5fa">&#9670;&nbsp;</a></span>parsers()</h2>
 
@@ -223,38 +286,9 @@ Additional Inherited Members</h2></td></tr>
 
 </div>
 </div>
-<a id="ac47e30fc0d40763ecfd3fd06aa5120ea"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac47e30fc0d40763ecfd3fd06aa5120ea">&#9670;&nbsp;</a></span>schema()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">auto bolson::parse::ArrowParserContext::schema </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td> const -&gt;  std::shared_ptr&lt; arrow::Schema &gt;</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">override</span><span class="mlabel">virtual</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Return the Arrow schema used by the parsers to convert JSONs. </p>
-
-<p>Implements <a class="el" href="classbolson_1_1parse_1_1_parser_context.html#a48fe6984f6068b30ab43ef3b80af9c03">bolson::parse::ParserContext</a>.</p>
-
-</div>
-</div>
 <h2 class="groupheader">Member Data Documentation</h2>
-<a id="a1561cfadb65804c43bfa61ab2405f7e9"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1561cfadb65804c43bfa61ab2405f7e9">&#9670;&nbsp;</a></span>parsers_</h2>
+<a id="ab3a3ddf374c73d35192e7b1f3988f19b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab3a3ddf374c73d35192e7b1f3988f19b">&#9670;&nbsp;</a></span>input_schema_</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -263,7 +297,7 @@ Additional Inherited Members</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">std::vector&lt;std::shared_ptr&lt;<a class="el" href="classbolson_1_1parse_1_1_arrow_parser.html">ArrowParser</a>&gt; &gt; bolson::parse::ArrowParserContext::parsers_</td>
+          <td class="memname">std::shared_ptr&lt;arrow::Schema&gt; bolson::parse::ArrowParserContext::input_schema_</td>
         </tr>
       </table>
   </td>
@@ -275,8 +309,8 @@ Additional Inherited Members</h2></td></tr>
 
 </div>
 </div>
-<a id="aad27803f36db770818c97b73ce99b164"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aad27803f36db770818c97b73ce99b164">&#9670;&nbsp;</a></span>schema_</h2>
+<a id="acccaf2caea95ae8c73809490ef41e35e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acccaf2caea95ae8c73809490ef41e35e">&#9670;&nbsp;</a></span>output_schema_</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -285,7 +319,29 @@ Additional Inherited Members</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">std::shared_ptr&lt;arrow::Schema&gt; bolson::parse::ArrowParserContext::schema_</td>
+          <td class="memname">std::shared_ptr&lt;arrow::Schema&gt; bolson::parse::ArrowParserContext::output_schema_</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="a1561cfadb65804c43bfa61ab2405f7e9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1561cfadb65804c43bfa61ab2405f7e9">&#9670;&nbsp;</a></span>parsers_</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt;std::shared_ptr&lt;<a class="el" href="classbolson_1_1parse_1_1_arrow_parser.html">ArrowParser</a>&gt; &gt; bolson::parse::ArrowParserContext::parsers_</td>
         </tr>
       </table>
   </td>

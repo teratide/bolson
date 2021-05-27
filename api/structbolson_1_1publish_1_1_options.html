@@ -109,6 +109,8 @@ Public Attributes</h2></td></tr>
 <tr class="memitem:a91ca5e3ab224553206549333a15bc794"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structbolson_1_1publish_1_1_options.html#a91ca5e3ab224553206549333a15bc794">num_producers</a></td></tr>
 <tr class="memdesc:a91ca5e3ab224553206549333a15bc794"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of Pulsar producers.  <a href="structbolson_1_1publish_1_1_options.html#a91ca5e3ab224553206549333a15bc794">More...</a><br /></td></tr>
 <tr class="separator:a91ca5e3ab224553206549333a15bc794"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5f54528c514e600cfea39654488217b5"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; arrow::Schema &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structbolson_1_1publish_1_1_options.html#a5f54528c514e600cfea39654488217b5">arrow_schema</a></td></tr>
+<tr class="separator:a5f54528c514e600cfea39654488217b5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Pulsar options. </p>
@@ -133,6 +135,21 @@ Public Attributes</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Member Data Documentation</h2>
+<a id="a5f54528c514e600cfea39654488217b5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5f54528c514e600cfea39654488217b5">&#9670;&nbsp;</a></span>arrow_schema</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::shared_ptr&lt;arrow::Schema&gt; bolson::publish::Options::arrow_schema</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>The topic schema. Note this is an Arrow schema, which is not yet supported by Pulsar. </p>
+
+</div>
+</div>
 <a id="a550d04cb9d25581f7f8e648261464259"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a550d04cb9d25581f7f8e648261464259">&#9670;&nbsp;</a></span>batching</h2>
 

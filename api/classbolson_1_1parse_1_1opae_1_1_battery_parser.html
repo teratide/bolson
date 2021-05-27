@@ -104,12 +104,9 @@ Public Member Functions</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a700dacd802990da152cd547ef4c7e264"><td class="memItemLeft" align="right" valign="top">static auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1opae_1_1_battery_parser.html#a700dacd802990da152cd547ef4c7e264">output_type</a> () -&gt; std::shared_ptr&lt; arrow::DataType &gt;</td></tr>
-<tr class="memdesc:a700dacd802990da152cd547ef4c7e264"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the Arrow type list&lt;uint64&gt;  <a href="classbolson_1_1parse_1_1opae_1_1_battery_parser.html#a700dacd802990da152cd547ef4c7e264">More...</a><br /></td></tr>
-<tr class="separator:a700dacd802990da152cd547ef4c7e264"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2a07125054f04c49893149b0a108629f"><td class="memItemLeft" align="right" valign="top">static auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1opae_1_1_battery_parser.html#a2a07125054f04c49893149b0a108629f">output_schema</a> () -&gt; std::shared_ptr&lt; arrow::Schema &gt;</td></tr>
-<tr class="memdesc:a2a07125054f04c49893149b0a108629f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the Arrow schema with an output_type field.  <a href="classbolson_1_1parse_1_1opae_1_1_battery_parser.html#a2a07125054f04c49893149b0a108629f">More...</a><br /></td></tr>
-<tr class="separator:a2a07125054f04c49893149b0a108629f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3eff5a632fda6b8651e2a1a60bc87b99"><td class="memItemLeft" align="right" valign="top">static auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classbolson_1_1parse_1_1opae_1_1_battery_parser.html#a3eff5a632fda6b8651e2a1a60bc87b99">input_schema</a> () -&gt; std::shared_ptr&lt; arrow::Schema &gt;</td></tr>
+<tr class="memdesc:a3eff5a632fda6b8651e2a1a60bc87b99"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the Arrow schema with an output_type field.  <a href="classbolson_1_1parse_1_1opae_1_1_battery_parser.html#a3eff5a632fda6b8651e2a1a60bc87b99">More...</a><br /></td></tr>
+<tr class="separator:a3eff5a632fda6b8651e2a1a60bc87b99"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-methods"></a>
 Private Member Functions</h2></td></tr>
@@ -371,6 +368,33 @@ Static Private Attributes</h2></td></tr>
 
 </div>
 </div>
+<a id="a3eff5a632fda6b8651e2a1a60bc87b99"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3eff5a632fda6b8651e2a1a60bc87b99">&#9670;&nbsp;</a></span>input_schema()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">auto bolson::parse::opae::BatteryParser::input_schema </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> -&gt; std::shared_ptr&lt;arrow::Schema&gt;</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Return the Arrow schema with an output_type field. </p>
+
+</div>
+</div>
 <a id="afcdcb5635a231d7dcc415bb3fd30fd9e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#afcdcb5635a231d7dcc415bb3fd30fd9e">&#9670;&nbsp;</a></span>input_values_hi_offset()</h2>
 
@@ -420,60 +444,6 @@ Static Private Attributes</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
-
-</div>
-</div>
-<a id="a2a07125054f04c49893149b0a108629f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2a07125054f04c49893149b0a108629f">&#9670;&nbsp;</a></span>output_schema()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">auto bolson::parse::opae::BatteryParser::output_schema </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td> -&gt; std::shared_ptr&lt;arrow::Schema&gt;</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Return the Arrow schema with an output_type field. </p>
-
-</div>
-</div>
-<a id="a700dacd802990da152cd547ef4c7e264"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a700dacd802990da152cd547ef4c7e264">&#9670;&nbsp;</a></span>output_type()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">auto bolson::parse::opae::BatteryParser::output_type </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td> -&gt; std::shared_ptr&lt;arrow::DataType&gt;</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Return the Arrow type list&lt;uint64&gt; </p>
 
 </div>
 </div>
