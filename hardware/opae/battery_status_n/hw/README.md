@@ -28,7 +28,7 @@ docker run -it --rm --name ias --net=host -v `pwd`:/src:ro ias:1.2.1
 
 From the container, now navigate to the project hardware directory, initialize AFU synthesis in `/synth`, and run it.
 ```bash
-cd battery_status_n/hw
+cd opae/battery_status_n/hw
 afu_synth_setup -s sources.txt /synth
 cd /synth
 ${OPAE_PLATFORM_ROOT}/bin/run.sh
