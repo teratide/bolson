@@ -332,8 +332,8 @@ vhdl/mmio.gen.vhd
 ../../../tydi-json/component/JsonRecordParser.vhd
 ../../../tydi-json/component/JsonArrayParser.vhd
 ../../../tydi-json/component/IntParser.vhd
-../../../tydi-json/schemas/battery_status/battery_status_pkg.vhd
-../../../tydi-json/schemas/battery_status/BattSchemaParser.vhd
+../../../tydi-json/test/schemas/battery_status/battery_status_pkg.vhd
+../../../tydi-json/test/schemas/battery_status/BattSchemaParser.vhd
 
 vhdl/battery_status_sub.vhd
 vhdl/battery_status.gen.vhd
