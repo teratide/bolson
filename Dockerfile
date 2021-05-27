@@ -42,7 +42,7 @@ RUN apt-get update && \
     git clone --single-branch --branch json-fixed-size-list https://github.com/johanpel/arrow.git /arrow && \
     cd /arrow/cpp && \
     cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DARROW_JSON=ON . && \
-    make -j && \
+    make -j4 && \
     make install && \
     rm -rf /arrow && \
     cd && \
