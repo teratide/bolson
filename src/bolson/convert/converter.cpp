@@ -392,7 +392,7 @@ auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
   }
 
   // Set up Resizers and Serializers.
-  for (size_t t = 0; t < opts.num_threads; t++) {
+  for (size_t t = 0; t < num_threads; t++) {
     resizers.emplace_back(opts.max_batch_rows);
     serializers.emplace_back(opts.max_ipc_size);
   }
