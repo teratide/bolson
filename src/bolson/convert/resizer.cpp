@@ -42,7 +42,7 @@ auto Resizer::Resize(const parse::ParsedBatch& in, ResizedBatches* out) -> Statu
       }
     }
   } else {
-    result.push_back({in.batch, in.seq_range});
+    result.push_back(parse::ParsedBatch{in.batch, in.seq_range});
   }
 
   *out = result;

@@ -11,7 +11,7 @@ include(FetchContent)
 # CMake Modules
 FetchContent_Declare(cmake-modules
   GIT_REPOSITORY  https://github.com/abs-tudelft/cmake-modules.git
-  GIT_TAG         141e793b42c0702e7b73570960bf7f6e23501496
+  GIT_TAG         c48cf51ab44642c61259c0107a4f97d5abb1a604
 )
 FetchContent_MakeAvailable(cmake-modules)
 include(CompileUnits)

@@ -67,7 +67,7 @@ auto BatteryParserContext::PrepareOutputBatches() -> Status {
     raw_out_offsets.push_back(offsets);
     raw_out_values.push_back(values);
     batches_out.push_back(
-        arrow::RecordBatch::Make(BatteryParser::input_schema(), 0, arrays));
+        arrow::RecordBatch::Make(BatteryParser::output_schema(), 0, arrays));
   }
 
   return Status::OK();
@@ -126,14 +126,14 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
   }
 
   SPDLOG_DEBUG("BatteryParserContext | Preparing parsers.");
-  BOLSON_ROE(result->PrepareParsers(opts.seq_column));
+  BOLSON_ROE(result->PrepareParsers());
 
   // Determine input and output schema.
-  result->input_schema_ = BatteryParser::input_schema();
+  result->input_schema_ = BatteryParser::output_schema();
   if (opts.seq_column) {
-    BOLSON_ROE(WithSeqField(*BatteryParser::input_schema(), &result->output_schema_));
+    BOLSON_ROE(WithSeqField(*BatteryParser::output_schema(), &result->output_schema_));
   } else {
-    result->output_schema_ = BatteryParser::input_schema();
+    result->output_schema_ = BatteryParser::output_schema();
   }
 
   *out = result;
@@ -141,7 +141,7 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
   return Status::OK();
 }
 
-auto BatteryParserContext::PrepareParsers(bool seq_column) -> Status {
+auto BatteryParserContext::PrepareParsers() -> Status {
   for (size_t i = 0; i < num_parsers_; i++) {
     parsers_.push_back(std::make_shared<BatteryParser>(
         platform.get(), context.get(), kernel.get(), &h2d_addr_map, i, num_parsers_,
@@ -280,7 +280,7 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
 
   std::shared_ptr<arrow::RecordBatch> out_batch;
   BOLSON_ROE(WrapOutput(num_rows.full, reinterpret_cast<uint8_t*>(raw_out_offsets),
-                        reinterpret_cast<uint8_t*>(raw_out_values), input_schema(),
+                        reinterpret_cast<uint8_t*>(raw_out_values), output_schema(),
                         &out_batch));
 
   std::shared_ptr<arrow::RecordBatch> final_batch;
@@ -299,9 +299,7 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
   SPDLOG_DEBUG("BatteryParser {:2} | Parsing {} JSONs completed.", idx_,
                final_batch->num_rows());
 
-  ParsedBatch result(final_batch, in->range());
-
-  *out = result;
+  *out = ParsedBatch(final_batch, in->range());
 
   return Status::OK();
 }
@@ -317,7 +315,7 @@ auto BatteryParser::Parse(const std::vector<illex::JSONBuffer*>& in,
   return Status::OK();
 }
 
-auto BatteryParser::input_schema() -> std::shared_ptr<arrow::Schema> {
+auto BatteryParser::output_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = fletcher::WithMetaRequired(
       *arrow::schema({arrow::field("voltage", voltage_type(), false)}), "output",
       fletcher::Mode::WRITE);

@@ -41,8 +41,8 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out);
 
 class BatteryParser : public Parser {
  public:
-  /// \brief Return the Arrow schema with an output_type field.
-  static auto input_schema() -> std::shared_ptr<arrow::Schema>;
+  /// \brief Return the Arrow schema that the parser outputs.
+  static auto output_schema() -> std::shared_ptr<arrow::Schema>;
 
   /// \brief OpaeBatteryParser constructor.
   BatteryParser(fletcher::Platform* platform, fletcher::Context* context,
@@ -143,7 +143,7 @@ class BatteryParserContext : public ParserContext {
 
   auto PrepareInputBatches() -> Status;
   auto PrepareOutputBatches() -> Status;
-  auto PrepareParsers(bool seq_column) -> Status;
+  auto PrepareParsers() -> Status;
 
   size_t num_parsers_;
   std::string afu_id_;
