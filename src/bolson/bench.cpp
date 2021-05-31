@@ -199,24 +199,21 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   // Print all statistics:
   auto json_MB = static_cast<double>(opts.repeats * gen_bytes) / (1e6);
   auto json_M = static_cast<double>(opts.num_jsons) / (1e6);
-  auto ipc_MB = static_cast<double>(total_bytes_dequeued) / 1e6;
+  auto ipc_MB = static_cast<double>(total_bytes_dequeued / (1e6));
 
   spdlog::info("JSON Generation:");
   spdlog::info("  Bytes (no newlines) : {} B", gen_bytes);
   spdlog::info("  Bytes (w/ newlines) : {} B", gen_bytes + opts.num_jsons);
   spdlog::info("  Time                : {} s", t_gen.seconds());
-  spdlog::info("  Throughput          : {} MB/s",
-               static_cast<double>(gen_bytes) / t_gen.seconds());
+  spdlog::info("  Throughput          : {} MB/s", json_MB / t_gen.seconds());
   spdlog::info("  Throughput          : {} MJ/s", json_M / t_gen.seconds());
 
   spdlog::info("End-to-end conversion:");
-  spdlog::info("  JSONs (in)          : {}", total_records_dequeued);
-  spdlog::info("  IPC messages (out)  : {}", total_messages_dequeued);
+  spdlog::info("  IPC messages        : {}", total_messages_dequeued);
   spdlog::info("  Time                : {} s", t_conv.seconds());
   spdlog::info("  Throughput (in)     : {} MB/s", json_MB / t_conv.seconds());
   spdlog::info("  Throughput (out)    : {} MB/s", ipc_MB / t_conv.seconds());
-  spdlog::info("  Throughput          : {} MJ/s",
-               static_cast<double>(total_records_dequeued) / t_conv.seconds() * 1e-6);
+  spdlog::info("  Throughput          : {} MJ/s", json_M / t_conv.seconds());
 
   auto a = Aggregate(converter->metrics());
   spdlog::info("Details:");
