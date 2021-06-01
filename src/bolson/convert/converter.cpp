@@ -57,6 +57,8 @@ static auto TryGetFilledBuffer(const std::vector<illex::JSONBuffer*>& buffers,
     }
   }
   *out = nullptr;
+  // Try next buffer next time.
+  *lock_idx = (*lock_idx + 1) % num_buffers;
   return false;
 }
 
