@@ -84,10 +84,10 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   putong::Timer<> t_gen, t_init, t_conv;
   auto o = opts;
 
+  BOLSON_ROE(o.converter.parser.arrow.ReadSchema());
+
   spdlog::info("Converting {} randomly generated JSONs to Arrow IPC messages...",
                o.num_jsons);
-
-  BOLSON_ROE(o.converter.parser.arrow.ReadSchema());
 
   // Generate JSONs
   spdlog::info("Generating JSONs...");
