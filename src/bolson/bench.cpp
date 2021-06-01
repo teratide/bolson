@@ -55,13 +55,15 @@ auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
 
 auto FillBuffers(std::vector<illex::JSONBuffer*> buffers,
                  const std::vector<illex::JSONItem>& jsons) -> Status {
+  // Calculate the number of JSONs per buffer.
   auto items_per_buffer = jsons.size() / buffers.size();
-  auto items_first_buf = jsons.size() % buffers.size();
+  // First buffer gets the leftover JSONs.
+  auto items_first_extra = jsons.size() % buffers.size();
   size_t item = 0;
   for (size_t b = 0; b < buffers.size(); b++) {
     // Fill the buffer.
     size_t offset = 0;
-    auto buffer_num_items = items_per_buffer + (b == 0 ? items_first_buf : 0);
+    auto buffer_num_items = items_per_buffer + (b == 0 ? items_first_extra : 0);
     auto first = item;
     for (size_t j = 0; j < buffer_num_items; j++) {
       if (offset + jsons[item].string.length() > buffers[b]->capacity()) {
@@ -113,11 +115,11 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   std::shared_ptr<convert::Converter> converter;
   BOLSON_ROE(convert::Converter::Make(conv_opts, &ipc_queue, &converter));
 
-  // Grab the input buffers from the parser context.
-  auto buffers = converter->parser_context()->mutable_buffers();
-
   spdlog::info("Converter schema:\n{}",
                converter->parser_context()->output_schema()->ToString());
+
+  // Grab the input buffers from the parser context.
+  auto buffers = converter->parser_context()->mutable_buffers();
 
   // Fill buffers.
   BOLSON_ROE(FillBuffers(buffers, input_items));
