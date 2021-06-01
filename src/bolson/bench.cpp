@@ -25,6 +25,7 @@
 #include "bolson/buffer/allocator.h"
 #include "bolson/convert/converter.h"
 #include "bolson/convert/metrics.h"
+#include "bolson/metrics.h"
 #include "bolson/parse/parser.h"
 #include "bolson/publish/bench.h"
 #include "bolson/status.h"
@@ -218,8 +219,13 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   auto a = Aggregate(converter->metrics());
   spdlog::info("Details:");
   LogConvertMetrics(a, "  ");
-  SaveLatencyMetrics(latencies, opts.latency_file, TimePoints::parsed,
-                     TimePoints::popped);
+  if (!o.latency_file.empty()) {
+    BOLSON_ROE(SaveLatencyMetrics(latencies, opts.latency_file, TimePoints::parsed,
+                                  TimePoints::popped));
+  }
+  if (!o.metrics_file.empty()) {
+    BOLSON_ROE(SaveConvertMetrics(converter->metrics(), o.metrics_file));
+  }
   return Status::OK();
 }
 

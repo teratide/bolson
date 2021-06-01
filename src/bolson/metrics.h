@@ -27,7 +27,7 @@
 
 namespace bolson {
 
-auto SaveMetrics(const bolson::convert::Metrics& converter_metrics,
+auto SaveStreamMetrics(const bolson::convert::Metrics& converter_metrics,
                  const bolson::publish::Metrics& publisher_metrics,
                  const StreamOptions& opt) -> Status;
 

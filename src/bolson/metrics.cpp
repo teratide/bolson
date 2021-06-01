@@ -23,9 +23,9 @@
 
 namespace bolson {
 
-auto SaveMetrics(const bolson::convert::Metrics& converter_metrics,
-                 const bolson::publish::Metrics& publisher_metrics,
-                 const StreamOptions& opt) -> Status {
+auto SaveStreamMetrics(const bolson::convert::Metrics& converter_metrics,
+                       const bolson::publish::Metrics& publisher_metrics,
+                       const StreamOptions& opt) -> Status {
   using ns = std::chrono::nanoseconds;
 
   // Open output stream to write file.

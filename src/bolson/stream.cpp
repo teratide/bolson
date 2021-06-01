@@ -99,7 +99,7 @@ static auto LogStreamMetrics(const StreamOptions& opt, const StreamTimers& timer
         BOLSON_ROE(SaveLatencyMetrics(p.latencies, opt.latency_file));
       }
       if (!opt.metrics_file.empty()) {
-        BOLSON_ROE(SaveMetrics(c, p, opt));
+        BOLSON_ROE(SaveStreamMetrics(c, p, opt));
       }
     }
   }

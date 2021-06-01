@@ -53,13 +53,23 @@ struct Metrics {
   Status status = Status::OK();
 
   auto operator+=(const Metrics& r) -> Metrics&;
+
+  /**\
+   * \brief Return a CSV string with the metrics.
+   */
+  [[nodiscard]] std::string ToCSV() const;
 };
 
 /**
- * \brief Print some stats about conversion.
- * \param stats The stats to print.
+ * \brief Print some metrics about conversion.
+ * \param metrics The metrics to print.
  * \param t Prefix for indenting.
  */
-void LogConvertMetrics(const Metrics& stats, const std::string& t = "");
+void LogConvertMetrics(const Metrics& metrics, const std::string& t = "");
+
+/**
+ * \brief Save convert metrics to a file.
+ */
+Status SaveConvertMetrics(const std::vector<Metrics>& metrics, const std::string& file);
 
 }  // namespace bolson::convert
