@@ -27,6 +27,8 @@
 #include "bolson/status.h"
 #include "bolson/utils.h"
 
+#define BOLSON_ARROW_DEFAULT_BUFFER_CAP 16 * 1024 * 1024
+
 namespace bolson::parse {
 
 /**
@@ -44,10 +46,11 @@ struct ArrowOptions {
   std::shared_ptr<arrow::Schema> schema = nullptr;
   /// Path to Arrow schema.
   std::string schema_path;
-  /// Number of input buffers to use.
+  /// Number of input buffers to use, when set to 0, it will be equal to the number of
+  /// threads.
   size_t num_buffers = 0;
   /// Capacity of input buffers.
-  size_t buf_capacity = 16 * 1024 * 1024;
+  size_t buf_capacity = BOLSON_ARROW_DEFAULT_BUFFER_CAP;
   /// Whether to store sequence numbers as a column.
   bool seq_column = true;
 
