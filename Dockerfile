@@ -78,7 +78,7 @@ RUN curl -L -O https://downloads.apache.org/pulsar/pulsar-${PULSAR_VERSION}/DEB/
     dpkg -i apache-pulsar-client-dev.deb
 ADD . /src
 WORKDIR /release
-RUN cmake -DCMAKE_BUILD_TYPE=Debug /src && \
+RUN cmake -DCMAKE_BUILD_TYPE=Release /src && \
     make -j
 
 FROM deps
