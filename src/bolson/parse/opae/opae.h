@@ -37,7 +37,7 @@
 namespace bolson::parse::opae {
 
 /// \brief Return the Arrow schema "input: uint8" used as input batch.
-auto input_schema() -> std::shared_ptr<arrow::Schema>;
+auto raw_json_input_schema() -> std::shared_ptr<arrow::Schema>;
 
 /// Address map from host pointer to device pointer.
 using AddrMap = std::unordered_map<const std::byte*, da_t>;

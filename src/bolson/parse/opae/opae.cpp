@@ -22,7 +22,7 @@
 
 namespace bolson::parse::opae {
 
-auto input_schema() -> std::shared_ptr<arrow::Schema> {
+auto raw_json_input_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = fletcher::WithMetaRequired(
       *arrow::schema({arrow::field("input", arrow::uint8(), false)}), "input",
       fletcher::Mode::READ);

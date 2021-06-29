@@ -304,8 +304,9 @@ auto TripParserContext::PrepareInputBatches() -> Status {
     auto wrapped = arrow::Buffer::Wrap(buf.data(), buf.capacity());
     auto array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), buf.capacity(), wrapped);
-    batches_in.push_back(
-        arrow::RecordBatch::Make(input_schema(), buf.capacity(), {array}));
+    auto batch =
+        arrow::RecordBatch::Make(raw_json_input_schema(), buf.capacity(), {array});
+    batches_in.push_back(batch);
   }
   return Status::OK();
 }

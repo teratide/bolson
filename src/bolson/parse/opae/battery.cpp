@@ -45,7 +45,7 @@ auto BatteryParserContext::PrepareInputBatches() -> Status {
     auto array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), buf.capacity(), wrapped);
     batches_in.push_back(
-        arrow::RecordBatch::Make(opae::input_schema(), buf.capacity(), {array}));
+        arrow::RecordBatch::Make(opae::raw_json_input_schema(), buf.capacity(), {array}));
   }
   return Status::OK();
 }
