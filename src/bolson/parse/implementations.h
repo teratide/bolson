@@ -61,6 +61,7 @@ inline void AddParserOptions(CLI::App* sub, ParserOptions* opts) {
   parse::AddArrowOptionsToCLI(sub, &opts->arrow);
   parse::opae::AddBatteryOptionsToCLI(sub, &opts->opae_battery);
   parse::opae::AddTripOptionsToCLI(sub, &opts->opae_trip);
+  parse::custom::AddBatteryOptionsToCLI(sub, &opts->custom_battery);
 }
 
 inline auto ToString(const Impl& impl) -> std::string {

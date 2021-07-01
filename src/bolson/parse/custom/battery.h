@@ -33,7 +33,7 @@ struct BatteryOptions {
   /// threads.
   size_t num_buffers = 0;
   /// Whether to store sequence numbers as a column.
-  bool seq_column = true;
+  bool seq_column = false;
   /// Capacity of input buffers.
   size_t buf_capacity = BOLSON_CUSTOM_BATTERY_DEFAULT_BUFFER_CAP;
 };
@@ -42,7 +42,7 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out);
 
 class BatteryParser : public Parser {
  public:
-  explicit BatteryParser(bool seq_column) : seq_column(seq_column) {}
+  explicit BatteryParser(bool seq_column);
 
   auto Parse(const std::vector<illex::JSONBuffer*>& in, std::vector<ParsedBatch>* out)
       -> Status override;
@@ -50,10 +50,11 @@ class BatteryParser : public Parser {
   auto ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> Status;
 
   static auto input_schema() -> std::shared_ptr<arrow::Schema>;
-  static auto output_schema() -> std::shared_ptr<arrow::Schema>;
+  [[nodiscard]] auto output_schema() const -> std::shared_ptr<arrow::Schema>;
 
  private:
   bool seq_column = false;
+  std::shared_ptr<arrow::Schema> output_schema_;
 };
 
 class BatteryParserContext : public ParserContext {

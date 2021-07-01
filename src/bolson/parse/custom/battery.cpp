@@ -30,6 +30,13 @@ namespace bolson::parse::custom {
 
 auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
     -> Status {
+  // Reserve expected number of JSONs in case a seq. no. column is desired.
+  arrow::UInt64Builder seq_bld;
+  uint64_t seq = buffer->range().first;
+  if (seq_column) {
+    ARROW_ROE(seq_bld.Reserve(buffer->range().last - buffer->range().first + 1));
+  }
+
   auto values_bld = std::make_shared<arrow::UInt64Builder>();
   arrow::ListBuilder list_bld(arrow::default_memory_pool(), values_bld);
   // assume no unnecessary whitespaces anywhere, i.e. minified jsons
@@ -42,8 +49,6 @@ auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
   const std::byte* pos = buffer->data();
   const std::byte* end = pos + buffer->size();
 
-  SPDLOG_DEBUG("{}", ToString(*buffer, true));
-
   while (pos < end) {
     // Check header.
     if (std::memcmp(pos, battery_header, strlen(battery_header)) != 0) {
@@ -52,6 +57,11 @@ auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
 
     // Start new list.
     ARROW_ROE(list_bld.Append());
+
+    if (seq_column) {
+      seq_bld.UnsafeAppend(seq);
+      seq++;
+    }
 
     // Advance to values.
     pos += strlen(battery_header);
@@ -105,8 +115,6 @@ auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
   out->seq_range = buffer->range();
   out->batch = arrow::RecordBatch::Make(output_schema(), voltage->length(), {voltage});
 
-  SPDLOG_DEBUG("{}", out->batch->ToString());
-
   return Status::OK();
 }
 
@@ -130,8 +138,16 @@ auto BatteryParser::input_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = arrow::schema({arrow::field("voltage", voltage_type(), false)});
   return result;
 }
-auto BatteryParser::output_schema() -> std::shared_ptr<arrow::Schema> {
-  return input_schema();
+auto BatteryParser::output_schema() const -> std::shared_ptr<arrow::Schema> {
+  return output_schema_;
+}
+
+BatteryParser::BatteryParser(bool seq_column) : seq_column(seq_column) {
+  if (seq_column) {
+    WithSeqField(*input_schema(), &output_schema_);
+  } else {
+    output_schema_ = input_schema();
+  }
 }
 
 auto BatteryParserContext::Make(const BatteryOptions& opts, size_t num_parsers,
@@ -162,7 +178,17 @@ auto BatteryParserContext::input_schema() const -> std::shared_ptr<arrow::Schema
 }
 
 auto BatteryParserContext::output_schema() const -> std::shared_ptr<arrow::Schema> {
-  return BatteryParser::output_schema();
+  return parsers_.front()->output_schema();
+}
+
+void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
+  sub->add_option("--custom-battery-buf-cap", out->buf_capacity,
+                  "Custom battery parser input buffer capacity.")
+      ->default_val(BOLSON_CUSTOM_BATTERY_DEFAULT_BUFFER_CAP);
+  sub->add_flag("--custom-battery-seq-col", out->seq_column,
+                "Custom battery parser, retain ordering information by adding a sequence "
+                "number column.")
+      ->default_val(false);
 }
 
 }  // namespace bolson::parse::custom
