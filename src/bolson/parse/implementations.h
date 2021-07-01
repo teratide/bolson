@@ -17,6 +17,7 @@
 #include <CLI/CLI.hpp>
 
 #include "bolson/parse/arrow.h"
+#include "bolson/parse/custom/battery.h"
 #include "bolson/parse/opae/battery.h"
 #include "bolson/parse/opae/trip.h"
 
@@ -26,7 +27,8 @@ namespace bolson::parse {
 enum class Impl {
   ARROW,         ///< A CPU version based on Arrow's internal JSON parser using RapidJSON.
   OPAE_BATTERY,  ///< An FPGA version for the "battery status" schema.
-  OPAE_TRIP      ///< An FPGA version for for the "trip report" schema.
+  OPAE_TRIP,     ///< An FPGA version for for the "trip report" schema.
+  CUSTOM_BATTERY  ///< A hand-optimized CPU converter for the "battery status" schema
 };
 
 /// All parser options.
@@ -34,14 +36,16 @@ struct ParserOptions {
   // Would have been nice to use a variant, but it doesn't work nicely with the CLI stuff.
   Impl impl = Impl::ARROW;
   ArrowOptions arrow;
-  opae::BatteryOptions battery;
-  opae::TripOptions trip;
+  opae::BatteryOptions opae_battery;
+  opae::TripOptions opae_trip;
+  custom::BatteryOptions custom_battery;
 
   static auto impls_map() -> std::map<std::string, parse::Impl> {
     static std::map<std::string, parse::Impl> result = {
         {"arrow", parse::Impl::ARROW},
         {"opae-battery", parse::Impl::OPAE_BATTERY},
-        {"opae-trip", parse::Impl::OPAE_TRIP}};
+        {"opae-trip", parse::Impl::OPAE_TRIP},
+        {"custom-battery", parse::Impl::CUSTOM_BATTERY}};
 
     return result;
   }
@@ -55,8 +59,8 @@ inline void AddParserOptions(CLI::App* sub, ParserOptions* opts) {
       ->default_val(parse::Impl::ARROW);
 
   parse::AddArrowOptionsToCLI(sub, &opts->arrow);
-  parse::opae::AddBatteryOptionsToCLI(sub, &opts->battery);
-  parse::opae::AddTripOptionsToCLI(sub, &opts->trip);
+  parse::opae::AddBatteryOptionsToCLI(sub, &opts->opae_battery);
+  parse::opae::AddTripOptionsToCLI(sub, &opts->opae_trip);
 }
 
 inline auto ToString(const Impl& impl) -> std::string {
@@ -67,6 +71,8 @@ inline auto ToString(const Impl& impl) -> std::string {
       return "OPAE battery status (FPGA)";
     case Impl::OPAE_TRIP:
       return "OPAE trip report (FPGA)";
+    case Impl::CUSTOM_BATTERY:
+      return "Custom battery status (CPU)";
   }
   // C++ why
   return "Corrupt bolson::parse::Impl enum value.";
