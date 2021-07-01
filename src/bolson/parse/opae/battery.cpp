@@ -308,7 +308,7 @@ auto BatteryParser::Parse(const std::vector<illex::JSONBuffer*>& in,
                           std::vector<ParsedBatch>* out) -> Status {
   for (auto* buf : in) {
     ParsedBatch batch;
-    BOLSON_ROE(ParseOne(buf, &batch));
+    BOLSON_ROE(this->ParseOne(buf, &batch));
     out->push_back(batch);
   }
 

@@ -50,7 +50,7 @@ auto SaveStreamMetrics(const bolson::convert::Metrics& converter_metrics,
     ofs << bolson::parse::ToString(opt.converter.parser.impl) << ",";
     ofs << (opt.pulsar.topic.find("non-persistent") == std::string::npos) << ",";
     ofs << opt.pulsar.batching.enable << ",";
-    ofs << converter_metrics.num_jsons << ",";
+    ofs << converter_metrics.num_jsons_converted << ",";
 
     for (size_t i = TimePoints::received; i <= TimePoints::published; i++) {
       ofs << m.time.GetDiff<ns>(i);

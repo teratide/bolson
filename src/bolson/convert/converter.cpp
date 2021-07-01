@@ -109,9 +109,9 @@ static void OneToOneConvertThread(size_t id, parse::Parser* parser, Resizer* res
           SHUTDOWN_ON_FAILURE();
 
           // Add metrics before buffer is converted and reset.
-          metrics.num_jsons += parsed_batches[0].batch->num_rows();
-          metrics.json_bytes += buf->size();
-          metrics.num_parsed++;
+          metrics.num_jsons_converted += parsed_batches[0].batch->num_rows();
+          metrics.num_json_bytes_converted += buf->size();
+          metrics.num_buffers_converted++;
           // Reset and unlock the buffer.
           buf->Reset();
           mutexes[lock_idx]->unlock();
@@ -238,12 +238,12 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* r
         SHUTDOWN_ON_FAILURE();
 
         // Update metrics
-        metrics.num_jsons += parsed_batches[0].batch->num_rows();
-        metrics.num_parsed += buffers.size();
+        metrics.num_jsons_converted += parsed_batches[0].batch->num_rows();
+        metrics.num_buffers_converted += buffers.size();
 
         lat[TimePoints::received] = buffers[0]->recv_time();  // init with first buf time
         for (int i = 0; i < buffers.size(); i++) {
-          metrics.json_bytes += buffers[i]->size();
+          metrics.num_json_bytes_converted += buffers[i]->size();
           // Mark worst-case latency time point for the output batch.
           if (buffers[i]->recv_time() < lat[TimePoints::received]) {
             lat[TimePoints::received] = buffers[i]->recv_time();
@@ -378,13 +378,20 @@ auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
                                                  &parser_context));
       break;
     case parse::Impl::OPAE_BATTERY:
-      BOLSON_ROE(
-          parse::opae::BatteryParserContext::Make(opts.parser.battery, &parser_context));
+      BOLSON_ROE(parse::opae::BatteryParserContext::Make(opts.parser.opae_battery,
+                                                         &parser_context));
       break;
     case parse::Impl::OPAE_TRIP:
-      BOLSON_ROE(parse::opae::TripParserContext::Make(opts.parser.trip, &parser_context));
+      BOLSON_ROE(
+          parse::opae::TripParserContext::Make(opts.parser.opae_trip, &parser_context));
+      break;
+    case parse::Impl::CUSTOM_BATTERY:
+      BOLSON_ROE(parse::custom::BatteryParserContext::Make(
+          opts.parser.custom_battery, opts.num_threads, &parser_context));
       break;
   }
+
+  assert(parser_context != nullptr);
 
   // Determine how many threads this context allows to use.
   auto num_threads = parser_context->CheckThreadCount(opts.num_threads);

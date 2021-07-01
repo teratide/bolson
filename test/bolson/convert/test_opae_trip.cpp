@@ -213,7 +213,7 @@ TEST(OPAE, OPAE_TRIP_3_KERNELS) {
   // Set OPAE Converter options.
   ConverterOptions opae_opts;
   opae_opts.parser.impl = parse::Impl::OPAE_TRIP;
-  opae_opts.parser.trip.num_parsers = opae_trip_instances;
+  opae_opts.parser.opae_trip.num_parsers = opae_trip_instances;
   opae_opts.max_batch_rows = num_jsons;
   opae_opts.max_ipc_size = max_ipc_size;
 

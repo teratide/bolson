@@ -27,11 +27,11 @@ struct Metrics {
   /// Number of threads used.
   size_t num_threads = 0;
   /// Number of converted JSONs.
-  size_t num_jsons = 0;
+  size_t num_jsons_converted = 0;
   /// Number of converted JSON bytes.
-  size_t json_bytes = 0;
-  /// Number of buffers parsed.
-  size_t num_parsed = 0;
+  size_t num_json_bytes_converted = 0;
+  /// Number of buffers converted.
+  size_t num_buffers_converted = 0;
   /// Number of IPC messages.
   size_t num_ipc = 0;
   /// Number of bytes in the IPC messages.

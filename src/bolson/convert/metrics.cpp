@@ -15,20 +15,18 @@
 #include "bolson/convert/metrics.h"
 
 #include <fstream>
-#include <iomanip>
 
 #include "bolson/log.h"
-#include "metrics.h"
 
 namespace bolson::convert {
 
 auto Metrics::operator+=(const bolson::convert::Metrics& r) -> Metrics& {
   num_threads += r.num_threads;
-  num_jsons += r.num_jsons;
-  json_bytes += r.json_bytes;
+  num_jsons_converted += r.num_jsons_converted;
+  num_json_bytes_converted += r.num_json_bytes_converted;
   num_ipc += r.num_ipc;
   ipc_bytes += r.ipc_bytes;
-  num_parsed += r.num_parsed;
+  num_buffers_converted += r.num_buffers_converted;
   t.parse += r.t.parse;
   t.resize += r.t.resize;
   t.serialize += r.t.serialize;
@@ -43,24 +41,25 @@ auto Metrics::operator+=(const bolson::convert::Metrics& r) -> Metrics& {
 std::string Metrics::ToCSV() const {
   std::stringstream ss;
 
-  ss << num_threads << ',' << num_jsons << "," << json_bytes << "," << num_ipc << ","
-     << ipc_bytes << "," << num_parsed << "," << t.parse << "," << t.resize << ","
-     << t.serialize << "," << t.thread << "," << t.enqueue << "," << status.ok();
+  ss << num_threads << ',' << num_jsons_converted << "," << num_json_bytes_converted
+     << "," << num_ipc << "," << ipc_bytes << "," << num_buffers_converted << ","
+     << t.parse << "," << t.resize << "," << t.serialize << "," << t.thread << ","
+     << t.enqueue << "," << status.ok();
   return ss.str();
 }
 
 void LogConvertMetrics(const Metrics& metrics, const std::string& t) {
   // Input metrics.
-  auto json_MiB = static_cast<double>(metrics.json_bytes) / (1024 * 1024);
+  auto json_MiB = static_cast<double>(metrics.num_json_bytes_converted) / (1024 * 1024);
 
   spdlog::info("{}JSON to Arrow conversion:", t);
-  spdlog::info("{}  Converted             : {}", t, metrics.num_jsons);
+  spdlog::info("{}  Converted             : {}", t, metrics.num_jsons_converted);
   spdlog::info("{}  Raw JSON bytes        : {} MiB", t, json_MiB);
 
   // Parsing metrics.
-  auto parse_tt = metrics.t.parse / metrics.num_threads;
-  auto json_MB = metrics.json_bytes / 1e6;
-  auto json_M = metrics.num_jsons / 1e6;
+  auto parse_tt = metrics.t.parse / static_cast<double>(metrics.num_threads);
+  auto json_MB = static_cast<double>(metrics.num_json_bytes_converted) / 1e6;
+  auto json_M = static_cast<double>(metrics.num_jsons_converted) / 1e6;
 
   spdlog::info("{}Parsing:", t);
   spdlog::info("{}  Time in {:2} threads    : {} s", t, metrics.num_threads,
@@ -70,20 +69,21 @@ void LogConvertMetrics(const Metrics& metrics, const std::string& t) {
   spdlog::info("{}  Avg. throughput       : {} MJ/s", t, json_M / parse_tt);
 
   // Resizing metrics
-  auto resize_tt = metrics.t.resize / metrics.num_threads;
+  auto resize_tt = metrics.t.resize / static_cast<double>(metrics.num_threads);
   spdlog::info("{}Resizing:", t);
   spdlog::info("{}  Time in {:2} threads    : {} s", t, metrics.num_threads,
                metrics.t.resize);
   spdlog::info("{}  Avg. time             : {} s", t, resize_tt);
   spdlog::info("{}  Avg. throughput       : {} MJ/s", t, json_M / resize_tt);
-  spdlog::info("{}  Batches (in)          : {}", t, metrics.num_parsed);
+  spdlog::info("{}  Batches (in)          : {}", t, metrics.num_buffers_converted);
   spdlog::info("{}  Batches (out)         : {}", t, metrics.num_ipc);
 
   // Serializing batches
-  auto ipc_bpj = static_cast<double>(metrics.ipc_bytes) / metrics.num_jsons;
+  auto ipc_bpj = static_cast<double>(metrics.ipc_bytes) /
+                 static_cast<double>(metrics.num_jsons_converted);
   auto ipc_bpi = (metrics.num_ipc > 0) ? (metrics.ipc_bytes / metrics.num_ipc) : 0;
   auto ipc_MB = static_cast<double>(metrics.ipc_bytes) / 1e6;
-  auto ser_tt = metrics.t.serialize / metrics.num_threads;
+  auto ser_tt = metrics.t.serialize / static_cast<double>(metrics.num_threads);
 
   spdlog::info("{}Serializing:", t);
   spdlog::info("{}  IPC messages          : {}", t, metrics.num_ipc);
@@ -97,7 +97,7 @@ void LogConvertMetrics(const Metrics& metrics, const std::string& t) {
   spdlog::info("{}  Avg. throughput       : {} MJ/s", t, json_M / ser_tt);
 
   // Enqueueing
-  auto enq_tt = metrics.t.enqueue / metrics.num_threads;
+  auto enq_tt = metrics.t.enqueue / static_cast<double>(metrics.num_threads);
   spdlog::info("{}Enqueueing:", t);
   spdlog::info("{}  Time in {:2} threads    : {} s", t, metrics.num_threads,
                metrics.t.enqueue);
@@ -113,9 +113,9 @@ Status SaveConvertMetrics(const std::vector<Metrics>& metrics, const std::string
   }
 
   // Header:
-  ofs << "num_threads,num_jsons,json_bytes,num_ipc,ipc_bytes,num_parsed,t_parse,t_resize,"
-         "t_"
-         "serialize,t_thread,t_enqueue,status\n";
+  ofs << "num_threads,num_jsons_converted,num_json_bytes_converted,"
+         "num_ipc,ipc_bytes,num_buffers_converted,"
+         "t_parse,t_resize,t_serialize,t_thread,t_enqueue,status\n";
 
   for (const auto& m : metrics) {
     ofs << m.ToCSV() << '\n';
