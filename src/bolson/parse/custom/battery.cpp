@@ -28,6 +28,124 @@
 
 namespace bolson::parse::custom {
 
+static inline auto SkipWhitespace(const char* pos, const char* end) -> const char* {
+  // Whitespace includes: space, line feed, carriage return, character tabulation
+  // const char ws[] = {' ', '\t', '\n', '\r'};
+  const char* result = pos;
+  while (((*result == ' ') || (*result == '\t')) && (result < end)) {
+    result++;
+  }
+  if (result == end) {
+    return nullptr;
+  }
+  return result;
+}
+
+// assume ndjson
+static inline auto ParseBatteryNDJSONs(const char* data, size_t size,
+                                       arrow::ListBuilder* list_bld,
+                                       arrow::UInt64Builder* values_bld) -> Status {
+  auto error = Status(Error::GenericError, "Unable to parse JSON data.");
+  const auto max_uint64_len =
+      std::to_string(std::numeric_limits<uint64_t>::max()).length();
+  const auto* pos = data;
+  const auto* end = data + size;
+
+  while (pos < end) {
+    // Scan for object start
+    pos = SkipWhitespace(pos, end);
+    if (*pos != '{') {
+      spdlog::error("Expected '{', encountered '{}'", *pos);
+      return error;
+    }
+    pos++;
+
+    // Scan for voltage key
+    const char* voltage_key = "\"voltage\"";
+    const size_t voltage_key_len = std::strlen(voltage_key);
+    pos = SkipWhitespace(pos, end);
+    if (std::memcmp(pos, voltage_key, voltage_key_len) != 0) {
+      spdlog::error("Expected \"voltage\", encountered {}",
+                    std::string_view(pos, voltage_key_len));
+      return error;
+    }
+    pos += voltage_key_len;
+
+    // Scan for key-value separator
+    pos = SkipWhitespace(pos, end);
+    if (*pos != ':') {
+      spdlog::error("Expected ':', encountered '{}'", *pos);
+      return error;
+    }
+    pos++;
+
+    // Scan for array start.
+    pos = SkipWhitespace(pos, end);
+    if (*pos != '[') {
+      spdlog::error("Expected '[', encountered '{}'", *pos);
+      return error;
+    }
+    pos++;
+
+    // Start new list.
+    ARROW_ROE(list_bld->Append());
+
+    // Scan values
+    while (true) {
+      uint64_t val = 0;
+      pos = SkipWhitespace(pos, end);
+      if (pos > end) {
+        throw std::runtime_error(
+            "Unexpected end of JSON data while parsing array values..");
+      } else if (*pos == ']') {  // Check array end
+        pos++;
+        break;
+      } else {  // Parse values
+        auto val_result =
+            std::from_chars<uint64_t>(pos, std::min(pos + max_uint64_len, end), val);
+        switch (val_result.ec) {
+          default:
+            break;
+          case std::errc::invalid_argument:
+            spdlog::error("Battery voltage values contained invalid value: {}",
+                          std::string(pos, max_uint64_len));
+            return error;
+          case std::errc::result_out_of_range:
+            spdlog::error("Battery voltage value out of uint64_t range.");
+            return error;
+        }
+
+        // Append the value
+        ARROW_ROE(values_bld->Append(val));
+
+        pos = SkipWhitespace(val_result.ptr, end);
+        if (*pos == ',') {
+          pos++;
+        }
+      }
+    }
+
+    // Scan for object end
+    pos = SkipWhitespace(pos, end);
+    if (*pos != '}') {
+      spdlog::error("Expected '}', encountered '{}'", *pos);
+      return error;
+    }
+    pos++;
+
+    // Scan for newline delimiter
+    pos = SkipWhitespace(pos, end);
+    if (*pos != '\n') {
+      spdlog::error("Expected '\\n' (0x20), encountered '{}' (0x{})", *pos,
+                    static_cast<uint8_t>(*pos));
+      return error;
+    }
+    pos++;
+  }
+
+  return Status::OK();
+}
+
 auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
     -> Status {
   // Reserve expected number of JSONs in case a seq. no. column is desired.
@@ -39,75 +157,9 @@ auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
 
   auto values_bld = std::make_shared<arrow::UInt64Builder>();
   arrow::ListBuilder list_bld(arrow::default_memory_pool(), values_bld);
-  // assume no unnecessary whitespaces anywhere, i.e. minified jsons
-  // assume ndjson
 
-  const char* battery_header = "{\"voltage\":[";
-  const auto max_uint64_len =
-      std::to_string(std::numeric_limits<uint64_t>::max()).length();
-
-  const std::byte* pos = buffer->data();
-  const std::byte* end = pos + buffer->size();
-
-  while (pos < end) {
-    // Check header.
-    if (std::memcmp(pos, battery_header, strlen(battery_header)) != 0) {
-      throw std::runtime_error("Battery header did not correspond to expected header.");
-    }
-
-    // Start new list.
-    ARROW_ROE(list_bld.Append());
-
-    if (seq_column) {
-      seq_bld.UnsafeAppend(seq);
-      seq++;
-    }
-
-    // Advance to values.
-    pos += strlen(battery_header);
-    // Attempt to get all array values.
-    while (true) {  // fixme
-      uint64_t val = 0;
-      auto val_result = std::from_chars<uint64_t>(
-          reinterpret_cast<const char*>(pos),
-          reinterpret_cast<const char*>(pos + max_uint64_len), val);
-      switch (val_result.ec) {
-        default:
-          break;
-        case std::errc::invalid_argument:
-          throw std::runtime_error(
-              std::string("Battery voltage values contained invalid value: ") +
-              std::string(reinterpret_cast<const char*>(pos), max_uint64_len));
-        case std::errc::result_out_of_range:
-          throw std::runtime_error("Battery voltage value out of uint64_t range.");
-      }
-
-      // Append the value
-      ARROW_ROE(values_bld->Append(val));
-
-      pos = reinterpret_cast<const std::byte*>(val_result.ptr);
-
-      // Check for end of array.
-      if ((char)*pos == ']') {
-        pos += 3;  // for "}]\n"
-        break;
-      }
-      if ((char)*pos != ',') {
-        throw std::runtime_error("Battery voltage array expected ',' value separator.");
-      }
-      pos++;
-    }
-  }
-
-  /*
-  offsets.push_back(static_cast<int32_t>(values.size()));
-
-  auto values_array = std::make_shared<arrow::UInt64Array>(arrow::uint64(), values.size(),
-                                                           arrow::Buffer::Wrap(values));
-  auto voltage_column = std::make_shared<arrow::ListArray>(
-      arrow::list(arrow::uint64()), static_cast<int64_t>(offsets.size() - 1),
-      arrow::Buffer::Wrap(offsets), values_array);
-  */
+  BOLSON_ROE(ParseBatteryNDJSONs(reinterpret_cast<const char*>(buffer->data()),
+                                 buffer->size(), &list_bld, values_bld.get()));
 
   std::shared_ptr<arrow::ListArray> voltage;
   ARROW_ROE(list_bld.Finish(&voltage));
