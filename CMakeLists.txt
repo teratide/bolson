@@ -96,6 +96,7 @@ add_compile_unit(
     src/bolson/parse/arrow.cpp
     src/bolson/parse/parser.cpp
     src/bolson/parse/custom/battery.cpp
+    src/bolson/parse/custom/trip.cpp
     src/bolson/parse/opae/battery.cpp
     src/bolson/parse/opae/opae.cpp
     src/bolson/parse/opae/trip.cpp

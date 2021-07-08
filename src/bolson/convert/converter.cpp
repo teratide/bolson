@@ -389,6 +389,10 @@ auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
       BOLSON_ROE(parse::custom::BatteryParserContext::Make(
           opts.parser.custom_battery, opts.num_threads, &parser_context));
       break;
+    case parse::Impl::CUSTOM_TRIP:
+      BOLSON_ROE(parse::custom::TripParserContext::Make(
+          opts.parser.custom_trip, opts.num_threads, &parser_context));
+      break;
   }
 
   assert(parser_context != nullptr);

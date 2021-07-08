@@ -252,11 +252,11 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
                 "Custom battery parser, retain ordering information by adding a sequence "
                 "number column.")
       ->default_val(false);
-  sub->add_flag("--custom-battery-pre-alloc-offsets", out->pre_alloc_offsets,
+  sub->add_option("--custom-battery-pre-alloc-offsets", out->pre_alloc_offsets,
                 "Pre-allocate this many offsets when this value is > 0. Enables unsafe "
                 "behavior.")
       ->default_val(0);
-  sub->add_flag(
+  sub->add_option(
          "--custom-battery-pre-alloc-values", out->pre_alloc_values,
          "Pre-allocate this many values when this value is > 0. Enables unsafe behavior.")
       ->default_val(0);

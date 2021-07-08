@@ -18,6 +18,7 @@
 
 #include "bolson/parse/arrow.h"
 #include "bolson/parse/custom/battery.h"
+#include "bolson/parse/custom/trip.h"
 #include "bolson/parse/opae/battery.h"
 #include "bolson/parse/opae/trip.h"
 
@@ -28,7 +29,8 @@ enum class Impl {
   ARROW,         ///< A CPU version based on Arrow's internal JSON parser using RapidJSON.
   OPAE_BATTERY,  ///< An FPGA version for the "battery status" schema.
   OPAE_TRIP,     ///< An FPGA version for for the "trip report" schema.
-  CUSTOM_BATTERY  ///< A hand-optimized CPU converter for the "battery status" schema
+  CUSTOM_BATTERY,  ///< A hand-optimized CPU converter for the "battery status" schema
+  CUSTOM_TRIP      ///< A hand-optimized CPU converter for the "battery status" schema
 };
 
 /// All parser options.
@@ -39,13 +41,15 @@ struct ParserOptions {
   opae::BatteryOptions opae_battery;
   opae::TripOptions opae_trip;
   custom::BatteryOptions custom_battery;
+  custom::TripOptions custom_trip;
 
   static auto impls_map() -> std::map<std::string, parse::Impl> {
     static std::map<std::string, parse::Impl> result = {
         {"arrow", parse::Impl::ARROW},
         {"opae-battery", parse::Impl::OPAE_BATTERY},
         {"opae-trip", parse::Impl::OPAE_TRIP},
-        {"custom-battery", parse::Impl::CUSTOM_BATTERY}};
+        {"custom-battery", parse::Impl::CUSTOM_BATTERY},
+        {"custom-trip", parse::Impl::CUSTOM_TRIP}};
 
     return result;
   }
@@ -62,6 +66,7 @@ inline void AddParserOptions(CLI::App* sub, ParserOptions* opts) {
   parse::opae::AddBatteryOptionsToCLI(sub, &opts->opae_battery);
   parse::opae::AddTripOptionsToCLI(sub, &opts->opae_trip);
   parse::custom::AddBatteryOptionsToCLI(sub, &opts->custom_battery);
+  parse::custom::AddTripOptionsToCLI(sub, &opts->custom_trip);
 }
 
 inline auto ToString(const Impl& impl) -> std::string {
@@ -74,6 +79,8 @@ inline auto ToString(const Impl& impl) -> std::string {
       return "OPAE trip report (FPGA)";
     case Impl::CUSTOM_BATTERY:
       return "Custom battery status (CPU)";
+    case Impl::CUSTOM_TRIP:
+      return "Custom trip report (CPU)";
   }
   // C++ why
   return "Corrupt bolson::parse::Impl enum value.";
