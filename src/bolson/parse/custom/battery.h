@@ -36,6 +36,11 @@ struct BatteryOptions {
   bool seq_column = false;
   /// Capacity of input buffers.
   size_t buf_capacity = BOLSON_CUSTOM_BATTERY_DEFAULT_BUFFER_CAP;
+
+  /// Number of values to pre-allocate.
+  size_t pre_alloc_values;
+  /// Number of offsets to pre-allocate.
+  size_t pre_alloc_offsets;
 };
 
 void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out);
@@ -47,14 +52,25 @@ class BatteryParser : public Parser {
   auto Parse(const std::vector<illex::JSONBuffer*>& in, std::vector<ParsedBatch>* out)
       -> Status override;
 
-  auto ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> Status;
+  virtual auto ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> Status;
 
   static auto input_schema() -> std::shared_ptr<arrow::Schema>;
   [[nodiscard]] auto output_schema() const -> std::shared_ptr<arrow::Schema>;
 
- private:
+ protected:
   bool seq_column = false;
   std::shared_ptr<arrow::Schema> output_schema_;
+
+  std::shared_ptr<arrow::UInt64Builder> values_builder;
+  std::shared_ptr<arrow::ListBuilder> voltage_builder;
+};
+
+class UnsafeBatteryParser : public BatteryParser {
+ public:
+  explicit UnsafeBatteryParser(bool seq_column, size_t pre_alloc_offsets,
+                               size_t pre_alloc_values);
+
+  auto ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> Status override;
 };
 
 class BatteryParserContext : public ParserContext {

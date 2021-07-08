@@ -24,130 +24,86 @@
 
 #include "bolson/latency.h"
 #include "bolson/log.h"
+#include "bolson/parse/custom/common.h"
 #include "bolson/parse/parser.h"
 
 namespace bolson::parse::custom {
-
-static inline auto SkipWhitespace(const char* pos, const char* end) -> const char* {
-  // Whitespace includes: space, line feed, carriage return, character tabulation
-  // const char ws[] = {' ', '\t', '\n', '\r'};
-  const char* result = pos;
-  while (((*result == ' ') || (*result == '\t')) && (result < end)) {
-    result++;
-  }
-  if (result == end) {
-    return nullptr;
-  }
-  return result;
-}
 
 // assume ndjson
 static inline auto ParseBatteryNDJSONs(const char* data, size_t size,
                                        arrow::ListBuilder* list_bld,
                                        arrow::UInt64Builder* values_bld) -> Status {
   auto error = Status(Error::GenericError, "Unable to parse JSON data.");
-  const auto max_uint64_len =
-      std::to_string(std::numeric_limits<uint64_t>::max()).length();
+
   const auto* pos = data;
   const auto* end = data + size;
+  // Eat any initial whitespace.
+  pos = EatWhitespace(pos, end);
 
-  while (pos < end) {
-    // Scan for object start
-    pos = SkipWhitespace(pos, end);
-    if (*pos != '{') {
-      spdlog::error("Expected '{', encountered '{}'", *pos);
-      return error;
+  // Start parsing objects
+  while ((pos < end) && (pos != nullptr)) {
+    pos = EatObjectStart(pos, end);  // {
+    pos = EatWhitespace(pos, end);
+    pos = EatMemberKey(pos, end, "voltage");  // "voltage"
+    pos = EatWhitespace(pos, end);
+    pos = EatMemberKeyValueSeperator(pos, end);  // :
+    pos = EatWhitespace(pos, end);
+    pos = EatUInt64Array(pos, end, list_bld, values_bld);  // e.g. [1,2,3]
+    pos = EatWhitespace(pos, end);
+    pos = EatObjectEnd(pos, end);  // }
+    pos = EatWhitespace(pos, end);
+    pos = EatChar(pos, end, '\n');
+
+    // The newline may be the last byte, check if we didn't reach end of input before
+    // continuing.
+    if ((pos < end) && (pos != nullptr)) {
+      pos = EatWhitespace(pos, end);
     }
-    pos++;
-
-    // Scan for voltage key
-    const char* voltage_key = "\"voltage\"";
-    const size_t voltage_key_len = std::strlen(voltage_key);
-    pos = SkipWhitespace(pos, end);
-    if (std::memcmp(pos, voltage_key, voltage_key_len) != 0) {
-      spdlog::error("Expected \"voltage\", encountered {}",
-                    std::string_view(pos, voltage_key_len));
-      return error;
-    }
-    pos += voltage_key_len;
-
-    // Scan for key-value separator
-    pos = SkipWhitespace(pos, end);
-    if (*pos != ':') {
-      spdlog::error("Expected ':', encountered '{}'", *pos);
-      return error;
-    }
-    pos++;
-
-    // Scan for array start.
-    pos = SkipWhitespace(pos, end);
-    if (*pos != '[') {
-      spdlog::error("Expected '[', encountered '{}'", *pos);
-      return error;
-    }
-    pos++;
-
-    // Start new list.
-    ARROW_ROE(list_bld->Append());
-
-    // Scan values
-    while (true) {
-      uint64_t val = 0;
-      pos = SkipWhitespace(pos, end);
-      if (pos > end) {
-        throw std::runtime_error(
-            "Unexpected end of JSON data while parsing array values..");
-      } else if (*pos == ']') {  // Check array end
-        pos++;
-        break;
-      } else {  // Parse values
-        auto val_result =
-            std::from_chars<uint64_t>(pos, std::min(pos + max_uint64_len, end), val);
-        switch (val_result.ec) {
-          default:
-            break;
-          case std::errc::invalid_argument:
-            spdlog::error("Battery voltage values contained invalid value: {}",
-                          std::string(pos, max_uint64_len));
-            return error;
-          case std::errc::result_out_of_range:
-            spdlog::error("Battery voltage value out of uint64_t range.");
-            return error;
-        }
-
-        // Append the value
-        ARROW_ROE(values_bld->Append(val));
-
-        pos = SkipWhitespace(val_result.ptr, end);
-        if (*pos == ',') {
-          pos++;
-        }
-      }
-    }
-
-    // Scan for object end
-    pos = SkipWhitespace(pos, end);
-    if (*pos != '}') {
-      spdlog::error("Expected '}', encountered '{}'", *pos);
-      return error;
-    }
-    pos++;
-
-    // Scan for newline delimiter
-    pos = SkipWhitespace(pos, end);
-    if (*pos != '\n') {
-      spdlog::error("Expected '\\n' (0x20), encountered '{}' (0x{})", *pos,
-                    static_cast<uint8_t>(*pos));
-      return error;
-    }
-    pos++;
   }
 
   return Status::OK();
 }
 
-auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
+// assume ndjson
+static inline auto UnsafeParseBatteryNDJSONs(const char* data, size_t size,
+                                             arrow::ListBuilder* list_bld,
+                                             arrow::UInt64Builder* values_bld) -> Status {
+  auto error = Status(Error::GenericError, "Unable to parse JSON data.");
+
+  const auto* pos = data;
+  const auto* end = data + size;
+  // Eat any initial whitespace.
+  pos = EatWhitespace(pos, end);
+
+  // Start parsing objects
+  while ((pos < end) && (pos != nullptr)) {
+    pos = EatObjectStart(pos, end);  // {
+    pos = EatWhitespace(pos, end);
+    pos = EatMemberKey(pos, end, "voltage");  // "voltage"
+    pos = EatWhitespace(pos, end);
+    pos = EatMemberKeyValueSeperator(pos, end);  // :
+    pos = EatWhitespace(pos, end);
+    pos = EatUInt64ArrayUnsafe(pos, end, list_bld, values_bld);  // e.g. [1,2,3]
+    pos = EatWhitespace(pos, end);
+    pos = EatObjectEnd(pos, end);  // }
+    pos = EatWhitespace(pos, end);
+    pos = EatChar(pos, end, '\n');
+
+    // The newline may be the last byte, check if we didn't reach end of input before
+    // continuing.
+    if ((pos < end) && (pos != nullptr)) {
+      pos = EatWhitespace(pos, end);
+    }
+  }
+
+  return Status::OK();
+}
+
+auto UnsafeBatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
     -> Status {
+  SPDLOG_DEBUG(
+      "Unsafe Battery Parsing: {}",
+      std::string_view(reinterpret_cast<const char*>(buffer->data()), buffer->size()));
   // Reserve expected number of JSONs in case a seq. no. column is desired.
   arrow::UInt64Builder seq_bld;
   uint64_t seq = buffer->range().first;
@@ -155,18 +111,46 @@ auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
     ARROW_ROE(seq_bld.Reserve(buffer->range().last - buffer->range().first + 1));
   }
 
-  auto values_bld = std::make_shared<arrow::UInt64Builder>();
-  arrow::ListBuilder list_bld(arrow::default_memory_pool(), values_bld);
-
-  BOLSON_ROE(ParseBatteryNDJSONs(reinterpret_cast<const char*>(buffer->data()),
-                                 buffer->size(), &list_bld, values_bld.get()));
+  BOLSON_ROE(UnsafeParseBatteryNDJSONs(reinterpret_cast<const char*>(buffer->data()),
+                                       buffer->size(), voltage_builder.get(),
+                                       values_builder.get()));
 
   std::shared_ptr<arrow::ListArray> voltage;
-  ARROW_ROE(list_bld.Finish(&voltage));
+  ARROW_ROE(voltage_builder->Finish(&voltage));
 
   out->seq_range = buffer->range();
   out->batch = arrow::RecordBatch::Make(output_schema(), voltage->length(), {voltage});
 
+  SPDLOG_DEBUG("Result: {}", out->batch->ToString());
+  return Status::OK();
+}
+
+auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
+    -> Status {
+  SPDLOG_DEBUG(
+      "Battery Parsing: {}",
+      std::string_view(reinterpret_cast<const char*>(buffer->data()), buffer->size()));
+  // Reserve expected number of JSONs in case a seq. no. column is desired.
+  arrow::UInt64Builder seq_bld;
+  uint64_t seq = buffer->range().first;
+  if (seq_column) {
+    ARROW_ROE(seq_bld.Reserve(buffer->range().last - buffer->range().first + 1));
+  }
+
+  voltage_builder->Reset();
+  values_builder->Reset();
+
+  BOLSON_ROE(ParseBatteryNDJSONs(reinterpret_cast<const char*>(buffer->data()),
+                                 buffer->size(), voltage_builder.get(),
+                                 values_builder.get()));
+
+  std::shared_ptr<arrow::ListArray> voltage;
+  ARROW_ROE(voltage_builder->Finish(&voltage));
+
+  out->seq_range = buffer->range();
+  out->batch = arrow::RecordBatch::Make(output_schema(), voltage->length(), {voltage});
+
+  SPDLOG_DEBUG("Result: {}", out->batch->ToString());
   return Status::OK();
 }
 
@@ -200,6 +184,27 @@ BatteryParser::BatteryParser(bool seq_column) : seq_column(seq_column) {
   } else {
     output_schema_ = input_schema();
   }
+
+  values_builder = std::make_shared<arrow::UInt64Builder>();
+  voltage_builder =
+      std::make_shared<arrow::ListBuilder>(arrow::default_memory_pool(), values_builder);
+}
+
+UnsafeBatteryParser::UnsafeBatteryParser(bool seq_column, size_t pre_alloc_offsets = 0,
+                                         size_t pre_alloc_values = 0)
+    : BatteryParser(seq_column) {
+  if (seq_column) {
+    WithSeqField(*input_schema(), &output_schema_);
+  } else {
+    output_schema_ = input_schema();
+  }
+
+  values_builder = std::make_shared<arrow::UInt64Builder>();
+  voltage_builder =
+      std::make_shared<arrow::ListBuilder>(arrow::default_memory_pool(), values_builder);
+
+  values_builder->Reserve(pre_alloc_values);
+  voltage_builder->Reserve(pre_alloc_offsets);
 }
 
 auto BatteryParserContext::Make(const BatteryOptions& opts, size_t num_parsers,
@@ -210,8 +215,14 @@ auto BatteryParserContext::Make(const BatteryOptions& opts, size_t num_parsers,
   result->allocator_ = std::make_shared<buffer::Allocator>();
 
   // Initialize all parsers.
-  result->parsers_ = std::vector<std::shared_ptr<BatteryParser>>(
-      num_parsers, std::make_shared<BatteryParser>(opts.seq_column));
+  if (opts.pre_alloc_offsets + opts.pre_alloc_values > 0) {
+    result->parsers_ = std::vector<std::shared_ptr<BatteryParser>>(
+        num_parsers, std::make_shared<UnsafeBatteryParser>(
+                         opts.seq_column, opts.pre_alloc_offsets, opts.pre_alloc_values));
+  } else {
+    result->parsers_ = std::vector<std::shared_ptr<BatteryParser>>(
+        num_parsers, std::make_shared<BatteryParser>(opts.seq_column));
+  }
 
   // Allocate buffers. Use number of parsers if number of buffers is 0 in options.
   auto num_buffers = opts.num_buffers == 0 ? num_parsers : opts.num_buffers;
@@ -241,6 +252,14 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
                 "Custom battery parser, retain ordering information by adding a sequence "
                 "number column.")
       ->default_val(false);
+  sub->add_flag("--custom-battery-pre-alloc-offsets", out->pre_alloc_offsets,
+                "Pre-allocate this many offsets when this value is > 0. Enables unsafe "
+                "behavior.")
+      ->default_val(0);
+  sub->add_flag(
+         "--custom-battery-pre-alloc-values", out->pre_alloc_values,
+         "Pre-allocate this many values when this value is > 0. Enables unsafe behavior.")
+      ->default_val(0);
 }
 
 }  // namespace bolson::parse::custom
