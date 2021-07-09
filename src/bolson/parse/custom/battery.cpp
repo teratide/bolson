@@ -104,12 +104,12 @@ auto UnsafeBatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch*
   SPDLOG_DEBUG(
       "Unsafe Battery Parsing: {}",
       std::string_view(reinterpret_cast<const char*>(buffer->data()), buffer->size()));
-  // Reserve expected number of JSONs in case a seq. no. column is desired.
-  arrow::UInt64Builder seq_bld;
-  uint64_t seq = buffer->range().first;
-  if (seq_column) {
-    ARROW_ROE(seq_bld.Reserve(buffer->range().last - buffer->range().first + 1));
-  }
+
+  auto values_builder = std::make_shared<arrow::UInt64Builder>();
+  auto voltage_builder =
+      std::make_shared<arrow::ListBuilder>(arrow::default_memory_pool(), values_builder);
+  values_builder->Reserve(pre_alloc_values);
+  voltage_builder->Reserve(pre_alloc_offsets);
 
   BOLSON_ROE(UnsafeParseBatteryNDJSONs(reinterpret_cast<const char*>(buffer->data()),
                                        buffer->size(), voltage_builder.get(),
@@ -130,15 +130,17 @@ auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
   SPDLOG_DEBUG(
       "Battery Parsing: {}",
       std::string_view(reinterpret_cast<const char*>(buffer->data()), buffer->size()));
+
+  auto values_builder = std::make_shared<arrow::UInt64Builder>();
+  auto voltage_builder =
+      std::make_shared<arrow::ListBuilder>(arrow::default_memory_pool(), values_builder);
+
   // Reserve expected number of JSONs in case a seq. no. column is desired.
   arrow::UInt64Builder seq_bld;
   uint64_t seq = buffer->range().first;
   if (seq_column) {
     ARROW_ROE(seq_bld.Reserve(buffer->range().last - buffer->range().first + 1));
   }
-
-  voltage_builder->Reset();
-  values_builder->Reset();
 
   BOLSON_ROE(ParseBatteryNDJSONs(reinterpret_cast<const char*>(buffer->data()),
                                  buffer->size(), voltage_builder.get(),
@@ -184,27 +186,18 @@ BatteryParser::BatteryParser(bool seq_column) : seq_column(seq_column) {
   } else {
     output_schema_ = input_schema();
   }
-
-  values_builder = std::make_shared<arrow::UInt64Builder>();
-  voltage_builder =
-      std::make_shared<arrow::ListBuilder>(arrow::default_memory_pool(), values_builder);
 }
 
 UnsafeBatteryParser::UnsafeBatteryParser(bool seq_column, size_t pre_alloc_offsets = 0,
                                          size_t pre_alloc_values = 0)
-    : BatteryParser(seq_column) {
+    : BatteryParser(seq_column),
+      pre_alloc_offsets(pre_alloc_offsets),
+      pre_alloc_values(pre_alloc_values) {
   if (seq_column) {
     WithSeqField(*input_schema(), &output_schema_);
   } else {
     output_schema_ = input_schema();
   }
-
-  values_builder = std::make_shared<arrow::UInt64Builder>();
-  voltage_builder =
-      std::make_shared<arrow::ListBuilder>(arrow::default_memory_pool(), values_builder);
-
-  values_builder->Reserve(pre_alloc_values);
-  voltage_builder->Reserve(pre_alloc_offsets);
 }
 
 auto BatteryParserContext::Make(const BatteryOptions& opts, size_t num_parsers,
@@ -253,8 +246,8 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
                 "number column.")
       ->default_val(false);
   sub->add_option("--custom-battery-pre-alloc-offsets", out->pre_alloc_offsets,
-                "Pre-allocate this many offsets when this value is > 0. Enables unsafe "
-                "behavior.")
+                  "Pre-allocate this many offsets when this value is > 0. Enables unsafe "
+                  "behavior.")
       ->default_val(0);
   sub->add_option(
          "--custom-battery-pre-alloc-values", out->pre_alloc_values,

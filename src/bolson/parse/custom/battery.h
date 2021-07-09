@@ -60,9 +60,6 @@ class BatteryParser : public Parser {
  protected:
   bool seq_column = false;
   std::shared_ptr<arrow::Schema> output_schema_;
-
-  std::shared_ptr<arrow::UInt64Builder> values_builder;
-  std::shared_ptr<arrow::ListBuilder> voltage_builder;
 };
 
 class UnsafeBatteryParser : public BatteryParser {
@@ -71,6 +68,10 @@ class UnsafeBatteryParser : public BatteryParser {
                                size_t pre_alloc_values);
 
   auto ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> Status override;
+
+ private:
+  size_t pre_alloc_offsets;
+  size_t pre_alloc_values;
 };
 
 class BatteryParserContext : public ParserContext {
