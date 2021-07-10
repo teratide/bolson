@@ -22,13 +22,6 @@
 
 namespace bolson::parse::opae {
 
-auto raw_json_input_schema() -> std::shared_ptr<arrow::Schema> {
-  static auto result = fletcher::WithMetaRequired(
-      *arrow::schema({arrow::field("input", arrow::uint8(), false)}), "input",
-      fletcher::Mode::READ);
-  return result;
-}
-
 auto ExtractAddrMap(fletcher::Context* context)
     -> std::unordered_map<const std::byte*, da_t> {
   AddrMap result;

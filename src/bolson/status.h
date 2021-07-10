@@ -23,13 +23,15 @@ namespace bolson {
 
 /// Error types.
 enum class Error {
-  GenericError,  ///< Uncategorized errors.
-  CLIError,      ///< Errors related to the command-line interface.
-  PulsarError,   ///< Errors related to Pulsar.
-  IllexError,    ///< Errors related to Illex.
-  ArrowError,    ///< Errors related to Arrow.
-  IOError,       ///< Errors related to input/output.
-  OpaeError      ///< Errors related to FPGA impl.
+  GenericError,   ///< Uncategorized errors.
+  CLIError,       ///< Errors related to the command-line interface.
+  PulsarError,    ///< Errors related to Pulsar.
+  IllexError,     ///< Errors related to Illex.
+  ArrowError,     ///< Errors related to Arrow.
+  IOError,        ///< Errors related to input/output.
+  FletcherError,  ///< Errors related to Fletcher.
+  FPGAError,      ///< Errors related to Generic Fletcher impl.
+  OpaeError       ///< Errors related to Intel OPAE FPGA impl.
 };
 
 /// \brief Return human-readable Error enum.

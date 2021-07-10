@@ -49,6 +49,10 @@ auto ToString(Error e) -> std::string {
       return "IOError";
     case Error::OpaeError:
       return "OpaeError";
+    case Error::FletcherError:
+      return "FletcherError";
+    case Error::FPGAError:
+      return "FPGAError";
   }
   return "Error enum value corrupted.";
 }

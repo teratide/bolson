@@ -89,6 +89,7 @@ add_compile_unit(
     src/bolson/utils.cpp
     src/bolson/buffer/allocator.cpp
     src/bolson/buffer/opae_allocator.cpp
+    src/bolson/buffer/fpga_allocator.cpp
     src/bolson/convert/converter.cpp
     src/bolson/convert/resizer.cpp
     src/bolson/convert/serializer.cpp
@@ -97,6 +98,8 @@ add_compile_unit(
     src/bolson/parse/parser.cpp
     src/bolson/parse/custom/battery.cpp
     src/bolson/parse/custom/trip.cpp
+    src/bolson/parse/fpga/battery.cpp
+    src/bolson/parse/fpga/common.cpp
     src/bolson/parse/opae/battery.cpp
     src/bolson/parse/opae/opae.cpp
     src/bolson/parse/opae/trip.cpp

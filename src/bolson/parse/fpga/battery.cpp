@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bolson/parse/opae/battery.h"
+#include "bolson/parse/fpga/battery.h"
 
 #include <arrow/api.h>
 #include <arrow/ipc/api.h>
@@ -30,10 +30,9 @@
 #include "bolson/latency.h"
 #include "bolson/log.h"
 #include "bolson/parse/fpga/common.h"
-#include "bolson/parse/opae/opae.h"
 #include "bolson/parse/parser.h"
 
-namespace bolson::parse::opae {
+namespace bolson::parse::fpga {
 
 static auto voltage_type() -> std::shared_ptr<arrow::DataType> {
   static auto result = arrow::list(arrow::field("item", arrow::uint64(), false));
@@ -76,19 +75,11 @@ auto BatteryParserContext::PrepareOutputBatches() -> Status {
 
 auto BatteryParserContext::Make(const BatteryOptions& opts,
                                 std::shared_ptr<ParserContext>* out) -> Status {
-  std::string afu_id;
-  DeriveAFUID(opts.afu_id, BOLSON_DEFAULT_OPAE_BATTERY_AFUID, opts.num_parsers, &afu_id);
-  SPDLOG_DEBUG("BatteryParserContext | Using AFU ID: {}", afu_id);
-
   // Create and set up result.
   auto result = std::shared_ptr<BatteryParserContext>(new BatteryParserContext(opts));
   SPDLOG_DEBUG("BatteryParserContext | Setting up for {} parsers.", result->num_parsers_);
 
-  FLETCHER_ROE(fletcher::Platform::Make("opae", &result->platform, false));
-
-  result->afu_id_ = afu_id;
-  char* afu_id_ptr = result->afu_id_.data();
-  result->platform->init_data = &afu_id_ptr;
+  FLETCHER_ROE(fletcher::Platform::Make(&result->platform, false));
 
   // Initialize the platform.
   FLETCHER_ROE(result->platform->Init());
@@ -118,14 +109,6 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
   // Write metadata.
   FLETCHER_ROE(result->kernel->WriteMetaData());
 
-  // Workaround to obtain buffer device address.
-  result->h2d_addr_map = ExtractAddrMap(result->context.get());
-  SPDLOG_DEBUG("BatteryParserContext | OPAE host address / device address map:");
-  for (auto& kv : result->h2d_addr_map) {
-    SPDLOG_DEBUG("  H: 0x{:016X} <--> D: 0x{:016X}", reinterpret_cast<uint64_t>(kv.first),
-                 kv.second);
-  }
-
   SPDLOG_DEBUG("BatteryParserContext | Preparing parsers.");
   BOLSON_ROE(result->PrepareParsers());
 
@@ -145,8 +128,8 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
 auto BatteryParserContext::PrepareParsers() -> Status {
   for (size_t i = 0; i < num_parsers_; i++) {
     parsers_.push_back(std::make_shared<BatteryParser>(
-        platform.get(), context.get(), kernel.get(), &h2d_addr_map, i, num_parsers_,
-        raw_out_offsets[i], raw_out_values[i], &platform_mutex, seq_column));
+        platform.get(), context.get(), kernel.get(), i, num_parsers_, raw_out_offsets[i],
+        raw_out_values[i], &platform_mutex, seq_column));
   }
   return Status::OK();
 }
@@ -172,8 +155,8 @@ auto BatteryParserContext::output_schema() const -> std::shared_ptr<arrow::Schem
 }
 
 BatteryParserContext::BatteryParserContext(const BatteryOptions& opts)
-    : num_parsers_(opts.num_parsers), afu_id_(opts.afu_id), seq_column(opts.seq_column) {
-  allocator_ = std::make_shared<buffer::OpaeAllocator>();
+    : num_parsers_(opts.num_parsers), seq_column(opts.seq_column) {
+  allocator_ = std::make_shared<buffer::FpgaAllocator>();
 }
 
 static auto WrapOutput(int32_t num_rows, uint8_t* offsets, uint8_t* values,
@@ -210,8 +193,6 @@ static auto WrapOutput(int32_t num_rows, uint8_t* offsets, uint8_t* values,
 }
 
 auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status {
-  using bolson::parse::fpga::ReadMMIO;
-  using bolson::parse::fpga::WriteMMIO;
   platform_mutex->lock();
   auto* p = platform_;
   SPDLOG_DEBUG("BatteryParser {:2} | Obtained platform lock", idx_);
@@ -228,7 +209,7 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
       WriteMMIO(p, input_lastidx_offset(idx_), in->size(), idx_, "input last idx"));
 
   dau_t input_addr;
-  input_addr.full = h2d_addr_map->at(in->data());
+  input_addr.full = reinterpret_cast<da_t>(in->data());
 
   BOLSON_ROE(WriteMMIO(p, input_values_lo_offset(idx_), input_addr.lo, idx_,
                        "in values addr lo"));
@@ -319,9 +300,9 @@ auto BatteryParser::Parse(const std::vector<illex::JSONBuffer*>& in,
 }
 
 auto BatteryParser::output_schema() -> std::shared_ptr<arrow::Schema> {
-  static auto result = fletcher::WithMetaRequired(
+  static auto result = ::fletcher::WithMetaRequired(
       *arrow::schema({arrow::field("voltage", voltage_type(), false)}), "output",
-      fletcher::Mode::WRITE);
+      ::fletcher::Mode::WRITE);
   return result;
 }
 
@@ -364,16 +345,14 @@ auto BatteryParser::input_values_hi_offset(size_t idx) const -> size_t {
 }
 
 void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
-  sub->add_option("--battery-afu-id", out->afu_id,
-                  "OPAE \"battery status\" AFU ID. "
-                  "If not supplied, it is derived from number of parser instances.");
-  sub->add_option("--battery-num-parsers", out->num_parsers,
-                  "OPAE \"battery status\" number of parser instances.")
-      ->default_val(BOLSON_DEFAULT_OPAE_BATTERY_PARSERS);
-  sub->add_flag("--battery-seq-col", out->seq_column,
-                "OPAE \"battery status\" parser, retain ordering information by adding a "
+  sub->add_option("--fpga-battery-num-parsers", out->num_parsers,
+                  "Generic Fletcher \"battery status\" number of parser instances.")
+      ->default_val(BOLSON_DEFAULT_FLETCHER_BATTERY_PARSERS);
+  sub->add_flag("--fpga-battery-seq-col", out->seq_column,
+                "Generic Fletcher \"battery status\" parser, retain ordering information "
+                "by adding a "
                 "sequence number column.")
       ->default_val(false);
 }
 
-}  // namespace bolson::parse::opae
+}  // namespace bolson::parse::fpga

@@ -31,19 +31,14 @@
 #include "bolson/buffer/opae_allocator.h"
 #include "bolson/latency.h"
 #include "bolson/log.h"
+#include "bolson/parse/fpga/common.h"
 #include "bolson/parse/opae/opae.h"
 #include "bolson/parse/parser.h"
 
-/// Return Bolson error status when Fletcher error status is supplied.
-#define FLETCHER_ROE(s)                                                 \
-  {                                                                     \
-    auto __status = (s);                                                \
-    if (!__status.ok())                                                 \
-      return Status(Error::OpaeError, "Fletcher: " + __status.message); \
-  }                                                                     \
-  void()
-
 namespace bolson::parse::opae {
+
+using bolson::parse::fpga::ReadMMIO;
+using bolson::parse::fpga::WriteMMIO;
 
 auto TripParser::input_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = arrow::schema(
@@ -304,8 +299,8 @@ auto TripParserContext::PrepareInputBatches() -> Status {
     auto wrapped = arrow::Buffer::Wrap(buf.data(), buf.capacity());
     auto array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint8(), buf.capacity(), wrapped);
-    auto batch =
-        arrow::RecordBatch::Make(raw_json_input_schema(), buf.capacity(), {array});
+    auto batch = arrow::RecordBatch::Make(bolson::parse::fpga::raw_json_input_schema(),
+                                          buf.capacity(), {array});
     batches_in.push_back(batch);
   }
   return Status::OK();

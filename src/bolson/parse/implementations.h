@@ -19,6 +19,7 @@
 #include "bolson/parse/arrow.h"
 #include "bolson/parse/custom/battery.h"
 #include "bolson/parse/custom/trip.h"
+#include "bolson/parse/fpga/battery.h"
 #include "bolson/parse/opae/battery.h"
 #include "bolson/parse/opae/trip.h"
 
@@ -27,10 +28,11 @@ namespace bolson::parse {
 /// Available parser implementations.
 enum class Impl {
   ARROW,         ///< A CPU version based on Arrow's internal JSON parser using RapidJSON.
-  OPAE_BATTERY,  ///< An FPGA version for the "battery status" schema.
-  OPAE_TRIP,     ///< An FPGA version for for the "trip report" schema.
+  OPAE_BATTERY,  ///< An FPGA version for the "battery status" schema using Intel OPAE.
+  OPAE_TRIP,     ///< An FPGA version for for the "trip report" schema using Intel OPAE.
   CUSTOM_BATTERY,  ///< A hand-optimized CPU converter for the "battery status" schema
-  CUSTOM_TRIP      ///< A hand-optimized CPU converter for the "battery status" schema
+  CUSTOM_TRIP,     ///< A hand-optimized CPU converter for the "battery status" schema
+  FPGA_BATTERY,    ///< An FPGA version for the "battery status" schema using Fletcher.
 };
 
 /// All parser options.
@@ -42,6 +44,7 @@ struct ParserOptions {
   opae::TripOptions opae_trip;
   custom::BatteryOptions custom_battery;
   custom::TripOptions custom_trip;
+  fpga::BatteryOptions fpga_battery;
 
   static auto impls_map() -> std::map<std::string, parse::Impl> {
     static std::map<std::string, parse::Impl> result = {
@@ -49,15 +52,15 @@ struct ParserOptions {
         {"opae-battery", parse::Impl::OPAE_BATTERY},
         {"opae-trip", parse::Impl::OPAE_TRIP},
         {"custom-battery", parse::Impl::CUSTOM_BATTERY},
-        {"custom-trip", parse::Impl::CUSTOM_TRIP}};
-
+        {"custom-trip", parse::Impl::CUSTOM_TRIP},
+        {"fpga-battery", parse::Impl::FPGA_BATTERY}};
     return result;
   }
 };
 
 inline void AddParserOptions(CLI::App* sub, ParserOptions* opts) {
   sub->add_option("-p,--parser", opts->impl,
-                  "Parser implementation. OPAE parsers have fixed schema and ignore "
+                  "Parser implementation. FPGA parsers have fixed schema and ignore "
                   "schema supplied to -i.")
       ->transform(CLI::CheckedTransformer(ParserOptions::impls_map(), CLI::ignore_case))
       ->default_val(parse::Impl::ARROW);
@@ -67,6 +70,7 @@ inline void AddParserOptions(CLI::App* sub, ParserOptions* opts) {
   parse::opae::AddTripOptionsToCLI(sub, &opts->opae_trip);
   parse::custom::AddBatteryOptionsToCLI(sub, &opts->custom_battery);
   parse::custom::AddTripOptionsToCLI(sub, &opts->custom_trip);
+  parse::fpga::AddBatteryOptionsToCLI(sub, &opts->fpga_battery);
 }
 
 inline auto ToString(const Impl& impl) -> std::string {
@@ -81,6 +85,8 @@ inline auto ToString(const Impl& impl) -> std::string {
       return "Custom battery status (CPU)";
     case Impl::CUSTOM_TRIP:
       return "Custom trip report (CPU)";
+    case Impl::FPGA_BATTERY:
+      return "Fletcher battery status (FPGA)";
   }
   // C++ why
   return "Corrupt bolson::parse::Impl enum value.";

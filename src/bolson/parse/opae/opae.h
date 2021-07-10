@@ -24,44 +24,14 @@
 #include "bolson/log.h"
 #include "bolson/status.h"
 
-/// Return Bolson error status when Fletcher error status is supplied.
-#define FLETCHER_ROE(s)                                                 \
-  {                                                                     \
-    auto __status = (s);                                                \
-    if (!__status.ok())                                                 \
-      return Status(Error::OpaeError, "Fletcher: " + __status.message); \
-  }                                                                     \
-  void()
-
 /// Fletcher OPAE FPGA implementations of specific schema parsers
 namespace bolson::parse::opae {
-
-/// \brief Return the Arrow schema "input: uint8" used as input batch.
-auto raw_json_input_schema() -> std::shared_ptr<arrow::Schema>;
 
 /// Address map from host pointer to device pointer.
 using AddrMap = std::unordered_map<const std::byte*, da_t>;
 
 /// \brief Extract the host to device address map from the Fletcher context.
 auto ExtractAddrMap(fletcher::Context* context) -> AddrMap;
-
-/// Write MMIO wrapper for debugging.
-inline auto WriteMMIO(fletcher::Platform* platform, uint64_t offset, uint32_t value,
-                      size_t idx, const std::string& desc = "") -> Status {
-  SPDLOG_DEBUG("Parser {:2} | MMIO WRITE 0x{:08X} --> [off:{:4}] [@ 0x{:04X}] {}", idx,
-               value, offset, 64 + 4 * offset, desc);
-  FLETCHER_ROE(platform->WriteMMIO(offset, value));
-  return Status::OK();
-}
-
-/// Read MMIO wrapper for debugging.
-inline auto ReadMMIO(fletcher::Platform* platform, uint64_t offset, uint32_t* value,
-                     size_t idx, const std::string& desc = "") -> Status {
-  FLETCHER_ROE(platform->ReadMMIO(offset, value));
-  SPDLOG_DEBUG("Parser {:2} | MMIO READ  0x{:08X} <-- [off:{:4}] [@ 0x{:04X}] {}", idx,
-               *value, offset, 64 + 4 * offset, desc);
-  return Status::OK();
-}
 
 /// \brief Derive AFU ID from base and no. parsers if supplied is empty.
 auto DeriveAFUID(const std::string& supplied, const std::string& base, size_t num_parsers,
