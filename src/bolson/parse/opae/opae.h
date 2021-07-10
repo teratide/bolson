@@ -27,6 +27,9 @@
 /// Fletcher OPAE FPGA implementations of specific schema parsers
 namespace bolson::parse::opae {
 
+/// Default MMIO offset for Intel OPAE platform in 32-bit register indices.
+#define OPAE_MMIO_OFFSET 8
+
 /// Address map from host pointer to device pointer.
 using AddrMap = std::unordered_map<const std::byte*, da_t>;
 

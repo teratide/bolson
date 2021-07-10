@@ -35,6 +35,9 @@
 
 namespace bolson::parse::opae {
 
+using bolson::parse::fpga::ReadMMIO;
+using bolson::parse::fpga::WriteMMIO;
+
 static auto voltage_type() -> std::shared_ptr<arrow::DataType> {
   static auto result = arrow::list(arrow::field("item", arrow::uint64(), false));
   return result;
@@ -210,8 +213,6 @@ static auto WrapOutput(int32_t num_rows, uint8_t* offsets, uint8_t* values,
 }
 
 auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status {
-  using bolson::parse::fpga::ReadMMIO;
-  using bolson::parse::fpga::WriteMMIO;
   platform_mutex->lock();
   auto* p = platform_;
   SPDLOG_DEBUG("BatteryParser {:2} | Obtained platform lock", idx_);
@@ -220,24 +221,26 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
 
   // Reset the kernel, start it, and poll until completion.
   // FLETCHER_ROE(kernel_->Reset());
-  BOLSON_ROE(WriteMMIO(p, ctrl_offset(idx_), ctrl_reset, idx_, "ctrl"));
-  BOLSON_ROE(WriteMMIO(p, ctrl_offset(idx_), 0, idx_, "ctrl"));
+  BOLSON_ROE(
+      WriteMMIO(p, OPAE_MMIO_OFFSET + ctrl_offset(idx_), ctrl_reset, idx_, "ctrl"));
+  BOLSON_ROE(WriteMMIO(p, OPAE_MMIO_OFFSET + ctrl_offset(idx_), 0, idx_, "ctrl"));
 
   // Write the input last index, to let the parser know the input buffer size.
-  BOLSON_ROE(
-      WriteMMIO(p, input_lastidx_offset(idx_), in->size(), idx_, "input last idx"));
+  BOLSON_ROE(WriteMMIO(p, OPAE_MMIO_OFFSET + input_lastidx_offset(idx_), in->size(), idx_,
+                       "input last idx"));
 
   dau_t input_addr;
   input_addr.full = h2d_addr_map->at(in->data());
 
-  BOLSON_ROE(WriteMMIO(p, input_values_lo_offset(idx_), input_addr.lo, idx_,
-                       "in values addr lo"));
-  BOLSON_ROE(WriteMMIO(p, input_values_hi_offset(idx_), input_addr.hi, idx_,
-                       "in values addr hi"));
+  BOLSON_ROE(WriteMMIO(p, OPAE_MMIO_OFFSET + input_values_lo_offset(idx_), input_addr.lo,
+                       idx_, "in values addr lo"));
+  BOLSON_ROE(WriteMMIO(p, OPAE_MMIO_OFFSET + input_values_hi_offset(idx_), input_addr.hi,
+                       idx_, "in values addr hi"));
 
   // FLETCHER_ROE(kernel_->Start());
-  BOLSON_ROE(WriteMMIO(p, ctrl_offset(idx_), ctrl_start, idx_, "ctrl"));
-  BOLSON_ROE(WriteMMIO(p, ctrl_offset(idx_), 0, idx_, "ctrl"));
+  BOLSON_ROE(
+      WriteMMIO(p, OPAE_MMIO_OFFSET + ctrl_offset(idx_), ctrl_start, idx_, "ctrl"));
+  BOLSON_ROE(WriteMMIO(p, OPAE_MMIO_OFFSET + ctrl_offset(idx_), 0, idx_, "ctrl"));
 
   // While FPGA is busy, prepare sequence number column if necessary.
   std::shared_ptr<arrow::UInt64Array> seq;
@@ -257,18 +260,20 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
 
   do {
 #ifndef NDEBUG
-    ReadMMIO(p, status_offset(idx_), &status, idx_, "status");
+    ReadMMIO(p, OPAE_MMIO_OFFSET + status_offset(idx_), &status, idx_, "status");
     done = (status & stat_done) == stat_done;
 
     // Obtain the result for debugging.
-    ReadMMIO(p, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
-    ReadMMIO(p, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
+    ReadMMIO(p, OPAE_MMIO_OFFSET + result_rows_offset_lo(idx_), &num_rows.lo, idx_,
+             "rows lo");
+    ReadMMIO(p, OPAE_MMIO_OFFSET + result_rows_offset_hi(idx_), &num_rows.hi, idx_,
+             "rows hi");
     SPDLOG_DEBUG("BatteryParser {:2} | Number of rows: {}", idx_, num_rows.full);
     platform_mutex->unlock();
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     platform_mutex->lock();
 #else
-    platform_->ReadMMIO(status_offset(idx_), &status);
+    platform_->ReadMMIO(OPAE_MMIO_OFFSET + status_offset(idx_), &status);
     done = (status & stat_done) == stat_done;
 
     platform_mutex->unlock();
@@ -277,8 +282,10 @@ auto BatteryParser::ParseOne(illex::JSONBuffer* in, ParsedBatch* out) -> Status 
 #endif
   } while (!done);
 
-  ReadMMIO(p, result_rows_offset_lo(idx_), &num_rows.lo, idx_, "rows lo");
-  ReadMMIO(p, result_rows_offset_hi(idx_), &num_rows.hi, idx_, "rows hi");
+  ReadMMIO(p, OPAE_MMIO_OFFSET + result_rows_offset_lo(idx_), &num_rows.lo, idx_,
+           "rows lo");
+  ReadMMIO(p, OPAE_MMIO_OFFSET + result_rows_offset_hi(idx_), &num_rows.hi, idx_,
+           "rows hi");
   platform_mutex->unlock();
 
   std::shared_ptr<arrow::RecordBatch> out_batch;
