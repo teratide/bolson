@@ -85,8 +85,7 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
   FLETCHER_ROE(result->platform->Init());
 
   // Allocate input buffers.
-  BOLSON_ROE(result->AllocateBuffers(result->num_parsers_,
-                                     result->allocator_->fixed_capacity()));
+  BOLSON_ROE(result->AllocateBuffers(result->num_parsers_, opts.buffer_capacity));
 
   // Pull everything through the fletcher stack once.
   FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));
@@ -353,6 +352,7 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
                 "by adding a "
                 "sequence number column.")
       ->default_val(false);
+  sub->add_option("--fpga-battery-buf-cap", out->buffer_capacity)->default_val(BOLSON_DEFAULT_FLETCHER_BATTERY_BUFFER_CAP);
 }
 
 }  // namespace bolson::parse::fpga

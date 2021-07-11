@@ -26,12 +26,14 @@
 #include "bolson/utils.h"
 
 #define BOLSON_DEFAULT_FLETCHER_BATTERY_PARSERS 8
+#define BOLSON_DEFAULT_FLETCHER_BATTERY_BUFFER_CAP 128 * 1024 * 1024
 
 namespace bolson::parse::fpga {
 
 struct BatteryOptions {
-  size_t num_parsers = BOLSON_DEFAULT_FLETCHER_BATTERY_PARSERS;
-  bool seq_column = true;
+  size_t buffer_capacity;
+  size_t num_parsers;
+  bool seq_column;
 };
 
 void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out);
