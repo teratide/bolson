@@ -31,7 +31,9 @@
 namespace bolson::parse::fpga {
 
 struct BatteryOptions {
-  size_t buffer_capacity;
+  size_t in_buffer_capacity;
+  size_t out_offset_buffer_capacity = 1024 * 1024 * 1024;
+  size_t out_values_buffer_capacity = 1024 * 1024 * 1024;
   size_t num_parsers;
   bool seq_column;
 };
@@ -139,13 +141,10 @@ class BatteryParserContext : public ParserContext {
   explicit BatteryParserContext(const BatteryOptions& opts);
 
   auto PrepareInputBatches() -> Status;
-  auto PrepareOutputBatches() -> Status;
+  auto PrepareOutputBatches(size_t offsets_cap, size_t values_cap) -> Status;
   auto PrepareParsers() -> Status;
 
   size_t num_parsers_;
-  std::string afu_id_;
-
-  std::unordered_map<const std::byte*, da_t> h2d_addr_map;
 
   std::vector<std::byte*> raw_out_offsets;
   std::vector<std::byte*> raw_out_values;

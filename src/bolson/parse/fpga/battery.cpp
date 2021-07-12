@@ -50,15 +50,16 @@ auto BatteryParserContext::PrepareInputBatches() -> Status {
   return Status::OK();
 }
 
-auto BatteryParserContext::PrepareOutputBatches() -> Status {
+auto BatteryParserContext::PrepareOutputBatches(size_t offsets_cap, size_t values_cap)
+    -> Status {
   for (size_t i = 0; i < num_parsers_; i++) {
     std::byte* offsets = nullptr;
     std::byte* values = nullptr;
-    BOLSON_ROE(allocator_->Allocate(allocator_->fixed_capacity(), &offsets));
-    BOLSON_ROE(allocator_->Allocate(allocator_->fixed_capacity(), &values));
+    BOLSON_ROE(allocator_->Allocate(offsets_cap, &offsets));
+    BOLSON_ROE(allocator_->Allocate(values_cap, &values));
 
-    auto offset_buffer = arrow::Buffer::Wrap(offsets, allocator_->fixed_capacity());
-    auto values_buffer = arrow::Buffer::Wrap(values, allocator_->fixed_capacity());
+    auto offset_buffer = arrow::Buffer::Wrap(offsets, offsets_cap);
+    auto values_buffer = arrow::Buffer::Wrap(values, values_cap);
     auto values_array =
         std::make_shared<arrow::PrimitiveArray>(arrow::uint64(), 0, values_buffer);
     auto list_array = std::make_shared<arrow::ListArray>(voltage_type(), 0, offset_buffer,
@@ -85,13 +86,14 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
   FLETCHER_ROE(result->platform->Init());
 
   // Allocate input buffers.
-  BOLSON_ROE(result->AllocateBuffers(result->num_parsers_, opts.buffer_capacity));
+  BOLSON_ROE(result->AllocateBuffers(result->num_parsers_, opts.in_buffer_capacity));
 
   // Pull everything through the fletcher stack once.
   FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));
 
   BOLSON_ROE(result->PrepareInputBatches());
-  BOLSON_ROE(result->PrepareOutputBatches());
+  BOLSON_ROE(result->PrepareOutputBatches(opts.out_offset_buffer_capacity,
+                                          opts.out_values_buffer_capacity));
 
   for (const auto& batch : result->batches_in) {
     FLETCHER_ROE(result->context->QueueRecordBatch(batch));
@@ -352,7 +354,8 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
                 "by adding a "
                 "sequence number column.")
       ->default_val(false);
-  sub->add_option("--fpga-battery-buf-cap", out->buffer_capacity)->default_val(BOLSON_DEFAULT_FLETCHER_BATTERY_BUFFER_CAP);
+  sub->add_option("--fpga-battery-buf-cap", out->in_buffer_capacity)
+      ->default_val(BOLSON_DEFAULT_FLETCHER_BATTERY_BUFFER_CAP);
 }
 
 }  // namespace bolson::parse::fpga
