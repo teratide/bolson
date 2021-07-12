@@ -22,10 +22,9 @@
 #include <memory>
 #include <thread>
 
-#include "bolson/buffer/allocator.h"
+
 #include "bolson/convert/converter.h"
 #include "bolson/convert/metrics.h"
-#include "bolson/metrics.h"
 #include "bolson/parse/parser.h"
 #include "bolson/publish/bench.h"
 #include "bolson/status.h"
@@ -33,53 +32,48 @@
 
 namespace bolson {
 
-auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
-                   const illex::GenerateOptions& gen_opts,
-                   std::vector<illex::JSONItem>* items) -> std::pair<size_t, size_t> {
-  size_t largest = 0;
-  // Generate a message with tweets in JSON format.
+static auto FillBuffer(const arrow::Schema& schema,
+                       const illex::GenerateOptions& gen_opts, illex::JSONBuffer* buffer,
+                       size_t max_jsons = 0, size_t start_seq = 0) -> Status {
+  // Set up generator.
   auto gen = illex::FromArrowSchema(schema, gen_opts);
-  // Generate the JSONs.
-  items->reserve(num_jsons);
-  size_t raw_chars = 0;
-  for (size_t i = 0; i < num_jsons; i++) {
-    auto json = gen.GetString();
-    if (json.size() > largest) {
-      largest = json.size();
-    }
-    raw_chars += json.size();
-    items->push_back(illex::JSONItem{i, json});
-  }
-  return {raw_chars, largest};
-}
-
-auto FillBuffers(std::vector<illex::JSONBuffer*> buffers,
-                 const std::vector<illex::JSONItem>& jsons) -> Status {
-  // Calculate the number of JSONs per buffer.
-  auto items_per_buffer = jsons.size() / buffers.size();
-  // First buffer gets the leftover JSONs.
-  auto items_first_extra = jsons.size() % buffers.size();
-  size_t item = 0;
-  for (size_t b = 0; b < buffers.size(); b++) {
-    // Fill the buffer.
-    size_t offset = 0;
-    auto buffer_num_items = items_per_buffer + (b == 0 ? items_first_extra : 0);
-    auto first = item;
-    for (size_t j = 0; j < buffer_num_items; j++) {
-      if (offset + jsons[item].string.length() > buffers[b]->capacity()) {
-        return Status(Error::GenericError,
-                      "JSONs do not fit in buffers. Increase buffer capacity.");
+  // Get start and end pointers.
+  auto pos = reinterpret_cast<char*>(buffer->mutable_data());
+  auto end = pos + buffer->capacity();
+  size_t num_jsons = 0;
+  size_t num_bytes = 0;
+  // Keep filling until we reach the end.
+  while ((pos < end) &&
+         (((max_jsons > 0) && (num_jsons < max_jsons)) || (max_jsons == 0))) {
+    std::string json = gen.GetString();
+    // Copy the string if it fits.
+    if ((pos + json.size() + 1) < end) {
+      // Place the JSON document string.
+      std::memcpy(pos, json.data(), json.size());
+      pos += json.size();
+      num_bytes += json.size();
+      // Place a newline.
+      *pos = '\n';
+      pos++;
+      num_bytes++;
+      // Increase number of generated JSONs.
+      num_jsons++;
+    } else {
+      // Fill the remaining bytes with whitespace if needed.
+      if (pos < end) {
+        std::memset(pos, ' ', end - pos);
       }
-      std::memcpy(buffers[b]->mutable_data() + offset, jsons[item].string.data(),
-                  jsons[item].string.length());
-      offset += jsons[item].string.length();
-      *(buffers[b]->mutable_data() + offset) = static_cast<std::byte>('\n');
-      offset++;
-      item++;
+      pos = end;
     }
-    BILLEX_ROE(buffers[b]->SetSize(offset));
-    buffers[b]->SetRange({first, item - 1});
   }
+
+  // Update buffer properties
+  auto ret = buffer->SetSize(num_bytes);
+  if (!ret.ok()) {
+    return Status(Error::IllexError, ret.msg());
+  }
+  buffer->SetRange({start_seq, start_seq + num_jsons - 1});
+
   return Status::OK();
 }
 
@@ -88,19 +82,6 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   auto o = opts;
 
   BOLSON_ROE(o.converter.parser.arrow.ReadSchema());
-
-  spdlog::info("Converting {} randomly generated JSONs to Arrow IPC messages...",
-               o.num_jsons);
-
-  // Generate JSONs
-  spdlog::info("Generating JSONs...");
-
-  t_gen.Start();
-  std::vector<illex::JSONItem> input_items;
-  auto bytes_largest = GenerateJSONs(o.num_jsons, *o.converter.parser.arrow.schema,
-                                     o.generate, &input_items);
-  t_gen.Stop();
-  auto gen_bytes = bytes_largest.first;
 
   spdlog::info("Initializing converter...");
   t_init.Start();
@@ -121,8 +102,25 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   // Grab the input buffers from the parser context.
   auto buffers = converter->parser_context()->mutable_buffers();
 
-  // Fill buffers.
-  BOLSON_ROE(FillBuffers(buffers, input_items));
+  spdlog::info("Filling buffers...");
+  // Generate random JSONs until buffers are full.
+  int seed = o.generate.seed;
+  size_t next_seq = 0;
+  size_t gen_bytes = 0;
+  size_t gen_jsons = 0;
+  t_gen.Start();
+  for (auto& buf : buffers) {
+    // Copy the options to modify the seed for each buffer.
+    illex::GenerateOptions bfo = o.generate;
+    bfo.seed = seed += 42;
+    BOLSON_ROE(
+        FillBuffer(*o.converter.parser.arrow.schema, bfo, buf, opts.max_jsons, next_seq));
+    gen_bytes += buf->size();
+    gen_jsons += buf->num_jsons();
+    next_seq = buf->range().last + 1;
+  }
+  t_gen.Stop();
+  spdlog::info("Generated {} JSONs", gen_jsons);
 
   // Remember how much data is in the buffers so we can quickly reset.
   std::vector<size_t> buffer_sizes;
@@ -171,7 +169,7 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
     converter->parser_context()->UnlockBuffers();
 
     // Pull JSON ipc items from the queue to check when we are done.
-    while ((num_records_dequeued != o.num_jsons) && !shutdown.load()) {
+    while ((num_records_dequeued != gen_jsons) && !shutdown.load()) {
       publish::IpcQueueItem ipc_item;
       // Wait for an IPC message to appear.
       if (ipc_queue.wait_dequeue_timed(ipc_item,
@@ -201,12 +199,11 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
 
   // Print all statistics:
   auto json_MB = static_cast<double>(opts.repeats * gen_bytes) / (1e6);
-  auto json_M = static_cast<double>(opts.num_jsons) / (1e6);
-  auto ipc_MB = static_cast<double>(total_bytes_dequeued / (1e6));
+  auto json_M = static_cast<double>(gen_jsons) / (1e6);
+  auto ipc_MB = static_cast<double>(total_bytes_dequeued) / (1e6);
 
   spdlog::info("JSON Generation:");
-  spdlog::info("  Bytes (no newlines) : {} B", gen_bytes);
-  spdlog::info("  Bytes (w/ newlines) : {} B", gen_bytes + opts.num_jsons);
+  spdlog::info("  Bytes               : {} B", gen_bytes);
   spdlog::info("  Time                : {} s", t_gen.seconds());
   spdlog::info("  Throughput          : {} MB/s", json_MB / t_gen.seconds());
   spdlog::info("  Throughput          : {} MJ/s", json_M / t_gen.seconds());

@@ -57,8 +57,11 @@ static void AddBenchOptionsToCLI(CLI::App* bench, BenchOptions* out) {
       bench->add_subcommand("convert", "Run JSON to Arrow IPC convert microbenchmark.");
   AddConverterOptionsToCLI(bench_conv, &out->convert.converter);
   bench_conv
-      ->add_option("--num-jsons", out->convert.num_jsons, "Number of JSONs to convert.")
-      ->default_val(1024);
+      ->add_option(
+          "--max-jsons", out->convert.max_jsons,
+          "Maximum number of JSONs per buffer. If this is set to zero, fill up input "
+          "buffers until full.")
+      ->default_val(0);
   bench_conv->add_option("--seed", out->convert.generate.seed, "Generation seed.")
       ->default_val(0);
   bench_conv->add_option("--latency", out->convert.latency_file,

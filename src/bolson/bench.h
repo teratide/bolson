@@ -34,8 +34,8 @@ namespace bolson {
 struct ConvertBenchOptions {
   /// JSON generator options
   illex::GenerateOptions generate;
-  /// Number of JSONs to generate
-  size_t num_jsons = 1024;
+  /// Maximum number of JSONs to generate
+  size_t max_jsons = 1024;
   /// Converter implementation options.
   convert::ConverterOptions converter;
   /// Latency stats output file. If empty, no latency stats will be written.
@@ -93,18 +93,5 @@ auto BenchClient(const illex::ClientOptions& opt) -> Status;
 
 /// \brief Run the JSON-to-Arrow conversion benchmark.
 auto BenchConvert(const ConvertBenchOptions& opts) -> Status;
-
-/// \brief Generate a bunch of JSONs, returns number of bytes and largest JSON size.
-auto GenerateJSONs(size_t num_jsons, const arrow::Schema& schema,
-                   const illex::GenerateOptions& gen_opts,
-                   std::vector<illex::JSONItem>* items) -> std::pair<size_t, size_t>;
-
-/**
- * \brief Prepare input buffers for benchmarking or testing.
- * \param buffers   The buffers to fill.
- * \param jsons     The JSONs to copy into the buffers.
- */
-auto FillBuffers(std::vector<illex::JSONBuffer*> buffers,
-                 const std::vector<illex::JSONItem>& jsons) -> Status;
 
 }  // namespace bolson
