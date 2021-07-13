@@ -49,8 +49,6 @@ struct ArrowOptions {
   /// Number of input buffers to use, when set to 0, it will be equal to the number of
   /// threads.
   size_t num_buffers = 0;
-  /// Capacity of input buffers.
-  size_t buf_capacity = BOLSON_ARROW_DEFAULT_BUFFER_CAP;
   /// Whether to store sequence numbers as a column.
   bool seq_column = true;
 
@@ -81,7 +79,7 @@ class ArrowParser : public Parser {
 /// \brief Context for Arrow parsers.
 class ArrowParserContext : public ParserContext {
  public:
-  static auto Make(const ArrowOptions& opts, size_t num_parsers,
+  static auto Make(const ArrowOptions& opts, size_t num_parsers, size_t input_size,
                    std::shared_ptr<ParserContext>* out) -> Status;
 
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;

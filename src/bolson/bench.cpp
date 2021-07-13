@@ -86,15 +86,13 @@ static auto FillBuffers(const arrow::Schema& schema,
 
   // Calculate the approximate bytes to fill per buffer if an approximate total is given.
   if (approx_total_json_bytes > 0) {
-    approx_bytes_per_buffer = 1 + (approx_total_json_bytes - 1) / buffers.size();
+    approx_bytes_per_buffer = DivideCeil(approx_total_json_bytes, buffers.size());
     // Issue a warning when the approximate total would overflow a buffer.
-    for (const auto& buf : buffers) {
-      if (approx_bytes_per_buffer > buf->capacity()) {
-        spdlog::warn(
-            "Approximate total JSON bytes {} divided over {} buffers of capacity {} will "
-            "overflow. Reverting to filling buffers as much as possible.",
-            approx_total_json_bytes, buffers.size(), buf->capacity());
-      }
+    if (approx_bytes_per_buffer > buffers[0]->capacity()) {
+      spdlog::warn(
+          "Approximate total JSON bytes {} divided over {} input buffers of capacity {} "
+          "would overflow. Reverting to filling buffers as much as possible.",
+          approx_total_json_bytes, buffers.size(), buffers[0]->capacity());
     }
   }
 
@@ -332,9 +330,15 @@ auto RunBench(const BenchOptions& opt) -> Status {
 }
 
 auto ConvertBenchOptions::ParseInput() -> Status {
+  // Propagate parse only down to converter options
   this->converter.mock_serialize = this->parse_only;
   this->converter.mock_resize = this->parse_only;
+
   BOLSON_ROE(ParseWithScale(this->approx_total_bytes_str, &this->approx_total_bytes));
+
+  // Parse converter options.
+  BOLSON_ROE(this->converter.ParseInput());
+
   return Status::OK();
 }
 

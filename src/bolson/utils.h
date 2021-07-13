@@ -85,7 +85,7 @@ auto Aggregate(const std::vector<T>& items) -> T {
  * @return Status::OK() if successful, some error otherwise.
  */
 template <typename T>
-auto ParseWithScale(const std::string& input, T* output) -> Status {
+inline auto ParseWithScale(const std::string& input, T* output) -> Status {
   T num = 0;
   auto fcr = std::from_chars(input.data(), input.data() + input.size(), num);
   // skip potential whitespaces.
@@ -114,6 +114,12 @@ auto ParseWithScale(const std::string& input, T* output) -> Status {
   }
   *output = num;
   return Status::OK();
+}
+
+template <typename T>
+inline T DivideCeil(T num, T den) {
+  assert(den != 0);
+  return num == 0 ? 0 : 1 + (num - 1) / den;
 }
 
 }  // namespace bolson

@@ -17,10 +17,8 @@
 #include <arrow/api.h>
 
 #include <CLI/CLI.hpp>
-#include <charconv>
 #include <chrono>
 #include <thread>
-#include <utility>
 
 #include "bolson/latency.h"
 #include "bolson/log.h"
@@ -101,10 +99,6 @@ static inline auto UnsafeParseBatteryNDJSONs(const char* data, size_t size,
 
 auto UnsafeBatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
     -> Status {
-  SPDLOG_DEBUG(
-      "Unsafe Battery Parsing: {}",
-      std::string_view(reinterpret_cast<const char*>(buffer->data()), buffer->size()));
-
   auto values_builder = std::make_shared<arrow::UInt64Builder>();
   auto voltage_builder =
       std::make_shared<arrow::ListBuilder>(arrow::default_memory_pool(), values_builder);
@@ -121,16 +115,11 @@ auto UnsafeBatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch*
   out->seq_range = buffer->range();
   out->batch = arrow::RecordBatch::Make(output_schema(), voltage->length(), {voltage});
 
-  SPDLOG_DEBUG("Result: {}", out->batch->ToString());
   return Status::OK();
 }
 
 auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
     -> Status {
-  SPDLOG_DEBUG(
-      "Battery Parsing: {}",
-      std::string_view(reinterpret_cast<const char*>(buffer->data()), buffer->size()));
-
   auto values_builder = std::make_shared<arrow::UInt64Builder>();
   auto voltage_builder =
       std::make_shared<arrow::ListBuilder>(arrow::default_memory_pool(), values_builder);
@@ -152,7 +141,6 @@ auto BatteryParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out)
   out->seq_range = buffer->range();
   out->batch = arrow::RecordBatch::Make(output_schema(), voltage->length(), {voltage});
 
-  SPDLOG_DEBUG("Result: {}", out->batch->ToString());
   return Status::OK();
 }
 
@@ -201,7 +189,8 @@ UnsafeBatteryParser::UnsafeBatteryParser(bool seq_column, size_t pre_alloc_offse
 }
 
 auto BatteryParserContext::Make(const BatteryOptions& opts, size_t num_parsers,
-                                std::shared_ptr<ParserContext>* out) -> Status {
+                                size_t input_size, std::shared_ptr<ParserContext>* out)
+    -> Status {
   auto result = std::make_shared<BatteryParserContext>();
 
   // Use default allocator.
@@ -219,7 +208,7 @@ auto BatteryParserContext::Make(const BatteryOptions& opts, size_t num_parsers,
 
   // Allocate buffers. Use number of parsers if number of buffers is 0 in options.
   auto num_buffers = opts.num_buffers == 0 ? num_parsers : opts.num_buffers;
-  BOLSON_ROE(result->AllocateBuffers(num_buffers, opts.buf_capacity));
+  BOLSON_ROE(result->AllocateBuffers(num_buffers, DivideCeil(input_size, num_buffers)));
 
   *out = std::static_pointer_cast<ParserContext>(result);
 
@@ -238,9 +227,6 @@ auto BatteryParserContext::output_schema() const -> std::shared_ptr<arrow::Schem
 }
 
 void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
-  sub->add_option("--custom-battery-buf-cap", out->buf_capacity,
-                  "Custom battery parser input buffer capacity.")
-      ->default_val(BOLSON_CUSTOM_BATTERY_DEFAULT_BUFFER_CAP);
   sub->add_flag("--custom-battery-seq-col", out->seq_column,
                 "Custom battery parser, retain ordering information by adding a sequence "
                 "number column.")

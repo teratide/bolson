@@ -17,10 +17,8 @@
 #include <arrow/api.h>
 
 #include <CLI/CLI.hpp>
-#include <charconv>
 #include <chrono>
 #include <thread>
-#include <utility>
 
 #include "bolson/latency.h"
 #include "bolson/log.h"
@@ -84,10 +82,6 @@ static auto schema_trip() -> std::shared_ptr<arrow::Schema> {
 }
 
 auto TripParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> Status {
-  SPDLOG_DEBUG(
-      "Unsafe Trip Parsing: {}",
-      std::string_view(reinterpret_cast<const char*>(buffer->data()), buffer->size()));
-
   const auto* pos = reinterpret_cast<const char*>(buffer->data());
   const auto* end = pos + buffer->size();
 
@@ -175,9 +169,6 @@ auto TripParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> 
 
   out->seq_range = buffer->range();
   out->batch = builder.Finish();
-
-  SPDLOG_DEBUG("Result: {}", out->batch->ToString());
-
   return Status::OK();
 }
 
@@ -209,7 +200,8 @@ TripParser::TripParser(size_t pre_alloc_records, size_t pre_alloc_timestamp_valu
     : builder(TripBuilder(pre_alloc_records, pre_alloc_timestamp_values)) {}
 
 auto TripParserContext::Make(const TripOptions& opts, size_t num_parsers,
-                             std::shared_ptr<ParserContext>* out) -> Status {
+                             size_t input_size, std::shared_ptr<ParserContext>* out)
+    -> Status {
   auto result = std::make_shared<TripParserContext>();
 
   // Use default allocator.
@@ -222,7 +214,7 @@ auto TripParserContext::Make(const TripOptions& opts, size_t num_parsers,
 
   // Allocate buffers. Use number of parsers if number of buffers is 0 in options.
   auto num_buffers = opts.num_buffers == 0 ? num_parsers : opts.num_buffers;
-  BOLSON_ROE(result->AllocateBuffers(num_buffers, opts.buf_capacity));
+  BOLSON_ROE(result->AllocateBuffers(num_buffers, DivideCeil(input_size, num_buffers)));
 
   *out = std::static_pointer_cast<ParserContext>(result);
 
@@ -321,9 +313,6 @@ auto TripBuilder::Finish() -> std::shared_ptr<arrow::RecordBatch> {
 }
 
 void AddTripOptionsToCLI(CLI::App* sub, TripOptions* out) {
-  sub->add_option("--custom-trip-buf-cap", out->buf_capacity,
-                  "Custom trip report parser input buffer capacity.")
-      ->default_val(BOLSON_CUSTOM_TRIP_DEFAULT_BUFFER_CAP);
   sub->add_option("--custom-trip-pre-alloc-records", out->pre_alloc_records,
                   "Pre-allocate this many records.")
       ->default_val(1024);

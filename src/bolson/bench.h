@@ -38,6 +38,7 @@ struct ConvertBenchOptions {
   /// 2Ki, 10Mi, 1Gi.
   std::string approx_total_bytes_str = "1024";
   size_t approx_total_bytes = 0;
+
   /// Converter implementation options.
   convert::ConverterOptions converter;
   /// Latency stats output file. If empty, no latency stats will be written.

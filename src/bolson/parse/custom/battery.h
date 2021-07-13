@@ -24,8 +24,6 @@
 #include "bolson/parse/parser.h"
 #include "bolson/utils.h"
 
-#define BOLSON_CUSTOM_BATTERY_DEFAULT_BUFFER_CAP (16 * 1024 * 1024)
-
 namespace bolson::parse::custom {
 
 struct BatteryOptions {
@@ -35,7 +33,7 @@ struct BatteryOptions {
   /// Whether to store sequence numbers as a column.
   bool seq_column = false;
   /// Capacity of input buffers.
-  size_t buf_capacity = BOLSON_CUSTOM_BATTERY_DEFAULT_BUFFER_CAP;
+  size_t buf_capacity = 0;
 
   /// Number of values to pre-allocate.
   size_t pre_alloc_values;
@@ -76,7 +74,7 @@ class UnsafeBatteryParser : public BatteryParser {
 
 class BatteryParserContext : public ParserContext {
  public:
-  static auto Make(const BatteryOptions& opts, size_t num_parsers,
+  static auto Make(const BatteryOptions& opts, size_t num_parsers, size_t input_size,
                    std::shared_ptr<ParserContext>* out) -> Status;
 
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;

@@ -24,18 +24,14 @@
 #include "bolson/parse/parser.h"
 #include "bolson/utils.h"
 
-#define BOLSON_CUSTOM_TRIP_DEFAULT_BUFFER_CAP (16 * 1024 * 1024)
-
 namespace bolson::parse::custom {
 
 struct TripOptions {
   /// Number of input buffers to use, when set to 0, it will be equal to the number of
   /// threads.
   size_t num_buffers = 0;
-  /// Whether to store sequence numbers as a column.
-  bool seq_column = false;
   /// Capacity of input buffers.
-  size_t buf_capacity = BOLSON_CUSTOM_TRIP_DEFAULT_BUFFER_CAP;
+  size_t buf_capacity = 0;
 
   size_t pre_alloc_records;
   size_t pre_alloc_timestamp_values;
@@ -87,7 +83,7 @@ class TripParser : public Parser {
 
 class TripParserContext : public ParserContext {
  public:
-  static auto Make(const TripOptions& opts, size_t num_parsers,
+  static auto Make(const TripOptions& opts, size_t num_parsers, size_t input_size,
                    std::shared_ptr<ParserContext>* out) -> Status;
 
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;

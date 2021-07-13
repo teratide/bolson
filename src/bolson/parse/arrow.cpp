@@ -63,7 +63,8 @@ auto ArrowOptions::ReadSchema() -> Status {
 }
 
 auto ArrowParserContext::Make(const ArrowOptions& opts, size_t num_parsers,
-                              std::shared_ptr<ParserContext>* out) -> Status {
+                              size_t input_size, std::shared_ptr<ParserContext>* out)
+    -> Status {
   auto result = std::make_shared<ArrowParserContext>();
 
   // Use default allocator.
@@ -99,7 +100,7 @@ auto ArrowParserContext::Make(const ArrowOptions& opts, size_t num_parsers,
 
   // Allocate buffers. Use number of parsers if number of buffers is 0 in options.
   auto num_buffers = opts.num_buffers == 0 ? num_parsers : opts.num_buffers;
-  BOLSON_ROE(result->AllocateBuffers(num_buffers, opts.buf_capacity));
+  BOLSON_ROE(result->AllocateBuffers(num_buffers, DivideCeil(input_size, num_buffers)));
 
   return Status::OK();
 }
@@ -183,8 +184,6 @@ void AddArrowOptionsToCLI(CLI::App* sub, ArrowOptions* out) {
   sub->add_option("input,-i,--input", out->schema_path,
                   "Serialized Arrow schema file for records to convert to.")
       ->check(CLI::ExistingFile);
-  sub->add_option("--arrow-buf-cap", out->buf_capacity, "Arrow input buffer capacity.")
-      ->default_val(BOLSON_ARROW_DEFAULT_BUFFER_CAP);
   sub->add_flag(
          "--arrow-seq-col", out->seq_column,
          "Arrow parser, retain ordering information by adding a sequence number column.")

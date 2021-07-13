@@ -74,7 +74,7 @@ auto BatteryParserContext::PrepareOutputBatches(size_t offsets_cap, size_t value
   return Status::OK();
 }
 
-auto BatteryParserContext::Make(const BatteryOptions& opts,
+auto BatteryParserContext::Make(const BatteryOptions& opts, size_t input_size,
                                 std::shared_ptr<ParserContext>* out) -> Status {
   // Create and set up result.
   auto result = std::shared_ptr<BatteryParserContext>(new BatteryParserContext(opts));
@@ -86,7 +86,8 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
   FLETCHER_ROE(result->platform->Init());
 
   // Allocate input buffers.
-  BOLSON_ROE(result->AllocateBuffers(result->num_parsers_, opts.in_buffer_capacity));
+  BOLSON_ROE(result->AllocateBuffers(result->num_parsers_,
+                                     DivideCeil(input_size, result->num_parsers_)));
 
   // Pull everything through the fletcher stack once.
   FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));
@@ -354,8 +355,6 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
                 "by adding a "
                 "sequence number column.")
       ->default_val(false);
-  sub->add_option("--fpga-battery-buf-cap", out->in_buffer_capacity)
-      ->default_val(BOLSON_DEFAULT_FLETCHER_BATTERY_BUFFER_CAP);
 }
 
 }  // namespace bolson::parse::fpga

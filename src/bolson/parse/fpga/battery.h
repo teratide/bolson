@@ -26,12 +26,10 @@
 #include "bolson/utils.h"
 
 #define BOLSON_DEFAULT_FLETCHER_BATTERY_PARSERS 8
-#define BOLSON_DEFAULT_FLETCHER_BATTERY_BUFFER_CAP 128 * 1024 * 1024
 
 namespace bolson::parse::fpga {
 
 struct BatteryOptions {
-  size_t in_buffer_capacity;
   size_t out_offset_buffer_capacity = 1024 * 1024 * 1024;
   size_t out_values_buffer_capacity = 1024 * 1024 * 1024;
   size_t num_parsers;
@@ -128,8 +126,8 @@ class BatteryParser : public Parser {
 
 class BatteryParserContext : public ParserContext {
  public:
-  static auto Make(const BatteryOptions& opts, std::shared_ptr<ParserContext>* out)
-      -> Status;
+  static auto Make(const BatteryOptions& opts, size_t input_size,
+                   std::shared_ptr<ParserContext>* out) -> Status;
 
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;
   [[nodiscard]] auto CheckThreadCount(size_t num_threads) const -> size_t override;

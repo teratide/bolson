@@ -377,7 +377,7 @@ auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
   switch (opts.parser.impl) {
     case parse::Impl::ARROW:
       BOLSON_ROE(parse::ArrowParserContext::Make(opts.parser.arrow, opts.num_threads,
-                                                 &parser_context));
+                                                 opts.input_size, &parser_context));
       break;
     case parse::Impl::OPAE_BATTERY:
       BOLSON_ROE(parse::opae::BatteryParserContext::Make(opts.parser.opae_battery,
@@ -389,15 +389,16 @@ auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
       break;
     case parse::Impl::CUSTOM_BATTERY:
       BOLSON_ROE(parse::custom::BatteryParserContext::Make(
-          opts.parser.custom_battery, opts.num_threads, &parser_context));
+          opts.parser.custom_battery, opts.num_threads, opts.input_size,
+          &parser_context));
       break;
     case parse::Impl::CUSTOM_TRIP:
       BOLSON_ROE(parse::custom::TripParserContext::Make(
-          opts.parser.custom_trip, opts.num_threads, &parser_context));
+          opts.parser.custom_trip, opts.num_threads, opts.input_size, &parser_context));
       break;
     case parse::Impl::FPGA_BATTERY:
-      BOLSON_ROE(parse::fpga::BatteryParserContext::Make(opts.parser.fpga_battery,
-                                                         &parser_context));
+      BOLSON_ROE(parse::fpga::BatteryParserContext::Make(
+          opts.parser.fpga_battery, opts.input_size, &parser_context));
       break;
   }
 
@@ -454,6 +455,28 @@ Converter::Converter(std::shared_ptr<parse::ParserContext> parser_context,
 static inline auto SeqField() -> std::shared_ptr<arrow::Field> {
   static auto seq_field = arrow::field("seq", arrow::uint64(), false);
   return seq_field;
+}
+
+auto ConverterOptions::ParseInput() -> Status {
+  BOLSON_ROE(ParseWithScale(this->input_size_str, &this->input_size));
+  return Status::OK();
+}
+
+void AddConverterOptionsToCLI(CLI::App* sub, convert::ConverterOptions* opts) {
+  sub->add_option("--max-rows", opts->max_batch_rows,
+                  "Maximum number of rows per RecordBatch.")
+      ->default_val(1024);
+  sub->add_option("--max-ipc", opts->max_ipc_size,
+                  "Maximum size of IPC messages in bytes.")
+      ->default_val(BOLSON_DEFAULT_PULSAR_MAX_MSG_SIZE);
+  sub->add_option("--threads", opts->num_threads,
+                  "Number of threads to use for conversion.")
+      ->default_val(1);
+  sub->add_option("--input-buffers-capacity", opts->input_size_str,
+                  "Total capacity of all input buffers in bytes. Also accepts <n>KiB, "
+                  "<n>MiB, etc.")
+      ->default_val("16MiB");
+  AddParserOptions(sub, &opts->parser);
 }
 
 }  // namespace bolson::convert

@@ -45,6 +45,10 @@ struct ConverterOptions {
   /// Maximum number of rows in a RecordBatch.
   size_t max_batch_rows = 0;
 
+  /// Total capacity of all input buffers.
+  std::string input_size_str;
+  size_t input_size = 0;
+
   /// Use a no-op resizer.
   bool mock_resize = false;
   /// Use a no-op serializer;
@@ -52,7 +56,13 @@ struct ConverterOptions {
 
   /// Parser options.
   parse::ParserOptions parser;
+
+  /// Parse string fields to useful values
+  auto ParseInput() -> Status;
 };
+
+/// @brief Add converter options to CLI
+void AddConverterOptionsToCLI(CLI::App* sub, convert::ConverterOptions* opts);
 
 /**
  * \brief Converter for JSON to Arrow IPC messages.

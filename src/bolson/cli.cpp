@@ -33,19 +33,6 @@ static void AddClientOptionsToCLI(CLI::App* sub, illex::ClientOptions* client) {
       ->default_val(ILLEX_DEFAULT_PORT);
 }
 
-static void AddConverterOptionsToCLI(CLI::App* sub, convert::ConverterOptions* opts) {
-  sub->add_option("--max-rows", opts->max_batch_rows,
-                  "Maximum number of rows per RecordBatch.")
-      ->default_val(1024);
-  sub->add_option("--max-ipc", opts->max_ipc_size,
-                  "Maximum size of IPC messages in bytes.")
-      ->default_val(BOLSON_DEFAULT_PULSAR_MAX_MSG_SIZE);
-  sub->add_option("--threads", opts->num_threads,
-                  "Number of threads to use for conversion.")
-      ->default_val(1);
-  AddParserOptions(sub, &opts->parser);
-}
-
 static void AddBenchOptionsToCLI(CLI::App* bench, BenchOptions* out) {
   // 'bench client' subcommand.
   auto* bench_client =
@@ -58,8 +45,9 @@ static void AddBenchOptionsToCLI(CLI::App* bench, BenchOptions* out) {
   AddConverterOptionsToCLI(bench_conv, &out->convert.converter);
   bench_conv
       ->add_option("--total-json-bytes", out->convert.approx_total_bytes_str,
-                   "Approximate number of JSON bytes in total. If this is set to zero, "
-                   "fill up input buffers until they are full.")
+                   "Approximate number of JSON bytes to generate in total. If this is "
+                   "set to zero, fill up input buffers until they are full. Accepts "
+                   "scaling factors <n>Ki, <n>Mi, etc..")
       ->default_val(0);
   bench_conv
       ->add_flag("--parse-only", out->convert.parse_only,
@@ -125,6 +113,7 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
 
   if (stream->parsed()) {
     out->sub = SubCommand::STREAM;
+    out->stream.converter.ParseInput();
   } else if (bench->parsed()) {
     out->sub = SubCommand::BENCH;
     if (bench->get_subcommand_ptr("client")->parsed()) {
