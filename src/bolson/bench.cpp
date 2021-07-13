@@ -18,10 +18,10 @@
 #include <illex/arrow.h>
 #include <putong/timer.h>
 
+#include <charconv>
 #include <iostream>
 #include <memory>
 #include <thread>
-
 
 #include "bolson/convert/converter.h"
 #include "bolson/convert/metrics.h"
@@ -34,7 +34,7 @@ namespace bolson {
 
 static auto FillBuffer(const arrow::Schema& schema,
                        const illex::GenerateOptions& gen_opts, illex::JSONBuffer* buffer,
-                       size_t max_jsons = 0, size_t start_seq = 0) -> Status {
+                       size_t max_json_bytes = 0, size_t start_seq = 0) -> Status {
   // Set up generator.
   auto gen = illex::FromArrowSchema(schema, gen_opts);
   // Get start and end pointers.
@@ -42,9 +42,9 @@ static auto FillBuffer(const arrow::Schema& schema,
   auto end = pos + buffer->capacity();
   size_t num_jsons = 0;
   size_t num_bytes = 0;
-  // Keep filling until we reach the end.
-  while ((pos < end) &&
-         (((max_jsons > 0) && (num_jsons < max_jsons)) || (max_jsons == 0))) {
+  // Keep filling until we reach the end or the max number of bytes if enabled.
+  while ((pos < end) && (((max_json_bytes > 0) && (num_bytes < max_json_bytes)) ||
+                         (max_json_bytes == 0))) {
     std::string json = gen.GetString();
     // Copy the string if it fits.
     if ((pos + json.size() + 1) < end) {
@@ -77,6 +77,52 @@ static auto FillBuffer(const arrow::Schema& schema,
   return Status::OK();
 }
 
+static auto FillBuffers(const arrow::Schema& schema,
+                        const illex::GenerateOptions& gen_opts,
+                        const std::vector<illex::JSONBuffer*>& buffers,
+                        size_t approx_total_json_bytes, size_t* gen_bytes,
+                        size_t* gen_jsons) -> Status {
+  assert(!buffers.empty());
+  size_t approx_bytes_per_buffer = 0;
+
+  // Calculate the approximate bytes to fill per buffer if an approximate total is given.
+  if (approx_total_json_bytes > 0) {
+    approx_bytes_per_buffer = 1 + (approx_total_json_bytes - 1) / buffers.size();
+    // Issue a warning when the approximate total would overflow a buffer.
+    for (const auto& buf : buffers) {
+      if (approx_bytes_per_buffer > buf->capacity()) {
+        spdlog::warn(
+            "Approximate total JSON bytes {} divided over {} buffers of capacity {} will "
+            "overflow. Reverting to filling buffers as much as possible.",
+            approx_total_json_bytes, buffers.size(), buf->capacity());
+      }
+    }
+  }
+
+  int seed = gen_opts.seed;
+  size_t next_seq = 0;
+  *gen_bytes = 0;
+  *gen_jsons = 0;
+  for (size_t i = 0; i < buffers.size(); i++) {
+    auto& buf = buffers[i];
+    // Copy the options to modify the seed for each buffer.
+    illex::GenerateOptions bfo = gen_opts;
+    bfo.seed = seed;
+    seed += 42;
+    // Fill the buffer.
+    BOLSON_ROE(FillBuffer(schema, bfo, buf, approx_bytes_per_buffer, next_seq));
+    // Update the number of bytes and JSONs.
+    *gen_bytes += buf->size();
+    *gen_jsons += buf->num_jsons();
+    SPDLOG_DEBUG("Filled buffer {} with {} JSONs, {} bytes.", i, buf->num_jsons(),
+                 buf->size());
+    // Determine the sequence number for the next buffer.
+    next_seq = buf->range().last + 1;
+  }
+
+  return Status::OK();
+}
+
 auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   putong::Timer<> t_gen, t_init, t_conv;
   auto o = opts;
@@ -103,22 +149,11 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   auto buffers = converter->parser_context()->mutable_buffers();
 
   spdlog::info("Filling buffers...");
-  // Generate random JSONs until buffers are full.
-  int seed = o.generate.seed;
-  size_t next_seq = 0;
+  t_gen.Start();
   size_t gen_bytes = 0;
   size_t gen_jsons = 0;
-  t_gen.Start();
-  for (auto& buf : buffers) {
-    // Copy the options to modify the seed for each buffer.
-    illex::GenerateOptions bfo = o.generate;
-    bfo.seed = seed += 42;
-    BOLSON_ROE(
-        FillBuffer(*o.converter.parser.arrow.schema, bfo, buf, opts.max_jsons, next_seq));
-    gen_bytes += buf->size();
-    gen_jsons += buf->num_jsons();
-    next_seq = buf->range().last + 1;
-  }
+  FillBuffers(*o.converter.parser.arrow.schema, o.generate, buffers, o.approx_total_bytes,
+              &gen_bytes, &gen_jsons);
   t_gen.Stop();
   spdlog::info("Generated {} JSONs", gen_jsons);
 
@@ -197,23 +232,30 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   shutdown.store(true);
   converter->Finish();
 
-  // Print all statistics:
-  auto json_MB = static_cast<double>(opts.repeats * gen_bytes) / (1e6);
-  auto json_M = static_cast<double>(gen_jsons) / (1e6);
-  auto ipc_MB = static_cast<double>(total_bytes_dequeued) / (1e6);
+  // Derive human-readible statistics.
+
+  // Generate bytes and JSONs
+  auto gen_MiB = static_cast<double>(gen_bytes) / static_cast<double>(1 << 20);
+  auto gen_MB = static_cast<double>(gen_bytes) / 1e6;
+  auto gen_MJ = static_cast<double>(gen_jsons) / 1e6;
+  // Converted JSON bytes:
+  auto json_MB = static_cast<double>(opts.repeats * gen_bytes) / 1e6;
+  // IPC messages:
+  auto ipc_MB = static_cast<double>(total_bytes_dequeued) / 1e6;
 
   spdlog::info("JSON Generation:");
-  spdlog::info("  Bytes               : {} B", gen_bytes);
+  spdlog::info("  JSONs               : {} JSON", gen_jsons);
+  spdlog::info("  Bytes               : {} B, {:.3f} MiB", gen_bytes, gen_MiB);
   spdlog::info("  Time                : {} s", t_gen.seconds());
-  spdlog::info("  Throughput          : {} MB/s", json_MB / t_gen.seconds());
-  spdlog::info("  Throughput          : {} MJ/s", json_M / t_gen.seconds());
+  spdlog::info("  Throughput          : {:.3f} MB/s", gen_MB / t_gen.seconds());
+  spdlog::info("  Throughput          : {:.3f} MJSON/s", gen_MJ / t_gen.seconds());
 
   spdlog::info("End-to-end conversion:");
   spdlog::info("  IPC messages        : {}", total_messages_dequeued);
   spdlog::info("  Time                : {} s", t_conv.seconds());
-  spdlog::info("  Throughput (in)     : {} MB/s", json_MB / t_conv.seconds());
-  spdlog::info("  Throughput (out)    : {} MB/s", ipc_MB / t_conv.seconds());
-  spdlog::info("  Throughput          : {} MJ/s", json_M / t_conv.seconds());
+  spdlog::info("  Throughput (in)     : {:.3f} MB/s", json_MB / t_conv.seconds());
+  spdlog::info("  Throughput (out)    : {:.3f} MB/s", ipc_MB / t_conv.seconds());
+  spdlog::info("  Throughput          : {:.3f} MJSON/s", gen_MJ / t_conv.seconds());
 
   auto a = Aggregate(converter->metrics());
   spdlog::info("Details:");
@@ -286,6 +328,28 @@ auto RunBench(const BenchOptions& opt) -> Status {
       return BenchPulsar(opt.pulsar);
     case Bench::QUEUE:
       return BenchQueue(opt.queue);
+  }
+  return Status::OK();
+}
+
+auto ConvertBenchOptions::ParseInput() -> Status {
+  size_t bytes = 0;
+  auto fcr = std::from_chars(
+      approx_total_bytes_str.data(),
+      approx_total_bytes_str.data() + approx_total_bytes_str.size(), bytes);
+  auto scale = approx_total_bytes_str.substr(fcr.ptr - approx_total_bytes_str.data());
+
+  if (scale.empty()) {
+    approx_total_bytes = bytes;
+  } else if (scale == "Ki") {
+    approx_total_bytes = bytes << 10;
+  } else if (scale == "Mi") {
+    approx_total_bytes = bytes << 20;
+  } else if (scale == "Gi") {
+    approx_total_bytes = bytes << 30;
+  } else {
+    return Status(Error::CLIError, "Unexpected scaling factor: " + scale +
+                                       ". Accepts only <n>Ki, <n>Mi, or <n>Gi");
   }
   return Status::OK();
 }

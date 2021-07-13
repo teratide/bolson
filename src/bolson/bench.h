@@ -34,8 +34,10 @@ namespace bolson {
 struct ConvertBenchOptions {
   /// JSON generator options
   illex::GenerateOptions generate;
-  /// Maximum number of JSONs to generate
-  size_t max_jsons = 1024;
+  /// Approximate total number of JSON bytes at the input. Users can also specify e.g.
+  /// 2Ki, 10Mi, 1Gi.
+  std::string approx_total_bytes_str = "1024";
+  size_t approx_total_bytes = 0;
   /// Converter implementation options.
   convert::ConverterOptions converter;
   /// Latency stats output file. If empty, no latency stats will be written.
@@ -44,6 +46,9 @@ struct ConvertBenchOptions {
   std::string metrics_file;
   /// Number of times to repeat the measurement.
   size_t repeats = 1;
+
+  /// @brief Parse string-based options.
+  auto ParseInput() -> Status;
 };
 
 /// Options for queue benchmark

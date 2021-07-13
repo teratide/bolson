@@ -57,10 +57,9 @@ static void AddBenchOptionsToCLI(CLI::App* bench, BenchOptions* out) {
       bench->add_subcommand("convert", "Run JSON to Arrow IPC convert microbenchmark.");
   AddConverterOptionsToCLI(bench_conv, &out->convert.converter);
   bench_conv
-      ->add_option(
-          "--max-jsons", out->convert.max_jsons,
-          "Maximum number of JSONs per buffer. If this is set to zero, fill up input "
-          "buffers until full.")
+      ->add_option("--total-json-bytes", out->convert.approx_total_bytes_str,
+                   "Approximate number of JSON bytes in total. If this is set to zero, "
+                   "fill up input buffers until they are full.")
       ->default_val(0);
   bench_conv->add_option("--seed", out->convert.generate.seed, "Generation seed.")
       ->default_val(0);
@@ -127,6 +126,7 @@ auto AppOptions::FromArguments(int argc, char** argv, AppOptions* out) -> Status
       out->bench.bench = Bench::CLIENT;
     } else if (bench->get_subcommand_ptr("convert")->parsed()) {
       out->bench.bench = Bench::CONVERT;
+      BOLSON_ROE(out->bench.convert.ParseInput());
     } else if (bench->get_subcommand_ptr("pulsar")->parsed()) {
       out->bench.bench = Bench::PULSAR;
     } else if (bench->get_subcommand_ptr("queue")->parsed()) {

@@ -24,12 +24,12 @@ A JSON to Arrow IPC converter and Pulsar publishing tool.
 To build Bolson, make sure your system adheres to the following requirements:
 
 - Toolchain:
-  - CMake 3.14+
-  - A C++17 compiler.
+    - CMake 3.14+
+    - A C++17 compiler.
 - Dependencies:
-  - [Arrow 3.0.0](https://github.com/apache/arrow)
-    - When building from source, run `cmake` with `-DARROW_JSON=ON`.
-  - [Pulsar 2.7.0](https://github.com/apache/pulsar)
+    - [Arrow 3.0.0](https://github.com/apache/arrow)
+        - When building from source, run `cmake` with `-DARROW_JSON=ON` and `-DARROW_COMPUTE=ON`.
+    - [Pulsar 2.7.0](https://github.com/apache/pulsar)
 
 Build Bolson as follows:
 
@@ -59,5 +59,5 @@ To enable FPGA-accelerated parsing, continue to read [here](doc/src/fpga.md).
 ## FAQ
 
 - Why is it called Bolson?
-  - The name is inspired by the "Bolson Pupfish", which sounds a bit like "
-    JSON publish". It's a working title.
+    - The name is inspired by the "Bolson Pupfish", which sounds a bit like "
+      JSON publish". It's a working title.
