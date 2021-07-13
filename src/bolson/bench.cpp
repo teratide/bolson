@@ -109,8 +109,8 @@ static auto FillBuffers(const arrow::Schema& schema,
   std::vector<std::thread> threads;
 
   for (size_t i = 0; i < buffers.size(); i++) {
-    threads.emplace_back(FillBuffer, std::ref(schema), std::ref(t_opts[i]),
-                         std::ref(buffers[i]), &t_status[i], approx_bytes_per_buffer);
+    threads.emplace_back(FillBuffer, schema, t_opts[i], buffers[i], &t_status[i],
+                         approx_bytes_per_buffer);
   }
 
   // Wait for threads to fill buffers.
@@ -148,7 +148,7 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   BOLSON_ROE(convert::Converter::Make(conv_opts, &ipc_queue, &converter));
 
   spdlog::info("Converter schema:\n{}",
-               converter->parser_context()->output_schema()->ToString());
+               converter->parser_context()->output_schema()->ToString(true));
 
   // Grab the input buffers from the parser context.
   auto buffers = converter->parser_context()->mutable_buffers();
@@ -237,7 +237,7 @@ auto BenchConvert(const ConvertBenchOptions& opts) -> Status {
   shutdown.store(true);
   converter->Finish();
 
-  // Derive human-readible statistics.
+  // Derive human-readable statistics.
 
   // Generate bytes and JSONs
   auto gen_MiB = static_cast<double>(gen_bytes) / static_cast<double>(1 << 20);
