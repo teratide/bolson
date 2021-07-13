@@ -41,7 +41,9 @@ auto OpaeAllocator::Allocate(size_t size, std::byte** out) -> Status {
                       std::to_string(errno) + " : " + std::strerror(errno));
   }
   // Clear memory.
-  std::memset(addr, 0, size);
+  if (std::memset(addr, 0, size) != addr) {
+    return Status(Error::OpaeError, "Unable to zero-initialize buffers.");
+  }
   // Add to current allocations.
   allocations[addr] = size;
 

@@ -14,6 +14,7 @@
 
 #include "bolson/buffer/allocator.h"
 
+#include <cstring>
 #include <memory>
 
 #include "bolson/status.h"
@@ -25,6 +26,10 @@ auto Allocator::Allocate(size_t size, std::byte** out) -> Status {
   if (*out == nullptr) {
     return Status(Error::GenericError,
                   "Unable to allocate " + std::to_string(size) + " bytes.");
+  }
+  // Clear memory.
+  if (std::memset(*out, 0, size) != *out) {
+    return Status(Error::GenericError, "Unable to zero-initialize buffers.");
   }
   return Status::OK();
 }

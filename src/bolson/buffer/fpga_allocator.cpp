@@ -14,6 +14,8 @@
 
 #include "bolson/buffer/fpga_allocator.h"
 
+#include <cstring>
+
 namespace bolson::buffer {
 
 auto FpgaAllocator::Allocate(size_t size, std::byte** out) -> Status {
@@ -23,6 +25,12 @@ auto FpgaAllocator::Allocate(size_t size, std::byte** out) -> Status {
                   "Unable to allocate " + std::to_string(size) +
                       " bytes. posix_memalign returned: " + std::to_string(result));
   }
+
+  // Clear the allocated buffer.
+  if (std::memset(*out, 0, size) != *out) {
+    return Status(Error::FletcherError, "Unable to zero-initialize buffers.");
+  }
+
   return Status::OK();
 }
 
