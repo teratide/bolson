@@ -475,7 +475,7 @@ void AddConverterOptionsToCLI(CLI::App* sub, convert::ConverterOptions* opts) {
   sub->add_option("--input-buffers-capacity", opts->input_size_str,
                   "Total capacity of all input buffers in bytes. Also accepts <n>KiB, "
                   "<n>MiB, etc.")
-      ->default_val("16MiB");
+      ->default_val("16Mi");
   AddParserOptions(sub, &opts->parser);
 }
 
