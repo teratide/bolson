@@ -16,7 +16,8 @@
 
 namespace bolson::convert {
 
-auto Serializer::Serialize(const ResizedBatches& in, SerializedBatches* out) -> Status {
+auto Serializer::Serialize(const ResizedBatches& in, SerializedBatches* out) const
+    -> Status {
   SerializedBatches result;
 
   // Set up a pointer for the combined batch.
@@ -59,4 +60,16 @@ auto operator<(const SerializedBatch& a, const SerializedBatch& b) -> bool {
   return a.seq_range.first < b.seq_range.first;
 }
 
+auto SerializerMock::Serialize(const ResizedBatches& in, SerializedBatches* out) const
+    -> Status {
+  SerializedBatches result;
+  arrow::BufferBuilder bb;
+  for (const auto& batch : in) {
+    SerializedBatch sb;
+    ARROW_ROE(bb.Finish(&sb.message));  // make an empty buffer
+    sb.seq_range = batch.seq_range;
+    out->push_back(sb);
+  }
+  return Status::OK();
+}
 }  // namespace bolson::convert

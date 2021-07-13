@@ -55,7 +55,7 @@ void LogConvertMetrics(const Metrics& metrics, const std::string& t) {
 
   spdlog::info("{}JSON to Arrow conversion:", t);
   spdlog::info("{}  Converted             : {}", t, metrics.num_jsons_converted);
-  spdlog::info("{}  Raw JSON bytes        : {} B, {:.3} MiB", t,
+  spdlog::info("{}  Raw JSON bytes        : {} B, {:.3f} MiB", t,
                metrics.num_json_bytes_converted, json_MiB);
 
   // Parsing metrics.
@@ -64,7 +64,7 @@ void LogConvertMetrics(const Metrics& metrics, const std::string& t) {
   auto json_M = static_cast<double>(metrics.num_jsons_converted) / 1e6;
 
   spdlog::info("{}Parsing:", t);
-  spdlog::info("{}  Time in {:2} threads    : {} s", t, metrics.num_threads,
+  spdlog::info("{}  Time in {:3} threads   : {} s", t, metrics.num_threads,
                metrics.t.parse);
   spdlog::info("{}  Avg. time             : {} s", t, parse_tt);
   spdlog::info("{}  Avg. throughput       : {:.3f} MB/s", t, json_MB / parse_tt);
@@ -106,7 +106,7 @@ void LogConvertMetrics(const Metrics& metrics, const std::string& t) {
   spdlog::info("{}  Time in {:2} threads    : {} s", t, metrics.num_threads,
                metrics.t.enqueue);
   spdlog::info("{}  Avg. time             : {} s", t, enq_tt);
-  spdlog::info("{}  Avg. throughput       : {.3f} MJSON/s", t, json_M / enq_tt);
+  spdlog::info("{}  Avg. throughput       : {:.3f} MJSON/s", t, json_M / enq_tt);
 }
 
 Status SaveConvertMetrics(const std::vector<Metrics>& metrics, const std::string& file) {

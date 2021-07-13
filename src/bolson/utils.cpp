@@ -17,6 +17,7 @@
 #include <arrow/io/api.h>
 #include <arrow/ipc/api.h>
 
+#include <charconv>
 #include <cmath>
 #include <fstream>
 #include <iomanip>

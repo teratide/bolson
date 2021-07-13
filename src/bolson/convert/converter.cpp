@@ -62,8 +62,9 @@ static auto TryGetFilledBuffer(const std::vector<illex::JSONBuffer*>& buffers,
   return false;
 }
 
-static void OneToOneConvertThread(size_t id, parse::Parser* parser, Resizer* resizer,
-                                  Serializer* serializer,
+static void OneToOneConvertThread(size_t id, parse::Parser* parser,
+                                  const std::shared_ptr<Resizer>& resizer,
+                                  const std::shared_ptr<Serializer>& serializer,
                                   const std::vector<illex::JSONBuffer*>& buffers,
                                   const std::vector<std::mutex*>& mutexes,
                                   publish::IpcQueue* out, std::atomic<bool>* shutdown,
@@ -179,8 +180,9 @@ static void OneToOneConvertThread(size_t id, parse::Parser* parser, Resizer* res
 #undef SHUTDOWN_ON_FAILURE
 }
 
-static void AllToOneConverterThread(size_t id, parse::Parser* parser, Resizer* resizer,
-                                    Serializer* serializer,
+static void AllToOneConverterThread(size_t id, parse::Parser* parser,
+                                    const std::shared_ptr<Resizer>& resizer,
+                                    const std::shared_ptr<Serializer>& serializer,
                                     const std::vector<illex::JSONBuffer*>& buffers,
                                     const std::vector<std::mutex*>& mutexes,
                                     publish::IpcQueue* out, std::atomic<bool>* shutdown,
@@ -326,9 +328,9 @@ auto Converter::Start(std::atomic<bool>* shutdown) -> Status {
       std::promise<Metrics> m;
       metrics_futures_.push_back(m.get_future());
       threads_.emplace_back(
-          OneToOneConvertThread, t, parser_context_->parsers()[t].get(), &resizers_[t],
-          &serializers_[t], parser_context_->mutable_buffers(),
-          parser_context_->mutexes(), output_queue_, shutdown_, std::move(m));
+          OneToOneConvertThread, t, parser_context_->parsers()[t].get(), resizers_[t],
+          serializers_[t], parser_context_->mutable_buffers(), parser_context_->mutexes(),
+          output_queue_, shutdown_, std::move(m));
     }
   } else if (num_threads_ == 1) {
     SPDLOG_DEBUG("Spawning one many-to-one parser thread.");
@@ -338,7 +340,7 @@ auto Converter::Start(std::atomic<bool>* shutdown) -> Status {
     std::promise<Metrics> m;
     metrics_futures_.push_back(m.get_future());
     threads_.emplace_back(AllToOneConverterThread, 0, parser_context_->parsers()[0].get(),
-                          &resizers_[0], &serializers_[0],
+                          resizers_[0], serializers_[0],
                           parser_context_->mutable_buffers(), parser_context_->mutexes(),
                           output_queue_, shutdown_, std::move(m));
   }
@@ -368,8 +370,8 @@ auto Converter::Finish() -> MultiThreadStatus {
 auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
                      std::shared_ptr<Converter>* out) -> Status {
   std::shared_ptr<parse::ParserContext> parser_context;
-  std::vector<Resizer> resizers;
-  std::vector<Serializer> serializers;
+  std::vector<std::shared_ptr<Resizer>> resizers;
+  std::vector<std::shared_ptr<Serializer>> serializers;
 
   // Determine which parser and allocator implementation to use.
   switch (opts.parser.impl) {
@@ -410,8 +412,16 @@ auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
 
   // Set up Resizers and Serializers.
   for (size_t t = 0; t < num_threads; t++) {
-    resizers.emplace_back(opts.max_batch_rows);
-    serializers.emplace_back(opts.max_ipc_size);
+    if (!opts.mock_resize) {
+      resizers.push_back(std::make_shared<Resizer>(opts.max_batch_rows));
+    } else {
+      resizers.push_back(std::make_shared<ResizerMock>());
+    }
+    if (!opts.mock_serialize) {
+      serializers.push_back(std::make_shared<Serializer>(opts.max_ipc_size));
+    } else {
+      serializers.push_back(std::make_shared<SerializerMock>());
+    }
   }
 
   // Create the converter.
@@ -428,8 +438,8 @@ auto Converter::parser_context() const -> std::shared_ptr<parse::ParserContext> 
 }
 
 Converter::Converter(std::shared_ptr<parse::ParserContext> parser_context,
-                     std::vector<convert::Resizer> resizers,
-                     std::vector<convert::Serializer> serializers,
+                     std::vector<std::shared_ptr<convert::Resizer>> resizers,
+                     std::vector<std::shared_ptr<convert::Serializer>> serializers,
                      publish::IpcQueue* output_queue, size_t num_threads)
     : parser_context_(std::move(parser_context)),
       resizers_(std::move(resizers)),

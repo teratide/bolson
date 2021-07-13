@@ -61,12 +61,17 @@ static void AddBenchOptionsToCLI(CLI::App* bench, BenchOptions* out) {
                    "Approximate number of JSON bytes in total. If this is set to zero, "
                    "fill up input buffers until they are full.")
       ->default_val(0);
+  bench_conv
+      ->add_flag("--parse-only", out->convert.parse_only,
+                 "Only parse, skip resizing and serialization.")
+      ->default_val(false);
   bench_conv->add_option("--seed", out->convert.generate.seed, "Generation seed.")
       ->default_val(0);
-  bench_conv->add_option("--latency", out->convert.latency_file,
-                         "Enable batch latency measurements and write to supplied file.");
+  bench_conv->add_option(
+      "--latency", out->convert.latency_file,
+      "When set, record batch latency measurements and write to supplied file.");
   bench_conv->add_option("--metrics", out->convert.metrics_file,
-                         "Write other metrics to supplied file.");
+                         "When set, write other metrics to supplied file.");
   bench_conv
       ->add_option("--repeats", out->convert.repeats,
                    "Number of time to repeat parsing the same input.")

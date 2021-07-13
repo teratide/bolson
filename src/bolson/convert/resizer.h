@@ -42,10 +42,17 @@ class Resizer {
    * \param out The resized RecordBatches.
    * \return Status::OK() if successful, some error otherwise.
    */
-  auto Resize(const parse::ParsedBatch& in, ResizedBatches* out) -> Status;
+  virtual auto Resize(const parse::ParsedBatch& in, ResizedBatches* out) const -> Status;
 
- private:
+ protected:
   size_t max_rows;
+};
+
+/// \brief A resizer that doesn't do anything, for benchmarking purposes.
+class ResizerMock : public Resizer {
+ public:
+  ResizerMock() : Resizer(0) {}
+  auto Resize(const parse::ParsedBatch& in, ResizedBatches* out) const -> Status override;
 };
 
 }  // namespace bolson::convert

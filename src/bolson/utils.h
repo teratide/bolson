@@ -16,6 +16,7 @@
 
 #include <arrow/api.h>
 
+#include <charconv>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -75,6 +76,44 @@ auto Aggregate(const std::vector<T>& items) -> T {
     result += i;
   }
   return result;
+}
+
+/**
+ * @brief Parse a string to a number with a potential scaling factor.
+ * @param input     The input string.
+ * @param output    The output value.
+ * @return Status::OK() if successful, some error otherwise.
+ */
+template <typename T>
+auto ParseWithScale(const std::string& input, T* output) -> Status {
+  T num = 0;
+  auto fcr = std::from_chars(input.data(), input.data() + input.size(), num);
+  // skip potential whitespaces.
+  while (*fcr.ptr == ' ') {
+    fcr.ptr++;
+  }
+  auto scale = input.substr(fcr.ptr - input.data());
+
+  if (scale.empty()) {
+    // do nothing
+  } else if (scale == "Ki") {
+    num = num << 10;
+  } else if (scale == "Mi") {
+    num = num << 20;
+  } else if (scale == "Gi") {
+    num = num << 30;
+  } else if (scale == "K") {
+    num = num * 1000;
+  } else if (scale == "M") {
+    num = num * 1000 * 1000;
+  } else if (scale == "G") {
+    num = num * 1000 * 1000 * 1000;
+  } else {
+    return Status(Error::CLIError, "Unexpected scaling factor: " + scale +
+                                       ". Accepts only Ki, Mi, Gi, K, M, or G");
+  }
+  *output = num;
+  return Status::OK();
 }
 
 }  // namespace bolson

@@ -63,7 +63,8 @@ class Serializer {
    * \param out The serialized RecordBatches.
    * \return Status::OK() if successful, some error otherwise.
    */
-  auto Serialize(const ResizedBatches& in, SerializedBatches* out) -> Status;
+  virtual auto Serialize(const ResizedBatches& in, SerializedBatches* out) const
+      -> Status;
 
  private:
   /// Options for Arrow's IPC writer.
@@ -71,6 +72,14 @@ class Serializer {
 
   /// Maximum IPC size. Serialize() will return an Error if this is exceeded.
   size_t max_ipc_size;
+};
+
+/// \brief A serializer that doesn't do anything, for benchmarking purposes.
+class SerializerMock : public Serializer {
+ public:
+  SerializerMock() : Serializer(0) {}
+  auto Serialize(const ResizedBatches& in, SerializedBatches* out) const
+      -> Status override;
 };
 
 }  // namespace bolson::convert

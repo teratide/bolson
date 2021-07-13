@@ -18,7 +18,6 @@
 #include <illex/arrow.h>
 #include <putong/timer.h>
 
-#include <charconv>
 #include <iostream>
 #include <memory>
 #include <thread>
@@ -333,24 +332,9 @@ auto RunBench(const BenchOptions& opt) -> Status {
 }
 
 auto ConvertBenchOptions::ParseInput() -> Status {
-  size_t bytes = 0;
-  auto fcr = std::from_chars(
-      approx_total_bytes_str.data(),
-      approx_total_bytes_str.data() + approx_total_bytes_str.size(), bytes);
-  auto scale = approx_total_bytes_str.substr(fcr.ptr - approx_total_bytes_str.data());
-
-  if (scale.empty()) {
-    approx_total_bytes = bytes;
-  } else if (scale == "Ki") {
-    approx_total_bytes = bytes << 10;
-  } else if (scale == "Mi") {
-    approx_total_bytes = bytes << 20;
-  } else if (scale == "Gi") {
-    approx_total_bytes = bytes << 30;
-  } else {
-    return Status(Error::CLIError, "Unexpected scaling factor: " + scale +
-                                       ". Accepts only <n>Ki, <n>Mi, or <n>Gi");
-  }
+  this->converter.mock_serialize = this->parse_only;
+  this->converter.mock_resize = this->parse_only;
+  BOLSON_ROE(ParseWithScale(this->approx_total_bytes_str, &this->approx_total_bytes));
   return Status::OK();
 }
 

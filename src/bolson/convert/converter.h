@@ -45,6 +45,11 @@ struct ConverterOptions {
   /// Maximum number of rows in a RecordBatch.
   size_t max_batch_rows = 0;
 
+  /// Use a no-op resizer.
+  bool mock_resize = false;
+  /// Use a no-op serializer;
+  bool mock_serialize = false;
+
   /// Parser options.
   parse::ParserOptions parser;
 };
@@ -98,9 +103,9 @@ class Converter {
  protected:
   /// Converter constructor.
   Converter(std::shared_ptr<parse::ParserContext> parser_context,
-            std::vector<convert::Resizer> resizers,
-            std::vector<convert::Serializer> serializers, publish::IpcQueue* output_queue,
-            size_t num_threads = 1);
+            std::vector<std::shared_ptr<convert::Resizer>> resizers,
+            std::vector<std::shared_ptr<convert::Serializer>> serializers,
+            publish::IpcQueue* output_queue, size_t num_threads = 1);
 
   /// The output queue.
   publish::IpcQueue* output_queue_ = nullptr;
@@ -113,9 +118,9 @@ class Converter {
   /// Parser manager implementations.
   std::shared_ptr<parse::ParserContext> parser_context_;
   /// Resizer instances.
-  std::vector<convert::Resizer> resizers_;
+  std::vector<std::shared_ptr<convert::Resizer>> resizers_;
   /// Serializer instances.
-  std::vector<convert::Serializer> serializers_;
+  std::vector<std::shared_ptr<convert::Serializer>> serializers_;
   /// Metrics of converter thread(s).
   std::vector<Metrics> metrics_;
   /// Metrics futures of running threads.

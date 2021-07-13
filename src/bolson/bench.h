@@ -46,6 +46,8 @@ struct ConvertBenchOptions {
   std::string metrics_file;
   /// Number of times to repeat the measurement.
   size_t repeats = 1;
+  /// Parse only, make resize and serialize a no-op.
+  bool parse_only = false;
 
   /// @brief Parse string-based options.
   auto ParseInput() -> Status;
