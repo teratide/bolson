@@ -31,9 +31,9 @@
 
 namespace bolson {
 
-static auto FillBuffer(const arrow::Schema& schema,
+static void FillBuffer(const arrow::Schema& schema,
                        const illex::GenerateOptions& gen_opts, illex::JSONBuffer* buffer,
-                       size_t max_json_bytes = 0, size_t start_seq = 0) -> Status {
+                       Status* status, size_t max_json_bytes) {
   // Set up generator.
   auto gen = illex::FromArrowSchema(schema, gen_opts);
   // Get start and end pointers.
@@ -69,11 +69,12 @@ static auto FillBuffer(const arrow::Schema& schema,
   // Update buffer properties
   auto ret = buffer->SetSize(num_bytes);
   if (!ret.ok()) {
-    return Status(Error::IllexError, ret.msg());
+    *status = Status(Error::IllexError, ret.msg());
+    return;
   }
-  buffer->SetRange({start_seq, start_seq + num_jsons - 1});
+  buffer->SetRange({0, num_jsons - 1});
 
-  return Status::OK();
+  *status = Status::OK();
 }
 
 static auto FillBuffers(const arrow::Schema& schema,
@@ -96,25 +97,32 @@ static auto FillBuffers(const arrow::Schema& schema,
     }
   }
 
-  int seed = gen_opts.seed;
-  size_t next_seq = 0;
-  *gen_bytes = 0;
-  *gen_jsons = 0;
+  // Prepare inputs for generation.
+  std::vector<illex::GenerateOptions> t_opts;
+  MultiThreadStatus t_status(buffers.size());
   for (size_t i = 0; i < buffers.size(); i++) {
-    auto& buf = buffers[i];
-    // Copy the options to modify the seed for each buffer.
     illex::GenerateOptions bfo = gen_opts;
-    bfo.seed = seed;
-    seed += 42;
-    // Fill the buffer.
-    BOLSON_ROE(FillBuffer(schema, bfo, buf, approx_bytes_per_buffer, next_seq));
-    // Update the number of bytes and JSONs.
-    *gen_bytes += buf->size();
-    *gen_jsons += buf->num_jsons();
-    SPDLOG_DEBUG("Filled buffer {} with {} JSONs, {} bytes.", i, buf->num_jsons(),
-                 buf->size());
-    // Determine the sequence number for the next buffer.
-    next_seq = buf->range().last + 1;
+    bfo.seed = static_cast<int32_t>(i) * 42;
+    t_opts.push_back(bfo);
+  }
+
+  std::vector<std::thread> threads;
+
+  for (size_t i = 0; i < buffers.size(); i++) {
+    threads.emplace_back(FillBuffer, std::ref(schema), std::ref(t_opts[i]),
+                         std::ref(buffers[i]), &t_status[i], approx_bytes_per_buffer);
+  }
+
+  // Wait for threads to fill buffers.
+  for (size_t i = 0; i < buffers.size(); i++) {
+    threads[i].join();
+  }
+  BOLSON_ROE(Aggregate(t_status));
+
+  for (auto& buffer : buffers) {
+    *gen_jsons += buffer->num_jsons();
+    *gen_bytes += buffer->size();
+    buffer->SetRange({*gen_jsons, *gen_jsons + buffer->num_jsons() - 1});
   }
 
   return Status::OK();
