@@ -20,6 +20,7 @@
 #include <arrow/json/api.h>
 
 #include <CLI/CLI.hpp>
+#include <algorithm>
 #include <memory>
 #include <string_view>
 
@@ -123,10 +124,14 @@ auto ArrowParser::Parse(const std::vector<illex::JSONBuffer*>& buffers_in,
 
     auto tr_read_result = t_reader->Read();
     if (!tr_read_result.ok()) {
-      SPDLOG_DEBUG("Encountered error while parsing: {}",
-                   std::string(reinterpret_cast<const char*>(in->data()), in->size()));
-      return Status(Error::ArrowError, "Unable to read JSONs to RecordBatch(es): " +
-                                           tr_read_result.status().message());
+      SPDLOG_DEBUG(
+          "Encountered error while parsing (showing at most 256 characters...): {}",
+          std::string(reinterpret_cast<const char*>(in->data()),
+                      std::min(in->size(), static_cast<size_t>(256))));
+      return Status(
+          Error::ArrowError,
+          "Unable to read " + std::to_string(in->num_jsons()) +
+              " JSONs to RecordBatch(es): " + tr_read_result.status().message());
     }
     auto table = tr_read_result.ValueOrDie();
 
