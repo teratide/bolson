@@ -31,7 +31,7 @@ RUN apt-get update && \
 
 FROM ubuntu as deps
 # ARG ARROW_VERSION=3.0.0
-ARG PULSAR_VERSION=2.7.0
+ARG PULSAR_VERSION=2.8.0
 ENV PULSAR_VERSION ${PULSAR_VERSION}
 ARG FLETCHER_VERSION=0.0.19
 ARG FLETCHER_OPAE_VERSION=0.2.1
@@ -41,7 +41,7 @@ RUN apt-get update && \
     apt-get install -y curl wget lsb-release gnupg cmake g++ make git && \
     git clone --single-branch --branch 3.0-with-fixed-size-list-json https://github.com/johanpel/arrow.git /arrow && \
     cd /arrow/cpp && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DARROW_JSON=ON . && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DARROW_JSON=ON -DARROW_COMPUTE=ON. && \
     make -j4 && \
     make install && \
     rm -rf /arrow && \
