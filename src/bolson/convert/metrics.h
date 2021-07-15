@@ -32,6 +32,8 @@ struct Metrics {
   size_t num_json_bytes_converted = 0;
   /// Number of buffers converted.
   size_t num_buffers_converted = 0;
+  /// Number of bytes in the RecordBatches
+  size_t num_recordbatch_bytes = 0;
   /// Number of IPC messages.
   size_t num_ipc = 0;
   /// Number of bytes in the IPC messages.

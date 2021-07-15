@@ -37,6 +37,17 @@ namespace bolson {
 auto GetArrayDataSize(const std::shared_ptr<arrow::ArrayData>& array_data) -> int64_t;
 
 /**
+ * \brief Returns the total size in memory of the data in a RecordBatch.
+ *
+ * Only includes buffer contents, not the buffer or array or recordbatch objects
+ * themselves.
+ *
+ * @param batch A reference to a shared pointer holding a RecordBatch.
+ * @return The number of bytes of all data in all underlying buffers of the RecordBatch.
+ */
+auto GetBatchSize(const std::shared_ptr<arrow::RecordBatch>& batch) -> int64_t;
+
+/**
  * \brief Convert a vector of T to a vector with pointers to each T.
  * \tparam T    The type of the items in the vector.
  * \param vec   The vector.

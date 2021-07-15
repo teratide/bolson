@@ -112,6 +112,7 @@ static void OneToOneConvertThread(size_t id, parse::Parser* parser,
           // Add metrics before buffer is converted and reset.
           metrics.num_jsons_converted += parsed_batches[0].batch->num_rows();
           metrics.num_json_bytes_converted += buf->size();
+          metrics.num_recordbatch_bytes += GetBatchSize(parsed_batches[0].batch);
           metrics.num_buffers_converted++;
           // Reset and unlock the buffer.
           buf->Reset();
@@ -242,6 +243,7 @@ static void AllToOneConverterThread(size_t id, parse::Parser* parser,
         // Update metrics
         metrics.num_jsons_converted += parsed_batches[0].batch->num_rows();
         metrics.num_buffers_converted += buffers.size();
+        metrics.num_recordbatch_bytes += GetBatchSize(parsed_batches[0].batch);
 
         lat[TimePoints::received] = buffers[0]->recv_time();  // init with first buf time
         for (int i = 0; i < buffers.size(); i++) {
