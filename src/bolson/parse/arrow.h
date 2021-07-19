@@ -27,8 +27,6 @@
 #include "bolson/status.h"
 #include "bolson/utils.h"
 
-#define BOLSON_ARROW_DEFAULT_BUFFER_CAP (16 * 1024 * 1024)
-
 namespace bolson::parse {
 
 /**
