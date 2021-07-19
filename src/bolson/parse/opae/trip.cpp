@@ -567,12 +567,12 @@ static auto FixResult(const std::shared_ptr<arrow::RecordBatch>& batch,
 
   do {
     // status reg @ offset 1
-    ReadMMIO(platform_, OPAE_MMIO_OFFSET + 1, &status, 0, "Status");
+    ReadMMIO(platform_, 1, &status, 0, "Status");
 #ifndef NDEBUG
     uint64_t bytes_consumed = 0;
     for (int i = 0; i < num_hardware_parsers_; i++) {
       uint32_t bc = 0;
-      BOLSON_ROE(ReadMMIO(platform_, OPAE_MMIO_OFFSET + bytes_consumed_offset(i), &bc, 0,
+      BOLSON_ROE(ReadMMIO(platform_, bytes_consumed_offset(i), &bc, 0,
                           "Bytes consumed " + std::to_string(i)));
       SPDLOG_DEBUG("TripParser | Parser {:2} bytes consumed: {}/{}", i, bc,
                    in[i]->size());
@@ -609,18 +609,18 @@ static auto FixResult(const std::shared_ptr<arrow::RecordBatch>& batch,
 auto TripParser::WriteInputMetaData(fletcher::Platform* platform, illex::JSONBuffer* in,
                                     size_t idx) -> Status {
   // rewrite the input last index because of opae limitations.
-  BOLSON_ROE(WriteMMIO(platform, OPAE_MMIO_OFFSET + input_lastidx_offset(idx),
+  BOLSON_ROE(WriteMMIO(platform, input_lastidx_offset(idx),
                        static_cast<uint32_t>(in->size()), idx, "input last idx"));
 
   dau_t input_addr;
   input_addr.full = h2d_addr_map->at(in->data());
 
-  BOLSON_ROE(WriteMMIO(platform, OPAE_MMIO_OFFSET + input_values_lo_offset(idx),
+  BOLSON_ROE(WriteMMIO(platform, input_values_lo_offset(idx),
                        input_addr.lo, idx, "input values addr lo"));
-  BOLSON_ROE(WriteMMIO(platform, OPAE_MMIO_OFFSET + input_values_hi_offset(idx),
+  BOLSON_ROE(WriteMMIO(platform, input_values_hi_offset(idx),
                        input_addr.hi, idx, "input values addr hi"));
 
-  BOLSON_ROE(WriteMMIO(platform, OPAE_MMIO_OFFSET + tag_offset(idx), idx, idx, "tag"));
+  BOLSON_ROE(WriteMMIO(platform, tag_offset(idx), idx, idx, "tag"));
 
   return Status::OK();
 }
