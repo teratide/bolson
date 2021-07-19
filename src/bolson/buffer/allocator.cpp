@@ -22,7 +22,7 @@
 namespace bolson::buffer {
 
 auto Allocator::Allocate(size_t size, std::byte** out) -> Status {
-  *out = static_cast<std::byte*>(malloc(size));
+  *out = static_cast<std::byte*>(std::malloc(size));
   if (*out == nullptr) {
     return Status(Error::GenericError,
                   "Unable to allocate " + std::to_string(size) + " bytes.");

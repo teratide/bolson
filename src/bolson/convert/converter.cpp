@@ -382,8 +382,8 @@ auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
                                                  opts.input_size, &parser_context));
       break;
     case parse::Impl::OPAE_BATTERY:
-      BOLSON_ROE(parse::opae::BatteryParserContext::Make(opts.parser.opae_battery,
-                                                         &parser_context));
+      BOLSON_ROE(parse::opae::BatteryParserContext::Make(
+          opts.parser.opae_battery, opts.input_size, &parser_context));
       break;
     case parse::Impl::OPAE_TRIP:
       BOLSON_ROE(

@@ -129,8 +129,8 @@ class BatteryParser : public Parser {
 
 class BatteryParserContext : public ParserContext {
  public:
-  static auto Make(const BatteryOptions& opts, std::shared_ptr<ParserContext>* out)
-      -> Status;
+  static auto Make(const BatteryOptions& opts, size_t input_size,
+                   std::shared_ptr<ParserContext>* out) -> Status;
 
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;
   [[nodiscard]] auto CheckThreadCount(size_t num_threads) const -> size_t override;

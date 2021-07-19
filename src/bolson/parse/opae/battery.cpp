@@ -77,7 +77,7 @@ auto BatteryParserContext::PrepareOutputBatches() -> Status {
   return Status::OK();
 }
 
-auto BatteryParserContext::Make(const BatteryOptions& opts,
+auto BatteryParserContext::Make(const BatteryOptions& opts, size_t input_size,
                                 std::shared_ptr<ParserContext>* out) -> Status {
   std::string afu_id;
   DeriveAFUID(opts.afu_id, BOLSON_DEFAULT_OPAE_BATTERY_AFUID, opts.num_parsers, &afu_id);
@@ -98,7 +98,7 @@ auto BatteryParserContext::Make(const BatteryOptions& opts,
 
   // Allocate input buffers.
   BOLSON_ROE(result->AllocateBuffers(result->num_parsers_,
-                                     result->allocator_->fixed_capacity()));
+                                     DivideCeil(input_size, result->num_parsers_)));
 
   // Pull everything through the fletcher stack once.
   FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));

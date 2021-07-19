@@ -59,7 +59,7 @@ auto WithSeqField(const arrow::Schema& schema, std::shared_ptr<arrow::Schema>* o
   return Status::OK();
 }
 
-auto ParserContext::AllocateBuffers(size_t num_buffers, size_t capacity) -> Status {
+auto ParserContext::AllocateBuffers(size_t num_buffers, size_t size) -> Status {
   // Sanity check.
   if (allocator_ == nullptr) {
     return Status(Error::GenericError,
@@ -68,9 +68,9 @@ auto ParserContext::AllocateBuffers(size_t num_buffers, size_t capacity) -> Stat
   // Allocate all buffers and create mutexes.
   for (size_t b = 0; b < num_buffers; b++) {
     std::byte* raw = nullptr;
-    BOLSON_ROE(allocator_->Allocate(capacity, &raw));
+    BOLSON_ROE(allocator_->Allocate(size, &raw));
     illex::JSONBuffer buf;
-    BILLEX_ROE(illex::JSONBuffer::Create(raw, capacity, &buf));
+    BILLEX_ROE(illex::JSONBuffer::Create(raw, size, &buf));
     buffers_.push_back(buf);
   }
 

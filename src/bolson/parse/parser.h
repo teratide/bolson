@@ -103,7 +103,7 @@ class ParserContext {
   void UnlockBuffers();
 
  protected:
-  virtual auto AllocateBuffers(size_t num_buffers, size_t capacity) -> Status;
+  virtual auto AllocateBuffers(size_t num_buffers, size_t size) -> Status;
   virtual auto FreeBuffers() -> Status;
 
   // The allocator used for the buffers.
