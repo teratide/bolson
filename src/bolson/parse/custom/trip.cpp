@@ -316,7 +316,7 @@ void AddTripOptionsToCLI(CLI::App* sub, TripOptions* out) {
   sub->add_option("--custom-trip-pre-alloc-records", out->pre_alloc_records,
                   "Pre-allocate this many records.")
       ->default_val(1024);
-  sub->add_option("--custom-battery-pre-alloc-timestamp-values",
+  sub->add_option("--custom-trip-pre-alloc-timestamp-values",
                   out->pre_alloc_timestamp_values,
                   "Pre-allocate this many values in the string values buffer for the "
                   "timestamp field.")
