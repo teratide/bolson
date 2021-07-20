@@ -713,7 +713,6 @@ auto TripParserContext::CheckBufferCount(size_t num_buffers) const -> size_t {
 
 auto TripParserContext::Make(const TripOptions& opts, size_t input_size,
                              std::shared_ptr<ParserContext>* out) -> Status {
-  std::string afu_id;
   // Create and set up result.
   auto result = std::shared_ptr<TripParserContext>(new TripParserContext(opts));
   SPDLOG_DEBUG("TripParserContext | Setting up for {} parsers.", result->num_parsers_);

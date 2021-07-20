@@ -57,15 +57,14 @@ struct ParserOptions {
         {"custom-battery", parse::Impl::CUSTOM_BATTERY},
         {"custom-trip", parse::Impl::CUSTOM_TRIP},
         {"fpga-battery", parse::Impl::FPGA_BATTERY},
-        {"fpga-trip", parse::Impl::FPGA_BATTERY}};
+        {"fpga-trip", parse::Impl::FPGA_TRIP}};
     return result;
   }
 };
 
 inline void AddParserOptions(CLI::App* sub, ParserOptions* opts) {
   sub->add_option("-p,--parser", opts->impl,
-                  "Parser implementation. FPGA parsers have fixed schema and ignore "
-                  "schema supplied to -i.")
+                  "Parser implementation. FPGA parsers have fixed schema.")
       ->transform(CLI::CheckedTransformer(ParserOptions::impls_map(), CLI::ignore_case))
       ->default_val(parse::Impl::ARROW);
 

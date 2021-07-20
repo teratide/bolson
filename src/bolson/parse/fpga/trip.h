@@ -36,8 +36,6 @@ struct TripOptions {
 
 void AddTripOptionsToCLI(CLI::App* sub, TripOptions* out);
 
-using AddrMap = std::unordered_map<const std::byte*, da_t>;
-
 /**
  * \brief Host-side representation of the N:1 hardware parsers for trip report.
  */
