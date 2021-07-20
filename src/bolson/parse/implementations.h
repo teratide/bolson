@@ -20,6 +20,7 @@
 #include "bolson/parse/custom/battery.h"
 #include "bolson/parse/custom/trip.h"
 #include "bolson/parse/fpga/battery.h"
+#include "bolson/parse/fpga/trip.h"
 #include "bolson/parse/opae/battery.h"
 #include "bolson/parse/opae/trip.h"
 
@@ -33,6 +34,7 @@ enum class Impl {
   CUSTOM_BATTERY,  ///< A hand-optimized CPU converter for the "battery status" schema
   CUSTOM_TRIP,     ///< A hand-optimized CPU converter for the "battery status" schema
   FPGA_BATTERY,    ///< An FPGA version for the "battery status" schema using Fletcher.
+  FPGA_TRIP,       ///< An FPGA version for the "trip report" schema using Fletcher.
 };
 
 /// All parser options.
@@ -45,6 +47,7 @@ struct ParserOptions {
   custom::BatteryOptions custom_battery;
   custom::TripOptions custom_trip;
   fpga::BatteryOptions fpga_battery;
+  fpga::TripOptions fpga_trip;
 
   static auto impls_map() -> std::map<std::string, parse::Impl> {
     static std::map<std::string, parse::Impl> result = {
@@ -53,7 +56,8 @@ struct ParserOptions {
         {"opae-trip", parse::Impl::OPAE_TRIP},
         {"custom-battery", parse::Impl::CUSTOM_BATTERY},
         {"custom-trip", parse::Impl::CUSTOM_TRIP},
-        {"fpga-battery", parse::Impl::FPGA_BATTERY}};
+        {"fpga-battery", parse::Impl::FPGA_BATTERY},
+        {"fpga-trip", parse::Impl::FPGA_BATTERY}};
     return result;
   }
 };
@@ -71,6 +75,7 @@ inline void AddParserOptions(CLI::App* sub, ParserOptions* opts) {
   parse::custom::AddBatteryOptionsToCLI(sub, &opts->custom_battery);
   parse::custom::AddTripOptionsToCLI(sub, &opts->custom_trip);
   parse::fpga::AddBatteryOptionsToCLI(sub, &opts->fpga_battery);
+  parse::fpga::AddTripOptionsToCLI(sub, &opts->fpga_trip);
 }
 
 inline auto ToString(const Impl& impl) -> std::string {
@@ -87,6 +92,8 @@ inline auto ToString(const Impl& impl) -> std::string {
       return "Custom trip report (CPU)";
     case Impl::FPGA_BATTERY:
       return "Fletcher battery status (FPGA)";
+    case Impl::FPGA_TRIP:
+      return "Fletcher trip report (FPGA)";
   }
   // C++ why
   return "Corrupt bolson::parse::Impl enum value.";

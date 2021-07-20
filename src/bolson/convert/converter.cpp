@@ -402,6 +402,10 @@ auto Converter::Make(const ConverterOptions& opts, publish::IpcQueue* ipc_queue,
       BOLSON_ROE(parse::fpga::BatteryParserContext::Make(
           opts.parser.fpga_battery, opts.input_size, &parser_context));
       break;
+    case parse::Impl::FPGA_TRIP:
+      BOLSON_ROE(parse::fpga::TripParserContext::Make(opts.parser.fpga_trip,
+                                                      opts.input_size, &parser_context));
+      break;
   }
 
   assert(parser_context != nullptr);

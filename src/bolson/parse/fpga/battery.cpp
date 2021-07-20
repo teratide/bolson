@@ -80,9 +80,8 @@ auto BatteryParserContext::Make(const BatteryOptions& opts, size_t input_size,
   auto result = std::shared_ptr<BatteryParserContext>(new BatteryParserContext(opts));
   SPDLOG_DEBUG("BatteryParserContext | Setting up for {} parsers.", result->num_parsers_);
 
-  FLETCHER_ROE(fletcher::Platform::Make(&result->platform, false));
-
   // Initialize the platform.
+  FLETCHER_ROE(fletcher::Platform::Make(&result->platform, false));
   FLETCHER_ROE(result->platform->Init());
 
   // Allocate input buffers.

@@ -100,6 +100,7 @@ add_compile_unit(
     src/bolson/parse/custom/trip.cpp
     src/bolson/parse/fpga/battery.cpp
     src/bolson/parse/fpga/common.cpp
+    src/bolson/parse/fpga/trip.cpp
     src/bolson/parse/opae/battery.cpp
     src/bolson/parse/opae/opae.cpp
     src/bolson/parse/opae/trip.cpp
