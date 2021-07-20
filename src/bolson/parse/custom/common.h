@@ -88,7 +88,7 @@ inline auto EatUInt64(const char* pos, const char* end, arrow::UInt64Builder* bu
     case std::errc::result_out_of_range:
       throw std::runtime_error("Value out of range:" + std::string(pos, end));
   }
-  builder->Append(val);
+  ARROW_TOE(builder->Append(val));
   return fc_result.ptr;
 }
 
@@ -147,7 +147,7 @@ inline auto EatUInt64Array(const char* pos, const char* end,
                            arrow::ListBuilder* list_builder,
                            arrow::UInt64Builder* values_builder) -> const char* {
   pos = EatArrayStart(pos, end);  // [
-  list_builder->Append();
+  ARROW_TOE(list_builder->Append());
   // Scan values
   while (true) {
     pos = EatWhitespace(pos, end);
@@ -175,7 +175,7 @@ inline auto EatUInt64ArrayUnsafe(const char* pos, const char* end,
                                  arrow::ListBuilder* list_builder,
                                  arrow::UInt64Builder* values_builder) -> const char* {
   pos = EatArrayStart(pos, end);  // [
-  list_builder->Append();
+  ARROW_TOE(list_builder->Append());
   // Scan values
   while (true) {
     pos = EatWhitespace(pos, end);
@@ -199,12 +199,40 @@ inline auto EatUInt64ArrayUnsafe(const char* pos, const char* end,
   return pos;
 }
 
+inline auto EatUInt64FixedSizeArray(const char* pos, const char* end,
+                                    arrow::FixedSizeListBuilder* list_builder,
+                                    arrow::UInt64Builder* values_builder) -> const char* {
+  pos = EatArrayStart(pos, end);  // [
+  ARROW_TOE(list_builder->Append());
+  // Scan values
+  while (true) {
+    pos = EatWhitespace(pos, end);
+    if (pos > end) {
+      throw std::runtime_error(
+          "Unexpected end of JSON data while parsing array values..");
+    } else if (*pos == ']') {  // Check array end
+      pos++;
+      break;
+    } else {  // Parse values
+      uint64_t val = 0;
+      pos = EatUInt64(pos, end, values_builder);
+      if (*pos == ',') {
+        pos++;
+      }
+    }
+  }
+  if (pos >= end) {
+    return nullptr;
+  }
+  return pos;
+}
+
 inline auto EatUInt64FixedSizeArrayUnsafe(const char* pos, const char* end,
                                           arrow::FixedSizeListBuilder* list_builder,
                                           arrow::UInt64Builder* values_builder) -> const
     char* {
   pos = EatArrayStart(pos, end);  // [
-  list_builder->Append();
+  ARROW_TOE(list_builder->Append());
   // Scan values
   while (true) {
     pos = EatWhitespace(pos, end);
@@ -236,7 +264,7 @@ inline auto EatStringWithoutEscapes(const char* pos, const char* end,
   auto* str_end = std::strchr(pos, '"');  // find last "
 
   if (str_end != nullptr) {
-    string_builder->Append(arrow::util::string_view(pos, str_end - pos));
+    ARROW_TOE(string_builder->Append(arrow::util::string_view(pos, str_end - pos)));
     pos = str_end + 1;
   } else {
     return nullptr;
@@ -244,6 +272,22 @@ inline auto EatStringWithoutEscapes(const char* pos, const char* end,
 
   if (pos >= end) {
     return nullptr;
+  }
+  return pos;
+}
+
+inline auto EatUInt64Member(const char* pos, const char* end, const char* key,
+                            arrow::UInt64Builder* builder, bool eat_member_sep = false)
+    -> const char* {
+  pos = EatMemberKey(pos, end, key);
+  pos = EatWhitespace(pos, end);
+  pos = EatMemberKeyValueSeperator(pos, end);
+  pos = EatWhitespace(pos, end);
+  pos = EatUInt64(pos, end, builder);
+  pos = EatWhitespace(pos, end);
+  if (eat_member_sep) {
+    pos = EatChar(pos, end, ',');
+    pos = EatWhitespace(pos, end);
   }
   return pos;
 }
@@ -264,6 +308,22 @@ inline auto EatUInt64MemberUnsafe(const char* pos, const char* end, const char* 
   return pos;
 }
 
+inline auto EatBoolMember(const char* pos, const char* end, const char* key,
+                          arrow::BooleanBuilder* builder, bool eat_member_sep = false)
+    -> const char* {
+  pos = EatMemberKey(pos, end, key);
+  pos = EatWhitespace(pos, end);
+  pos = EatMemberKeyValueSeperator(pos, end);
+  pos = EatWhitespace(pos, end);
+  pos = EatBool(pos, end, builder);
+  pos = EatWhitespace(pos, end);
+  if (eat_member_sep) {
+    pos = EatChar(pos, end, ',');
+    pos = EatWhitespace(pos, end);
+  }
+  return pos;
+}
+
 inline auto EatBoolMemberUnsafe(const char* pos, const char* end, const char* key,
                                 arrow::BooleanBuilder* builder,
                                 bool eat_member_sep = false) -> const char* {
@@ -272,6 +332,24 @@ inline auto EatBoolMemberUnsafe(const char* pos, const char* end, const char* ke
   pos = EatMemberKeyValueSeperator(pos, end);
   pos = EatWhitespace(pos, end);
   pos = EatBoolUnsafe(pos, end, builder);
+  pos = EatWhitespace(pos, end);
+  if (eat_member_sep) {
+    pos = EatChar(pos, end, ',');
+    pos = EatWhitespace(pos, end);
+  }
+  return pos;
+}
+
+inline auto EatUInt64FixedSizeArrayMember(const char* pos, const char* end,
+                                          const char* key,
+                                          arrow::FixedSizeListBuilder* list_builder,
+                                          arrow::UInt64Builder* values_builder,
+                                          bool eat_member_sep = false) -> const char* {
+  pos = EatMemberKey(pos, end, key);
+  pos = EatWhitespace(pos, end);
+  pos = EatMemberKeyValueSeperator(pos, end);
+  pos = EatWhitespace(pos, end);
+  pos = EatUInt64FixedSizeArray(pos, end, list_builder, values_builder);
   pos = EatWhitespace(pos, end);
   if (eat_member_sep) {
     pos = EatChar(pos, end, ',');
@@ -298,4 +376,5 @@ inline auto EatUInt64FixedSizeArrayMemberUnsafe(const char* pos, const char* end
   }
   return pos;
 }
+
 }  // namespace bolson::parse::custom

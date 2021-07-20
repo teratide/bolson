@@ -90,6 +90,7 @@ auto TripParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> 
 
   // Start parsing objects
   while ((pos < end) && (pos != nullptr)) {
+    SPDLOG_DEBUG("Builder status:\n{}", builder.ToString());
     pos = EatObjectStart(pos, end);  // {
     pos = EatWhitespace(pos, end);
 
@@ -101,59 +102,58 @@ auto TripParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> 
     pos = EatWhitespace(pos, end);
     pos = EatChar(pos, end, ',');
 
-    pos = EatUInt64MemberUnsafe(pos, end, "timezone", builder.timezone.get(), true);
-    pos = EatUInt64MemberUnsafe(pos, end, "vin", builder.vin.get(), true);
-    pos = EatUInt64MemberUnsafe(pos, end, "odometer", builder.odometer.get(), true);
-    pos = EatBoolMemberUnsafe(pos, end, "hypermiling", builder.hypermiling.get(), true);
-    pos = EatUInt64MemberUnsafe(pos, end, "avgspeed", builder.avgspeed.get(), true);
+    pos = EatUInt64Member(pos, end, "timezone", builder.timezone.get(), true);
+    pos = EatUInt64Member(pos, end, "vin", builder.vin.get(), true);
+    pos = EatUInt64Member(pos, end, "odometer", builder.odometer.get(), true);
+    pos = EatBoolMember(pos, end, "hypermiling", builder.hypermiling.get(), true);
+    pos = EatUInt64Member(pos, end, "avgspeed", builder.avgspeed.get(), true);
 
     // todo: make macros
-    pos = EatUInt64FixedSizeArrayMemberUnsafe(
+    pos = EatUInt64FixedSizeArrayMember(
         pos, end, "sec_in_band", builder.sec_in_band.get(),
         reinterpret_cast<arrow::UInt64Builder*>(builder.sec_in_band->value_builder()),
         true);
-    pos = EatUInt64FixedSizeArrayMemberUnsafe(
-        pos, end, "miles_in_time_range", builder.miles_in_time_range.get(),
-        reinterpret_cast<arrow::UInt64Builder*>(
-            builder.miles_in_time_range->value_builder()),
-        true);
-    pos = EatUInt64FixedSizeArrayMemberUnsafe(
+    pos = EatUInt64FixedSizeArrayMember(pos, end, "miles_in_time_range",
+                                        builder.miles_in_time_range.get(),
+                                        reinterpret_cast<arrow::UInt64Builder*>(
+                                            builder.miles_in_time_range->value_builder()),
+                                        true);
+    pos = EatUInt64FixedSizeArrayMember(
         pos, end, "const_speed_miles_in_band", builder.const_speed_miles_in_band.get(),
         reinterpret_cast<arrow::UInt64Builder*>(
             builder.const_speed_miles_in_band->value_builder()),
         true);
-    pos = EatUInt64FixedSizeArrayMemberUnsafe(
+    pos = EatUInt64FixedSizeArrayMember(
         pos, end, "vary_speed_miles_in_band", builder.vary_speed_miles_in_band.get(),
         reinterpret_cast<arrow::UInt64Builder*>(
             builder.vary_speed_miles_in_band->value_builder()),
         true);
-    pos = EatUInt64FixedSizeArrayMemberUnsafe(
+    pos = EatUInt64FixedSizeArrayMember(
         pos, end, "sec_decel", builder.sec_decel.get(),
         reinterpret_cast<arrow::UInt64Builder*>(builder.sec_decel->value_builder()),
         true);
-    pos = EatUInt64FixedSizeArrayMemberUnsafe(
+    pos = EatUInt64FixedSizeArrayMember(
         pos, end, "sec_accel", builder.sec_accel.get(),
         reinterpret_cast<arrow::UInt64Builder*>(builder.sec_accel->value_builder()),
         true);
-    pos = EatUInt64FixedSizeArrayMemberUnsafe(
+    pos = EatUInt64FixedSizeArrayMember(
         pos, end, "braking", builder.braking.get(),
         reinterpret_cast<arrow::UInt64Builder*>(builder.braking->value_builder()), true);
-    pos = EatUInt64FixedSizeArrayMemberUnsafe(
+    pos = EatUInt64FixedSizeArrayMember(
         pos, end, "accel", builder.accel.get(),
         reinterpret_cast<arrow::UInt64Builder*>(builder.accel->value_builder()), true);
-    pos = EatBoolMemberUnsafe(pos, end, "orientation", builder.orientation.get(), true);
-    pos = EatUInt64FixedSizeArrayMemberUnsafe(
+    pos = EatBoolMember(pos, end, "orientation", builder.orientation.get(), true);
+    pos = EatUInt64FixedSizeArrayMember(
         pos, end, "small_speed_var", builder.small_speed_var.get(),
         reinterpret_cast<arrow::UInt64Builder*>(builder.small_speed_var->value_builder()),
         true);
-    pos = EatUInt64FixedSizeArrayMemberUnsafe(
+    pos = EatUInt64FixedSizeArrayMember(
         pos, end, "large_speed_var", builder.large_speed_var.get(),
         reinterpret_cast<arrow::UInt64Builder*>(builder.large_speed_var->value_builder()),
         true);
 
-    pos = EatUInt64MemberUnsafe(pos, end, "accel_decel", builder.accel_decel.get(), true);
-    pos = EatUInt64MemberUnsafe(pos, end, "speed_changes", builder.speed_changes.get(),
-                                false);
+    pos = EatUInt64Member(pos, end, "accel_decel", builder.accel_decel.get(), true);
+    pos = EatUInt64Member(pos, end, "speed_changes", builder.speed_changes.get(), false);
 
     pos = EatWhitespace(pos, end);
     pos = EatObjectEnd(pos, end);  // }
@@ -208,9 +208,10 @@ auto TripParserContext::Make(const TripOptions& opts, size_t num_parsers,
   result->allocator_ = std::make_shared<buffer::Allocator>();
 
   // Initialize all parsers.
-  result->parsers_ = std::vector<std::shared_ptr<TripParser>>(
-      num_parsers, std::make_shared<TripParser>(opts.pre_alloc_records,
-                                                opts.pre_alloc_timestamp_values));
+  for (size_t i = 0; i < num_parsers; i++) {
+    result->parsers_.push_back(std::make_shared<TripParser>(
+        opts.pre_alloc_records, opts.pre_alloc_timestamp_values));
+  }
 
   // Allocate buffers. Use number of parsers if number of buffers is 0 in options.
   auto num_buffers = opts.num_buffers == 0 ? num_parsers : opts.num_buffers;
@@ -262,26 +263,26 @@ TripBuilder::TripBuilder(int64_t pre_alloc_rows, int64_t pre_alloc_ts_values)
           arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 13)),
       accel_decel(std::make_shared<arrow::UInt64Builder>()),
       speed_changes(std::make_shared<arrow::UInt64Builder>()) {
-  timestamp->Reserve(pre_alloc_rows);
-  timestamp->ReserveData(pre_alloc_ts_values);
-  timezone->Reserve(pre_alloc_rows);
-  vin->Reserve(pre_alloc_rows);
-  odometer->Reserve(pre_alloc_rows);
-  hypermiling->Reserve(pre_alloc_rows);
-  avgspeed->Reserve(pre_alloc_rows);
-  sec_in_band->value_builder()->Reserve(pre_alloc_rows * 12);
-  miles_in_time_range->value_builder()->Reserve(pre_alloc_rows * 24);
-  const_speed_miles_in_band->value_builder()->Reserve(pre_alloc_rows * 12);
-  vary_speed_miles_in_band->value_builder()->Reserve(pre_alloc_rows * 12);
-  sec_decel->value_builder()->Reserve(pre_alloc_rows * 10);
-  sec_accel->value_builder()->Reserve(pre_alloc_rows * 10);
-  braking->value_builder()->Reserve(pre_alloc_rows * 6);
-  accel->value_builder()->Reserve(pre_alloc_rows * 6);
-  orientation->Reserve(pre_alloc_rows);
-  small_speed_var->value_builder()->Reserve(pre_alloc_rows * 13);
-  large_speed_var->value_builder()->Reserve(pre_alloc_rows * 13);
-  accel_decel->Reserve(pre_alloc_rows);
-  speed_changes->Reserve(pre_alloc_rows);
+  //  timestamp->Reserve(pre_alloc_rows);
+  //  timestamp->ReserveData(pre_alloc_ts_values);
+  //  timezone->Reserve(pre_alloc_rows);
+  //  vin->Reserve(pre_alloc_rows);
+  //  odometer->Reserve(pre_alloc_rows);
+  //  hypermiling->Reserve(pre_alloc_rows);
+  //  avgspeed->Reserve(pre_alloc_rows);
+  //  sec_in_band->value_builder()->Reserve(pre_alloc_rows * 12);
+  //  miles_in_time_range->value_builder()->Reserve(pre_alloc_rows * 24);
+  //  const_speed_miles_in_band->value_builder()->Reserve(pre_alloc_rows * 12);
+  //  vary_speed_miles_in_band->value_builder()->Reserve(pre_alloc_rows * 12);
+  //  sec_decel->value_builder()->Reserve(pre_alloc_rows * 10);
+  //  sec_accel->value_builder()->Reserve(pre_alloc_rows * 10);
+  //  braking->value_builder()->Reserve(pre_alloc_rows * 6);
+  //  accel->value_builder()->Reserve(pre_alloc_rows * 6);
+  //  orientation->Reserve(pre_alloc_rows);
+  //  small_speed_var->value_builder()->Reserve(pre_alloc_rows * 13);
+  //  large_speed_var->value_builder()->Reserve(pre_alloc_rows * 13);
+  //  accel_decel->Reserve(pre_alloc_rows);
+  //  speed_changes->Reserve(pre_alloc_rows);
 }
 
 auto TripBuilder::Finish() -> std::shared_ptr<arrow::RecordBatch> {
@@ -312,6 +313,72 @@ auto TripBuilder::Finish() -> std::shared_ptr<arrow::RecordBatch> {
   return result;
 }
 
+auto TripBuilder::ToString() -> std::string {
+  std::stringstream ss;
+  ss << "timestamp                 : " << timestamp->length() << "/"
+     << timestamp->capacity() << "\n";
+  ss << "- values                  : " << timestamp->value_data_length() << "/"
+     << timestamp->value_data_capacity() << "\n";
+  ss << "timezone                  : " << timezone->length() << "/"
+     << timezone->capacity() << "\n";
+  ss << "vin                       : " << vin->length() << "/" << vin->capacity() << "\n";
+  ss << "odometer                  : " << odometer->length() << "/"
+     << odometer->capacity() << "\n";
+  ss << "hypermiling               : " << hypermiling->length() << "/"
+     << hypermiling->capacity() << "\n";
+  ss << "avgspeed                  : " << avgspeed->length() << "/"
+     << avgspeed->capacity() << "\n";
+  ss << "sec_in_band               : " << sec_in_band->length() << "/"
+     << sec_in_band->capacity() << "\n";
+  ss << "- values                  : " << sec_in_band->value_builder()->length() << "/"
+     << sec_in_band->value_builder()->capacity() << "\n";
+  ss << "miles_in_time_range       : " << miles_in_time_range->length() << "/"
+     << miles_in_time_range->capacity() << "\n";
+  ss << "- values                  : " << miles_in_time_range->value_builder()->length()
+     << "/" << miles_in_time_range->value_builder()->capacity() << "\n";
+  ss << "const_speed_miles_in_band : " << const_speed_miles_in_band->length() << "/"
+     << const_speed_miles_in_band->capacity() << "\n";
+  ss << "- values                  : "
+     << const_speed_miles_in_band->value_builder()->length() << "/"
+     << const_speed_miles_in_band->value_builder()->capacity() << "\n";
+  ss << "vary_speed_miles_in_band  : " << vary_speed_miles_in_band->length() << "/"
+     << vary_speed_miles_in_band->capacity() << "\n";
+  ss << "- values                  : "
+     << vary_speed_miles_in_band->value_builder()->length() << "/"
+     << vary_speed_miles_in_band->value_builder()->capacity() << "\n";
+  ss << "sec_decel                 : " << sec_decel->length() << "/"
+     << sec_decel->capacity() << "\n";
+  ss << "- values                  : " << sec_decel->value_builder()->length() << "/"
+     << sec_decel->value_builder()->capacity() << "\n";
+  ss << "sec_accel                 : " << sec_accel->length() << "/"
+     << sec_accel->capacity() << "\n";
+  ss << "- values                  : " << sec_accel->value_builder()->length() << "/"
+     << sec_accel->value_builder()->capacity() << "\n";
+  ss << "braking                   : " << braking->length() << "/" << braking->capacity()
+     << "\n";
+  ss << "- values                  : " << braking->value_builder()->length() << "/"
+     << braking->value_builder()->capacity() << "\n";
+  ss << "accel                     : " << accel->length() << "/" << accel->capacity()
+     << "\n";
+  ss << "- values                  : " << accel->value_builder()->length() << "/"
+     << accel->value_builder()->capacity() << "\n";
+  ss << "orientation               : " << orientation->length() << "/"
+     << orientation->capacity() << "\n";
+  ss << "small_speed_var           : " << small_speed_var->length() << "/"
+     << small_speed_var->capacity() << "\n";
+  ss << "- values                  : " << small_speed_var->value_builder()->length()
+     << "/" << small_speed_var->value_builder()->capacity() << "\n";
+  ss << "large_speed_var           : " << large_speed_var->length() << "/"
+     << large_speed_var->capacity() << "\n";
+  ss << "- values                  : " << large_speed_var->value_builder()->length()
+     << "/" << large_speed_var->value_builder()->capacity() << "\n";
+  ss << "accel_decel               : " << accel_decel->length() << "/"
+     << accel_decel->capacity() << "\n";
+  ss << "speed_changes             : " << speed_changes->length() << "/"
+     << speed_changes->capacity() << "\n";
+  return ss.str();
+}
+
 void AddTripOptionsToCLI(CLI::App* sub, TripOptions* out) {
   sub->add_option("--custom-trip-pre-alloc-records", out->pre_alloc_records,
                   "Pre-allocate this many records.")
@@ -320,7 +387,7 @@ void AddTripOptionsToCLI(CLI::App* sub, TripOptions* out) {
                   out->pre_alloc_timestamp_values,
                   "Pre-allocate this many values in the string values buffer for the "
                   "timestamp field.")
-      ->default_val(1024);
+      ->default_val(1024 * 10);
 }
 
 }  // namespace bolson::parse::custom

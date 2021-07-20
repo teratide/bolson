@@ -76,6 +76,14 @@ auto Aggregate(const MultiThreadStatus& status, const std::string& prefix = "") 
   }                                                                            \
   void()
 
+/// Convert Arrow status and throw on error.
+#define ARROW_TOE(s)                                                   \
+  {                                                                    \
+    auto __status = (s);                                               \
+    if (!__status.ok()) throw std::runtime_error(__status.ToString()); \
+  }                                                                    \
+  void()
+
 /// Convert Illex status and return on error.
 #define BILLEX_ROE(s)                                                     \
   {                                                                       \

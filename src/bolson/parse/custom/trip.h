@@ -30,11 +30,9 @@ struct TripOptions {
   /// Number of input buffers to use, when set to 0, it will be equal to the number of
   /// threads.
   size_t num_buffers = 0;
-  /// Capacity of input buffers.
-  size_t buf_capacity = 0;
 
-  size_t pre_alloc_records;
-  size_t pre_alloc_timestamp_values;
+  size_t pre_alloc_records = 0;
+  size_t pre_alloc_timestamp_values = 0;
 };
 
 void AddTripOptionsToCLI(CLI::App* sub, TripOptions* out);
@@ -63,6 +61,8 @@ struct TripBuilder {
   std::shared_ptr<arrow::FixedSizeListBuilder> large_speed_var;
   std::shared_ptr<arrow::UInt64Builder> accel_decel;
   std::shared_ptr<arrow::UInt64Builder> speed_changes;
+
+  auto ToString() -> std::string;
 };
 
 class TripParser : public Parser {

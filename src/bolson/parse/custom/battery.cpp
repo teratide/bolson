@@ -202,8 +202,9 @@ auto BatteryParserContext::Make(const BatteryOptions& opts, size_t num_parsers,
         num_parsers, std::make_shared<UnsafeBatteryParser>(
                          opts.seq_column, opts.pre_alloc_offsets, opts.pre_alloc_values));
   } else {
-    result->parsers_ = std::vector<std::shared_ptr<BatteryParser>>(
-        num_parsers, std::make_shared<BatteryParser>(opts.seq_column));
+    for (size_t i = 0; i < num_parsers; i++) {
+      result->parsers_.push_back(std::make_shared<BatteryParser>(opts.seq_column));
+    }
   }
 
   // Allocate buffers. Use number of parsers if number of buffers is 0 in options.

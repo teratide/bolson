@@ -95,13 +95,16 @@ auto ArrowParserContext::Make(const ArrowOptions& opts, size_t num_parsers,
   read_opts.block_size = 2 * read_opts.block_size;
 
   // Initialize all parsers.
-  result->parsers_ = std::vector<std::shared_ptr<ArrowParser>>(
-      num_parsers, std::make_shared<ArrowParser>(parse_opts, read_opts, opts.seq_column));
-  *out = std::static_pointer_cast<ParserContext>(result);
+  for (size_t i = 0; i < num_parsers; i++) {
+    result->parsers_.push_back(
+        std::make_shared<ArrowParser>(parse_opts, read_opts, opts.seq_column));
+  }
 
   // Allocate buffers. Use number of parsers if number of buffers is 0 in options.
   auto num_buffers = opts.num_buffers == 0 ? num_parsers : opts.num_buffers;
   BOLSON_ROE(result->AllocateBuffers(num_buffers, DivideCeil(input_size, num_buffers)));
+
+  *out = std::static_pointer_cast<ParserContext>(result);
 
   return Status::OK();
 }
