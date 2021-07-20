@@ -87,8 +87,8 @@ class TripParser : public Parser {
  */
 class TripParserContext : public ParserContext {
  public:
-  static auto Make(const TripOptions& opts, std::shared_ptr<ParserContext>* out)
-      -> Status;
+  static auto Make(const TripOptions& opts, size_t input_size,
+                   std::shared_ptr<ParserContext>* out) -> Status;
 
   auto parsers() -> std::vector<std::shared_ptr<Parser>> override;
   [[nodiscard]] auto CheckThreadCount(size_t num_threads) const -> size_t override;

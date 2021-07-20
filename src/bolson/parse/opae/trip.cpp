@@ -615,10 +615,10 @@ auto TripParser::WriteInputMetaData(fletcher::Platform* platform, illex::JSONBuf
   dau_t input_addr;
   input_addr.full = h2d_addr_map->at(in->data());
 
-  BOLSON_ROE(WriteMMIO(platform, input_values_lo_offset(idx),
-                       input_addr.lo, idx, "input values addr lo"));
-  BOLSON_ROE(WriteMMIO(platform, input_values_hi_offset(idx),
-                       input_addr.hi, idx, "input values addr hi"));
+  BOLSON_ROE(WriteMMIO(platform, input_values_lo_offset(idx), input_addr.lo, idx,
+                       "input values addr lo"));
+  BOLSON_ROE(WriteMMIO(platform, input_values_hi_offset(idx), input_addr.hi, idx,
+                       "input values addr hi"));
 
   BOLSON_ROE(WriteMMIO(platform, tag_offset(idx), idx, idx, "tag"));
 
@@ -713,8 +713,8 @@ auto TripParserContext::CheckBufferCount(size_t num_buffers) const -> size_t {
   return num_parsers_;
 }
 
-auto TripParserContext::Make(const TripOptions& opts, std::shared_ptr<ParserContext>* out)
-    -> Status {
+auto TripParserContext::Make(const TripOptions& opts, size_t input_size,
+                             std::shared_ptr<ParserContext>* out) -> Status {
   std::string afu_id;
   DeriveAFUID(opts.afu_id, BOLSON_DEFAULT_OPAE_TRIP_AFUID, opts.num_parsers, &afu_id);
   SPDLOG_DEBUG("TripParserContext | Using AFU ID: {}", afu_id);
@@ -734,7 +734,7 @@ auto TripParserContext::Make(const TripOptions& opts, std::shared_ptr<ParserCont
 
   // Allocate input buffers.
   BOLSON_ROE(result->AllocateBuffers(result->num_parsers_,
-                                     result->allocator_->fixed_capacity()));
+                                     DivideCeil(input_size, result->num_parsers_)));
 
   // Pull everything through the fletcher stack once.
   FLETCHER_ROE(fletcher::Context::Make(&result->context, result->platform));
