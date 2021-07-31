@@ -113,7 +113,7 @@ auto BatteryParserContext::Make(const BatteryOptions& opts, size_t input_size,
   // Construct kernel handler.
   result->kernel = std::make_shared<fletcher::Kernel>(result->context);
   // Write metadata.
-  FLETCHER_ROE(result->kernel->WriteMetaData());
+  // FLETCHER_ROE(result->kernel->WriteMetaData());
 
   SPDLOG_DEBUG("BatteryParserContext | Preparing parsers.");
   BOLSON_ROE(result->PrepareParsers());
