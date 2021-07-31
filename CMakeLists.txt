@@ -112,7 +112,6 @@ add_compile_unit(
   DEPS
     arrow_shared
     CLI11::CLI11
-    pulsar
     spdlog::spdlog
     Threads::Threads
     illex::static
