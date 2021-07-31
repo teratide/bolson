@@ -58,6 +58,8 @@ class BatteryParser : public Parser {
         platform_mutex(platform_mutex),
         seq_column(seq_column) {}
 
+  auto Init() -> Status;
+
   auto Parse(const std::vector<illex::JSONBuffer*>& in, std::vector<ParsedBatch>* out)
       -> Status override;
 
@@ -85,7 +87,7 @@ class BatteryParser : public Parser {
   // Arrow output ranges
   // 0 output firstidx
   // 1 output lastidx
-  static const size_t range_regs_per_inst = 2;
+  static const size_t range_regs_per_inst = 4;
 
   // 0 input val addr lo
   // 1 input val addr hi
@@ -103,15 +105,20 @@ class BatteryParser : public Parser {
   // 3 result num rows hi
   static const size_t custom_regs_per_inst = 4;
 
-  [[nodiscard]] auto custom_regs_offset() const -> size_t;
-  [[nodiscard]] auto ctrl_offset(size_t idx) const -> size_t;
-  [[nodiscard]] auto status_offset(size_t idx) const -> size_t;
-  [[nodiscard]] auto result_rows_offset_lo(size_t idx) const -> size_t;
-  [[nodiscard]] auto result_rows_offset_hi(size_t idx) const -> size_t;
-  [[nodiscard]] auto input_firstidx_offset(size_t idx) const -> size_t;
-  [[nodiscard]] auto input_lastidx_offset(size_t idx) const -> size_t;
-  [[nodiscard]] auto input_values_lo_offset(size_t idx) const -> size_t;
-  [[nodiscard]] auto input_values_hi_offset(size_t idx) const -> size_t;
+  static auto base_offset(size_t idx) -> size_t;
+  static auto custom_regs_offset(size_t idx) -> size_t;
+  static auto ctrl_offset(size_t idx) -> size_t;
+  static auto status_offset(size_t idx) -> size_t;
+  static auto result_rows_offset_lo(size_t idx) -> size_t;
+  static auto result_rows_offset_hi(size_t idx) -> size_t;
+  static auto input_firstidx_offset(size_t idx) -> size_t;
+  static auto input_lastidx_offset(size_t idx) -> size_t;
+  static auto input_values_lo_offset(size_t idx) -> size_t;
+  static auto input_values_hi_offset(size_t idx) -> size_t;
+  static auto output_voltage_offsets_lo_offset(size_t idx) -> size_t;
+  static auto output_voltage_offsets_hi_offset(size_t idx) -> size_t;
+  static auto output_voltage_values_lo_offset(size_t idx) -> size_t;
+  static auto output_voltage_values_hi_offset(size_t idx) -> size_t;
 
   size_t idx_;
   size_t num_parsers;
