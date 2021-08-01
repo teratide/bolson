@@ -44,33 +44,12 @@ auto TripParser::input_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = arrow::schema(
       {arrow::field("timestamp", arrow::utf8(), false),
        arrow::field("timezone", arrow::uint64(), false),
-       arrow::field("vin", arrow::uint64(), false),
        arrow::field("odometer", arrow::uint64(), false),
        arrow::field("hypermiling", arrow::boolean(), false),
        arrow::field("avgspeed", arrow::uint64(), false),
        arrow::field(
            "sec_in_band",
            arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-           false),
-       arrow::field(
-           "miles_in_time_range",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 24),
-           false),
-       arrow::field(
-           "const_speed_miles_in_band",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-           false),
-       arrow::field(
-           "vary_speed_miles_in_band",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-           false),
-       arrow::field(
-           "sec_decel",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
-           false),
-       arrow::field(
-           "sec_accel",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
            false),
        arrow::field(
            "braking",
@@ -88,9 +67,7 @@ auto TripParser::input_schema() -> std::shared_ptr<arrow::Schema> {
        arrow::field(
            "large_speed_var",
            arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
-           false),
-       arrow::field("accel_decel", arrow::uint64(), false),
-       arrow::field("speed_changes", arrow::uint64(), false)});
+           false)});
   return result;
 }
 
@@ -100,23 +77,15 @@ static auto output_schema_hw() -> std::shared_ptr<arrow::Schema> {
           {fletcher::WithMetaEPC(*arrow::field("timestamp", arrow::utf8(), false), 1),
            arrow::field("tag", arrow::uint64(), false),
            arrow::field("timezone", arrow::uint64(), false),
-           arrow::field("vin", arrow::uint64(), false),
            arrow::field("odometer", arrow::uint64(), false),
            arrow::field("hypermiling", arrow::uint8(), false),
            arrow::field("avgspeed", arrow::uint64(), false),
            arrow::field("sec_in_band", arrow::uint64(), false),
-           arrow::field("miles_in_time_range", arrow::uint64(), false),
-           arrow::field("const_speed_miles_in_band", arrow::uint64(), false),
-           arrow::field("vary_speed_miles_in_band", arrow::uint64(), false),
-           arrow::field("sec_decel", arrow::uint64(), false),
-           arrow::field("sec_accel", arrow::uint64(), false),
            arrow::field("braking", arrow::uint64(), false),
            arrow::field("accel", arrow::uint64(), false),
            arrow::field("orientation", arrow::uint8(), false),
            arrow::field("small_speed_var", arrow::uint64(), false),
-           arrow::field("large_speed_var", arrow::uint64(), false),
-           arrow::field("accel_decel", arrow::uint64(), false),
-           arrow::field("speed_changes", arrow::uint64(), false)}),
+           arrow::field("large_speed_var", arrow::uint64(), false)}),
       "output", fletcher::Mode::WRITE);
   return result;
 }
@@ -127,33 +96,12 @@ static auto output_schema_sw() -> std::shared_ptr<arrow::Schema> {
           {arrow::field("timestamp", arrow::utf8(), false),
            arrow::field("tag", arrow::uint64(), false),
            arrow::field("timezone", arrow::uint64(), false),
-           arrow::field("vin", arrow::uint64(), false),
            arrow::field("odometer", arrow::uint64(), false),
            arrow::field("hypermiling", arrow::uint8(), false),
            arrow::field("avgspeed", arrow::uint64(), false),
            arrow::field(
                "sec_in_band",
                arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-               false),
-           arrow::field(
-               "miles_in_time_range",
-               arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 24),
-               false),
-           arrow::field(
-               "const_speed_miles_in_band",
-               arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-               false),
-           arrow::field(
-               "vary_speed_miles_in_band",
-               arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-               false),
-           arrow::field(
-               "sec_decel",
-               arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
-               false),
-           arrow::field(
-               "sec_accel",
-               arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
                false),
            arrow::field(
                "braking",
@@ -171,9 +119,7 @@ static auto output_schema_sw() -> std::shared_ptr<arrow::Schema> {
            arrow::field(
                "large_speed_var",
                arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
-               false),
-           arrow::field("accel_decel", arrow::uint64(), false),
-           arrow::field("speed_changes", arrow::uint64(), false)}),
+               false)}),
       "output", fletcher::Mode::WRITE);
   return result;
 }
@@ -183,33 +129,12 @@ auto TripParser::output_schema() -> std::shared_ptr<arrow::Schema> {
       {arrow::field("bolson_seq", arrow::uint64(), false),
        arrow::field("timestamp", arrow::utf8(), false),
        arrow::field("timezone", arrow::uint64(), false),
-       arrow::field("vin", arrow::uint64(), false),
        arrow::field("odometer", arrow::uint64(), false),
        arrow::field("hypermiling", arrow::boolean(), false),
        arrow::field("avgspeed", arrow::uint64(), false),
        arrow::field(
            "sec_in_band",
            arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-           false),
-       arrow::field(
-           "miles_in_time_range",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 24),
-           false),
-       arrow::field(
-           "const_speed_miles_in_band",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-           false),
-       arrow::field(
-           "vary_speed_miles_in_band",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-           false),
-       arrow::field(
-           "sec_decel",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
-           false),
-       arrow::field(
-           "sec_accel",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
            false),
        arrow::field(
            "braking",
@@ -227,9 +152,7 @@ auto TripParser::output_schema() -> std::shared_ptr<arrow::Schema> {
        arrow::field(
            "large_speed_var",
            arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
-           false),
-       arrow::field("accel_decel", arrow::uint64(), false),
-       arrow::field("speed_changes", arrow::uint64(), false)});
+           false)});
   return result;
 }
 
@@ -256,7 +179,7 @@ static const size_t output_range_regs = 2;
 static const size_t in_addr_regs_per_inst = 2;
 
 // Output buffer address registers:
-static const size_t out_addr_regs = 42;
+static const size_t out_addr_regs = 26;
 
 // Custom registers per instance:
 // 0 tag
@@ -508,23 +431,15 @@ static auto FixResult(const std::shared_ptr<arrow::RecordBatch>& batch,
       seq,
       batch->GetColumnByName("timestamp"),
       batch->GetColumnByName("timezone"),
-      batch->GetColumnByName("vin"),
       batch->GetColumnByName("odometer"),
       hypermiling,
       batch->GetColumnByName("avgspeed"),
       batch->GetColumnByName("sec_in_band"),
-      batch->GetColumnByName("miles_in_time_range"),
-      batch->GetColumnByName("const_speed_miles_in_band"),
-      batch->GetColumnByName("vary_speed_miles_in_band"),
-      batch->GetColumnByName("sec_decel"),
-      batch->GetColumnByName("sec_accel"),
       batch->GetColumnByName("braking"),
       batch->GetColumnByName("accel"),
       orientation,
       batch->GetColumnByName("small_speed_var"),
-      batch->GetColumnByName("large_speed_var"),
-      batch->GetColumnByName("accel_decel"),
-      batch->GetColumnByName("speed_changes")};
+      batch->GetColumnByName("large_speed_var")};
 
   // Sanity check in debug.
   for (const auto& col : columns) {
