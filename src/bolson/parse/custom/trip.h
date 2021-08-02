@@ -44,23 +44,15 @@ struct TripBuilder {
 
   std::shared_ptr<arrow::StringBuilder> timestamp;
   std::shared_ptr<arrow::UInt64Builder> timezone;
-  std::shared_ptr<arrow::UInt64Builder> vin;
   std::shared_ptr<arrow::UInt64Builder> odometer;
   std::shared_ptr<arrow::BooleanBuilder> hypermiling;
   std::shared_ptr<arrow::UInt64Builder> avgspeed;
   std::shared_ptr<arrow::FixedSizeListBuilder> sec_in_band;
-  std::shared_ptr<arrow::FixedSizeListBuilder> miles_in_time_range;
-  std::shared_ptr<arrow::FixedSizeListBuilder> const_speed_miles_in_band;
-  std::shared_ptr<arrow::FixedSizeListBuilder> vary_speed_miles_in_band;
-  std::shared_ptr<arrow::FixedSizeListBuilder> sec_decel;
-  std::shared_ptr<arrow::FixedSizeListBuilder> sec_accel;
   std::shared_ptr<arrow::FixedSizeListBuilder> braking;
   std::shared_ptr<arrow::FixedSizeListBuilder> accel;
   std::shared_ptr<arrow::BooleanBuilder> orientation;
   std::shared_ptr<arrow::FixedSizeListBuilder> small_speed_var;
   std::shared_ptr<arrow::FixedSizeListBuilder> large_speed_var;
-  std::shared_ptr<arrow::UInt64Builder> accel_decel;
-  std::shared_ptr<arrow::UInt64Builder> speed_changes;
 
   auto ToString() -> std::string;
 };

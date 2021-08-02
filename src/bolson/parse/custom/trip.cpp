@@ -31,33 +31,12 @@ static auto schema_trip() -> std::shared_ptr<arrow::Schema> {
   static auto result = arrow::schema(
       {arrow::field("timestamp", arrow::utf8(), false),       //
        arrow::field("timezone", arrow::uint64(), false),      //
-       arrow::field("vin", arrow::uint64(), false),           //
        arrow::field("odometer", arrow::uint64(), false),      //
        arrow::field("hypermiling", arrow::boolean(), false),  //
        arrow::field("avgspeed", arrow::uint64(), false),      //
        arrow::field(
            "sec_in_band",
            arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-           false),
-       arrow::field(
-           "miles_in_time_range",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 24),
-           false),
-       arrow::field(
-           "const_speed_miles_in_band",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-           false),
-       arrow::field(
-           "vary_speed_miles_in_band",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
-           false),
-       arrow::field(
-           "sec_decel",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
-           false),
-       arrow::field(
-           "sec_accel",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 10),
            false),
        arrow::field(
            "braking",
@@ -75,9 +54,7 @@ static auto schema_trip() -> std::shared_ptr<arrow::Schema> {
        arrow::field(
            "large_speed_var",
            arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
-           false),
-       arrow::field("accel_decel", arrow::uint64(), false),  //
-       arrow::field("speed_changes", arrow::uint64(), false)});
+           false)});
   return result;
 }
 
@@ -103,7 +80,6 @@ auto TripParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> 
     pos = EatChar(pos, end, ',');
 
     pos = EatUInt64Member(pos, end, "timezone", builder.timezone.get(), true);
-    pos = EatUInt64Member(pos, end, "vin", builder.vin.get(), true);
     pos = EatUInt64Member(pos, end, "odometer", builder.odometer.get(), true);
     pos = EatBoolMember(pos, end, "hypermiling", builder.hypermiling.get(), true);
     pos = EatUInt64Member(pos, end, "avgspeed", builder.avgspeed.get(), true);
@@ -112,29 +88,6 @@ auto TripParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> 
     pos = EatUInt64FixedSizeArrayMember(
         pos, end, "sec_in_band", builder.sec_in_band.get(),
         reinterpret_cast<arrow::UInt64Builder*>(builder.sec_in_band->value_builder()),
-        true);
-    pos = EatUInt64FixedSizeArrayMember(pos, end, "miles_in_time_range",
-                                        builder.miles_in_time_range.get(),
-                                        reinterpret_cast<arrow::UInt64Builder*>(
-                                            builder.miles_in_time_range->value_builder()),
-                                        true);
-    pos = EatUInt64FixedSizeArrayMember(
-        pos, end, "const_speed_miles_in_band", builder.const_speed_miles_in_band.get(),
-        reinterpret_cast<arrow::UInt64Builder*>(
-            builder.const_speed_miles_in_band->value_builder()),
-        true);
-    pos = EatUInt64FixedSizeArrayMember(
-        pos, end, "vary_speed_miles_in_band", builder.vary_speed_miles_in_band.get(),
-        reinterpret_cast<arrow::UInt64Builder*>(
-            builder.vary_speed_miles_in_band->value_builder()),
-        true);
-    pos = EatUInt64FixedSizeArrayMember(
-        pos, end, "sec_decel", builder.sec_decel.get(),
-        reinterpret_cast<arrow::UInt64Builder*>(builder.sec_decel->value_builder()),
-        true);
-    pos = EatUInt64FixedSizeArrayMember(
-        pos, end, "sec_accel", builder.sec_accel.get(),
-        reinterpret_cast<arrow::UInt64Builder*>(builder.sec_accel->value_builder()),
         true);
     pos = EatUInt64FixedSizeArrayMember(
         pos, end, "braking", builder.braking.get(),
@@ -150,10 +103,7 @@ auto TripParser::ParseOne(const illex::JSONBuffer* buffer, ParsedBatch* out) -> 
     pos = EatUInt64FixedSizeArrayMember(
         pos, end, "large_speed_var", builder.large_speed_var.get(),
         reinterpret_cast<arrow::UInt64Builder*>(builder.large_speed_var->value_builder()),
-        true);
-
-    pos = EatUInt64Member(pos, end, "accel_decel", builder.accel_decel.get(), true);
-    pos = EatUInt64Member(pos, end, "speed_changes", builder.speed_changes.get(), false);
+        false);
 
     pos = EatWhitespace(pos, end);
     pos = EatObjectEnd(pos, end);  // }
@@ -236,22 +186,11 @@ auto TripParserContext::output_schema() const -> std::shared_ptr<arrow::Schema> 
 TripBuilder::TripBuilder(int64_t pre_alloc_rows, int64_t pre_alloc_ts_values)
     : timestamp(std::make_shared<arrow::StringBuilder>()),
       timezone(std::make_shared<arrow::UInt64Builder>()),
-      vin(std::make_shared<arrow::UInt64Builder>()),
       odometer(std::make_shared<arrow::UInt64Builder>()),
       hypermiling(std::make_shared<arrow::BooleanBuilder>()),
       avgspeed(std::make_shared<arrow::UInt64Builder>()),
       sec_in_band(std::make_shared<arrow::FixedSizeListBuilder>(
           arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 12)),
-      miles_in_time_range(std::make_shared<arrow::FixedSizeListBuilder>(
-          arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 24)),
-      const_speed_miles_in_band(std::make_shared<arrow::FixedSizeListBuilder>(
-          arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 12)),
-      vary_speed_miles_in_band(std::make_shared<arrow::FixedSizeListBuilder>(
-          arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 12)),
-      sec_decel(std::make_shared<arrow::FixedSizeListBuilder>(
-          arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 10)),
-      sec_accel(std::make_shared<arrow::FixedSizeListBuilder>(
-          arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 10)),
       braking(std::make_shared<arrow::FixedSizeListBuilder>(
           arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 6)),
       accel(std::make_shared<arrow::FixedSizeListBuilder>(
@@ -260,9 +199,7 @@ TripBuilder::TripBuilder(int64_t pre_alloc_rows, int64_t pre_alloc_ts_values)
       small_speed_var(std::make_shared<arrow::FixedSizeListBuilder>(
           arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 13)),
       large_speed_var(std::make_shared<arrow::FixedSizeListBuilder>(
-          arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 13)),
-      accel_decel(std::make_shared<arrow::UInt64Builder>()),
-      speed_changes(std::make_shared<arrow::UInt64Builder>()) {
+          arrow::default_memory_pool(), std::make_shared<arrow::UInt64Builder>(), 13)) {
   //  timestamp->Reserve(pre_alloc_rows);
   //  timestamp->ReserveData(pre_alloc_ts_values);
   //  timezone->Reserve(pre_alloc_rows);
@@ -287,25 +224,12 @@ TripBuilder::TripBuilder(int64_t pre_alloc_rows, int64_t pre_alloc_ts_values)
 
 auto TripBuilder::Finish() -> std::shared_ptr<arrow::RecordBatch> {
   std::vector<std::shared_ptr<arrow::Array>> arrays = {
-      timestamp->Finish().ValueOrDie(),
-      timezone->Finish().ValueOrDie(),
-      vin->Finish().ValueOrDie(),
-      odometer->Finish().ValueOrDie(),
-      hypermiling->Finish().ValueOrDie(),
-      avgspeed->Finish().ValueOrDie(),
-      sec_in_band->Finish().ValueOrDie(),
-      miles_in_time_range->Finish().ValueOrDie(),
-      const_speed_miles_in_band->Finish().ValueOrDie(),
-      vary_speed_miles_in_band->Finish().ValueOrDie(),
-      sec_decel->Finish().ValueOrDie(),
-      sec_accel->Finish().ValueOrDie(),
-      braking->Finish().ValueOrDie(),
-      accel->Finish().ValueOrDie(),
-      orientation->Finish().ValueOrDie(),
-      small_speed_var->Finish().ValueOrDie(),
-      large_speed_var->Finish().ValueOrDie(),
-      accel_decel->Finish().ValueOrDie(),
-      speed_changes->Finish().ValueOrDie()};
+      timestamp->Finish().ValueOrDie(),      timezone->Finish().ValueOrDie(),
+      odometer->Finish().ValueOrDie(),       hypermiling->Finish().ValueOrDie(),
+      avgspeed->Finish().ValueOrDie(),       sec_in_band->Finish().ValueOrDie(),
+      braking->Finish().ValueOrDie(),        accel->Finish().ValueOrDie(),
+      orientation->Finish().ValueOrDie(),    small_speed_var->Finish().ValueOrDie(),
+      large_speed_var->Finish().ValueOrDie()};
 
   auto result = arrow::RecordBatch::Make(schema_trip(), arrays[0]->length(), arrays);
   assert(result != nullptr);
@@ -321,7 +245,6 @@ auto TripBuilder::ToString() -> std::string {
      << timestamp->value_data_capacity() << "\n";
   ss << "timezone                  : " << timezone->length() << "/"
      << timezone->capacity() << "\n";
-  ss << "vin                       : " << vin->length() << "/" << vin->capacity() << "\n";
   ss << "odometer                  : " << odometer->length() << "/"
      << odometer->capacity() << "\n";
   ss << "hypermiling               : " << hypermiling->length() << "/"
@@ -330,30 +253,6 @@ auto TripBuilder::ToString() -> std::string {
      << avgspeed->capacity() << "\n";
   ss << "sec_in_band               : " << sec_in_band->length() << "/"
      << sec_in_band->capacity() << "\n";
-  ss << "- values                  : " << sec_in_band->value_builder()->length() << "/"
-     << sec_in_band->value_builder()->capacity() << "\n";
-  ss << "miles_in_time_range       : " << miles_in_time_range->length() << "/"
-     << miles_in_time_range->capacity() << "\n";
-  ss << "- values                  : " << miles_in_time_range->value_builder()->length()
-     << "/" << miles_in_time_range->value_builder()->capacity() << "\n";
-  ss << "const_speed_miles_in_band : " << const_speed_miles_in_band->length() << "/"
-     << const_speed_miles_in_band->capacity() << "\n";
-  ss << "- values                  : "
-     << const_speed_miles_in_band->value_builder()->length() << "/"
-     << const_speed_miles_in_band->value_builder()->capacity() << "\n";
-  ss << "vary_speed_miles_in_band  : " << vary_speed_miles_in_band->length() << "/"
-     << vary_speed_miles_in_band->capacity() << "\n";
-  ss << "- values                  : "
-     << vary_speed_miles_in_band->value_builder()->length() << "/"
-     << vary_speed_miles_in_band->value_builder()->capacity() << "\n";
-  ss << "sec_decel                 : " << sec_decel->length() << "/"
-     << sec_decel->capacity() << "\n";
-  ss << "- values                  : " << sec_decel->value_builder()->length() << "/"
-     << sec_decel->value_builder()->capacity() << "\n";
-  ss << "sec_accel                 : " << sec_accel->length() << "/"
-     << sec_accel->capacity() << "\n";
-  ss << "- values                  : " << sec_accel->value_builder()->length() << "/"
-     << sec_accel->value_builder()->capacity() << "\n";
   ss << "braking                   : " << braking->length() << "/" << braking->capacity()
      << "\n";
   ss << "- values                  : " << braking->value_builder()->length() << "/"
@@ -372,10 +271,6 @@ auto TripBuilder::ToString() -> std::string {
      << large_speed_var->capacity() << "\n";
   ss << "- values                  : " << large_speed_var->value_builder()->length()
      << "/" << large_speed_var->value_builder()->capacity() << "\n";
-  ss << "accel_decel               : " << accel_decel->length() << "/"
-     << accel_decel->capacity() << "\n";
-  ss << "speed_changes             : " << speed_changes->length() << "/"
-     << speed_changes->capacity() << "\n";
   return ss.str();
 }
 
