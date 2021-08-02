@@ -18,8 +18,6 @@
 #include <blockingconcurrentqueue.h>
 #include <illex/latency.h>
 #include <illex/protocol.h>
-#include <pulsar/Client.h>
-#include <pulsar/Producer.h>
 #include <putong/timer.h>
 
 #include <CLI/CLI.hpp>
@@ -81,15 +79,6 @@ struct Options {
 void AddPublishOptsToCLI(CLI::App* sub, publish::Options* pulsar);
 
 /**
- * Publish an Arrow buffer as a Pulsar message through a Pulsar producer.
- * \param producer    The Pulsar producer to publish the message through.
- * \param buffer      The raw bytes buffer to publish.
- * \param size        The size of the buffer.
- * \return            Status::OK() if successful, some error otherwise.
- */
-auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> Status;
-
-/**
  * \brief A thread to pull IPC messages from the queue and publish them to Pulsar.
  * \param producer  The producer to use for publishing.
  * \param queue     The queue with IPC messages.
@@ -97,7 +86,7 @@ auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> 
  * \param count     Number of published rows.
  * \param metrics   Throughput metrics.
  */
-void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
+void PublishThread(void* producer, IpcQueue* queue,
                    std::atomic<bool>* shutdown, std::atomic<size_t>* count,
                    std::promise<Metrics>&& metrics);
 
@@ -135,10 +124,6 @@ struct ConcurrentPublisher {
   ConcurrentPublisher() = default;
   /// Concurrent queue to pull IPC messages from.
   IpcQueue* queue_ = nullptr;
-  /// The Pulsar client.
-  std::unique_ptr<pulsar::Client> client = nullptr;
-  /// The Pulsar producers.
-  std::vector<std::unique_ptr<pulsar::Producer>> producers;
   /// Shutdown signal for all threads.
   std::atomic<bool>* shutdown_ = nullptr;
   /// Published row count.
@@ -149,15 +134,6 @@ struct ConcurrentPublisher {
   std::vector<std::future<Metrics>> metrics_futures;
   /// Publish metrics for each thread..
   std::vector<Metrics> metrics_;
-};
-
-/**
- * \brief Factory function for the custom Pulsar logger.
- */
-class bolsonLoggerFactory : public pulsar::LoggerFactory {
- public:
-  auto getLogger(const std::string& file) -> pulsar::Logger* override;
-  static auto create() -> std::unique_ptr<bolsonLoggerFactory>;
 };
 
 }  // namespace bolson::publish

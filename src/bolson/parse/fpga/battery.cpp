@@ -76,6 +76,11 @@ auto BatteryParserContext::PrepareOutputBatches(size_t offsets_cap, size_t value
 
 auto BatteryParserContext::Make(const BatteryOptions& opts, size_t input_size,
                                 std::shared_ptr<ParserContext>* out) -> Status {
+  // Check parameters.
+  if (opts.num_parsers > 256) {
+    return {Error::FletcherError,
+            "Hardware does not allow more than 256 parser instances."};
+  }
   // Create and set up result.
   auto result = std::shared_ptr<BatteryParserContext>(new BatteryParserContext(opts));
   SPDLOG_DEBUG("BatteryParserContext | Setting up for {} parsers.", result->num_parsers_);
@@ -108,7 +113,7 @@ auto BatteryParserContext::Make(const BatteryOptions& opts, size_t input_size,
   // Construct kernel handler.
   result->kernel = std::make_shared<fletcher::Kernel>(result->context);
   // Write metadata.
-  FLETCHER_ROE(result->kernel->WriteMetaData());
+  // FLETCHER_ROE(result->kernel->WriteMetaData());
 
   SPDLOG_DEBUG("BatteryParserContext | Preparing parsers.");
   BOLSON_ROE(result->PrepareParsers());
@@ -128,9 +133,11 @@ auto BatteryParserContext::Make(const BatteryOptions& opts, size_t input_size,
 
 auto BatteryParserContext::PrepareParsers() -> Status {
   for (size_t i = 0; i < num_parsers_; i++) {
-    parsers_.push_back(std::make_shared<BatteryParser>(
+    auto parser = std::make_shared<BatteryParser>(
         platform.get(), context.get(), kernel.get(), i, num_parsers_, raw_out_offsets[i],
-        raw_out_values[i], &platform_mutex, seq_column));
+        raw_out_values[i], &platform_mutex, seq_column);
+    parser->Init();
+    parsers_.push_back(parser);
   }
   return Status::OK();
 }
@@ -307,42 +314,82 @@ auto BatteryParser::output_schema() -> std::shared_ptr<arrow::Schema> {
   return result;
 }
 
-auto BatteryParser::custom_regs_offset() const -> size_t {
-  return default_regs + num_parsers * (2 * range_regs_per_inst + in_addr_regs_per_inst +
-                                       out_addr_regs_per_inst);
+auto BatteryParser::base_offset(size_t idx) -> size_t {
+  // Hardware uses bit 19..12 to address one out of max 256 parser instances.
+  // Hardware uses bit 11..0 to address registers within a parser.
+  // Inidices here are 32-bit register indices, not byte addresses, so we divide by 4.
+  return ((idx * 0x00001000) & 0x000FFFFF) / 4;
 }
 
-auto BatteryParser::ctrl_offset(size_t idx) const -> size_t {
-  return custom_regs_offset() + custom_regs_per_inst * idx;
+auto BatteryParser::custom_regs_offset(size_t idx) -> size_t {
+  return base_offset(idx) + default_regs + range_regs_per_inst + in_addr_regs_per_inst +
+         out_addr_regs_per_inst;
 }
 
-auto BatteryParser::status_offset(size_t idx) const -> size_t {
-  return ctrl_offset(idx) + 1;
+auto BatteryParser::ctrl_offset(size_t idx) -> size_t { return custom_regs_offset(idx); }
+
+auto BatteryParser::status_offset(size_t idx) -> size_t {
+  return custom_regs_offset(idx) + 1;
 }
 
-auto BatteryParser::result_rows_offset_lo(size_t idx) const -> size_t {
-  return status_offset(idx) + 1;
+auto BatteryParser::result_rows_offset_lo(size_t idx) -> size_t {
+  return custom_regs_offset(idx) + 2;
 }
 
-auto BatteryParser::result_rows_offset_hi(size_t idx) const -> size_t {
-  return result_rows_offset_lo(idx) + 1;
+auto BatteryParser::result_rows_offset_hi(size_t idx) -> size_t {
+  return custom_regs_offset(idx) + 3;
 }
 
-auto BatteryParser::input_firstidx_offset(size_t idx) const -> size_t {
-  return default_regs + range_regs_per_inst * idx;
+auto BatteryParser::input_firstidx_offset(size_t idx) -> size_t {
+  return base_offset(idx) + default_regs;
 }
 
-auto BatteryParser::input_lastidx_offset(size_t idx) const -> size_t {
+auto BatteryParser::input_lastidx_offset(size_t idx) -> size_t {
   return input_firstidx_offset(idx) + 1;
 }
 
-auto BatteryParser::input_values_lo_offset(size_t idx) const -> size_t {
-  return default_regs + (2 * range_regs_per_inst) * num_parsers +
-         in_addr_regs_per_inst * idx;
+auto BatteryParser::input_values_lo_offset(size_t idx) -> size_t {
+  return base_offset(idx) + default_regs + range_regs_per_inst;
 }
 
-auto BatteryParser::input_values_hi_offset(size_t idx) const -> size_t {
+auto BatteryParser::input_values_hi_offset(size_t idx) -> size_t {
   return input_values_lo_offset(idx) + 1;
+}
+
+auto BatteryParser::output_voltage_offsets_lo_offset(size_t idx) -> size_t {
+  return base_offset(idx) + default_regs + range_regs_per_inst + in_addr_regs_per_inst;
+}
+
+auto BatteryParser::output_voltage_offsets_hi_offset(size_t idx) -> size_t {
+  return output_voltage_offsets_lo_offset(idx) + 1;
+}
+
+auto BatteryParser::output_voltage_values_lo_offset(size_t idx) -> size_t {
+  return output_voltage_offsets_lo_offset(idx) + 2;
+}
+
+auto BatteryParser::output_voltage_values_hi_offset(size_t idx) -> size_t {
+  return output_voltage_offsets_lo_offset(idx) + 3;
+}
+
+auto BatteryParser::Init() -> Status {
+  if (idx_ >= 256) {
+    return {Error::FletcherError,
+            "Hardware does not allow more than 256 parser instances."};
+  }
+  // Write output addresses
+  dau_t voltage_offsets, voltage_values;
+  voltage_offsets.full = reinterpret_cast<da_t>(raw_out_offsets);
+  voltage_values.full = reinterpret_cast<da_t>(raw_out_values);
+  BOLSON_ROE(WriteMMIO(platform_, output_voltage_offsets_lo_offset(idx_),
+                       voltage_offsets.lo, idx_, "output voltage offsets lo offset"));
+  BOLSON_ROE(WriteMMIO(platform_, output_voltage_offsets_hi_offset(idx_),
+                       voltage_offsets.hi, idx_, "output voltage offsets hi offset"));
+  BOLSON_ROE(WriteMMIO(platform_, output_voltage_values_lo_offset(idx_),
+                       voltage_values.lo, idx_, "output voltage values lo offset"));
+  BOLSON_ROE(WriteMMIO(platform_, output_voltage_values_hi_offset(idx_),
+                       voltage_values.hi, idx_, "output voltage values hi offset"));
+  return Status::OK();
 }
 
 void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
@@ -351,8 +398,7 @@ void AddBatteryOptionsToCLI(CLI::App* sub, BatteryOptions* out) {
       ->default_val(BOLSON_DEFAULT_FLETCHER_BATTERY_PARSERS);
   sub->add_flag("--fpga-battery-seq-col", out->seq_column,
                 "Generic Fletcher \"battery status\" parser, retain ordering information "
-                "by adding a "
-                "sequence number column.")
+                "by adding a sequence number column.")
       ->default_val(false);
 }
 

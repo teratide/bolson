@@ -15,11 +15,6 @@
 #include "bolson/publish/publisher.h"
 
 #include <arrow/io/api.h>
-#include <pulsar/Client.h>
-#include <pulsar/ClientConfiguration.h>
-#include <pulsar/Logger.h>
-#include <pulsar/Producer.h>
-#include <pulsar/Result.h>
 #include <putong/timer.h>
 
 #include <CLI/CLI.hpp>
@@ -46,206 +41,25 @@ auto ConcurrentPublisher::Make(const Options& opts, IpcQueue* ipc_queue,
                                std::shared_ptr<ConcurrentPublisher>* out) -> Status {
   auto* result = new ConcurrentPublisher();
 
-  assert(ipc_queue != nullptr);
-  assert(publish_count != nullptr);
-  result->queue_ = ipc_queue;
-  result->published_ = publish_count;
-
-  // Configure client
-  auto client_config = pulsar::ClientConfiguration().setLogger(new bolsonLoggerFactory());
-
-  // Configure producer
-  auto producer_config = pulsar::ProducerConfiguration();
-
-  // Explicitly not setting a Pulsar schema:
-  // producer_config.setSchema()
-
-  // Handle batching
-  if (opts.batching.enable) {
-    producer_config.setBatchingEnabled(opts.batching.enable)
-        .setBatchingMaxAllowedSizeInBytes(opts.batching.max_bytes)
-        .setBatchingMaxMessages(opts.batching.max_messages)
-        .setBatchingMaxPublishDelayMs(opts.batching.max_delay_ms);
-  }
-
-  SPDLOG_DEBUG("Setting up Pulsar client.");
-  result->client = std::make_unique<pulsar::Client>(opts.url, client_config);
-
-  SPDLOG_DEBUG("Creating producer instances.");
-  for (int i = 0; i < opts.num_producers; i++) {
-    std::unique_ptr<pulsar::Producer>& prod =
-        result->producers.emplace_back(new pulsar::Producer);
-    CHECK_PULSAR(result->client->createProducer(opts.topic, producer_config, *prod));
-  }
-
-  SPDLOG_DEBUG("Setting up reader instance.");
-  // Create consumer instance to check if the schema is as expected.
-  // If there is no schema, then the schema must first be published.
-  auto reader_config = pulsar::ReaderConfiguration();
-  pulsar::Reader reader;
-  CHECK_PULSAR(result->client->createReader(opts.topic, pulsar::MessageId::earliest(),
-                                            reader_config, reader));
-
-  SPDLOG_DEBUG("Checking if topic " + opts.topic + " is empty.");
-  bool reader_has_message = false;
-  CHECK_PULSAR(reader.hasMessageAvailable(reader_has_message));
-
-  if (reader_has_message) {
-    SPDLOG_DEBUG("Topic is not empty. Checking schema.");
-    pulsar::Message reader_message;
-    CHECK_PULSAR(reader.readNext(reader_message));
-
-    // Move the message into Arrow land.
-    auto message_buffer =
-        arrow::Buffer::Wrap(reinterpret_cast<const uint8_t*>(reader_message.getData()),
-                            reader_message.getLength());
-
-    // Attempt to read the schema from the message.
-    auto arrow_reader = arrow::io::BufferReader(message_buffer);
-    arrow::ipc::DictionaryMemo arrow_dict;  // is ignored for now.
-
-    // Attempt to read a schema from the message.
-    auto read_schema_result = arrow::ipc::ReadSchema(&arrow_reader, &arrow_dict);
-    if (!read_schema_result.ok()) {
-      CHECK_PULSAR(reader.close());
-      return Status(Error::ArrowError,
-                    "Cannot read schema from first message in topic. Arrow error: " +
-                        read_schema_result.status().message());
-    }
-    auto topic_schema = read_schema_result.ValueOrDie();
-
-    // Check if the schema is expected schema
-    if (!topic_schema->Equals(opts.arrow_schema)) {
-      CHECK_PULSAR(reader.close());
-      return Status(Error::GenericError, "Schema of topic " + opts.topic +
-                                             " does not match expected schema."
-                                             "\nTopic: " +
-                                             topic_schema->ToString() + "\nExpected:" +
-                                             opts.arrow_schema->ToString());
-    }
-    SPDLOG_DEBUG("Topic schema matches expected schema.");
-  } else {
-    SPDLOG_DEBUG("Topic is empty. Serializing schema.");
-    // Send the schema as first message
-    auto serialize_result = arrow::ipc::SerializeSchema(*opts.arrow_schema);
-    if (!serialize_result.ok()) {
-      CHECK_PULSAR(reader.close());
-      return Status(Error::ArrowError, "Unable to serialize schema. Arrow error: " +
-                                           serialize_result.status().message());
-    }
-    auto serialized_schema = serialize_result.ValueOrDie();
-    SPDLOG_DEBUG("Schema serialized to " + std::to_string(serialized_schema->size()) +
-                 " bytes.");
-    BOLSON_ROE(Publish(result->producers[0].get(), serialized_schema->data(),
-                       serialized_schema->size()));
-    SPDLOG_DEBUG("Schema published.");
-  }
-  CHECK_PULSAR(reader.close());
-
-  *out = std::shared_ptr<ConcurrentPublisher>(result);
-
   return Status::OK();
 }
 
 void ConcurrentPublisher::Start(std::atomic<bool>* shutdown) {
   shutdown_ = shutdown;
-  for (auto& producer : producers) {
-    std::promise<Metrics> s;
-    metrics_futures.push_back(s.get_future());
-    threads.emplace_back(PublishThread, producer.get(), queue_, shutdown_, published_,
-                         std::move(s));
-  }
 }
 
 auto ConcurrentPublisher::Finish() -> MultiThreadStatus {
   MultiThreadStatus result;
-  // Attempt to join all threads.
-  for (size_t t = 0; t < threads.size(); t++) {
-    // Check if the thread can be joined.
-    if (threads[t].joinable()) {
-      threads[t].join();
-      // Get the metrics.
-      auto metric = metrics_futures[t].get();
-      metrics_.push_back(metric);
-      result.push_back(metric.status);
-      // If a thread returned an error status, shut everything down.
-      if (!metric.status.ok()) {
-        shutdown_->store(true);
-      }
-      producers[t]->close();
-    }
-  }
-  client->close();
 
   return result;
 }
 
 auto ConcurrentPublisher::metrics() const -> std::vector<Metrics> { return metrics_; }
 
-auto Publish(pulsar::Producer* producer, const uint8_t* buffer, size_t size) -> Status {
-  pulsar::Message msg = pulsar::MessageBuilder()
-                            .setAllocatedContent(const_cast<uint8_t*>(buffer), size)
-                            .build();
-  // [IFR06]: The Pulsar messages leave the system through the Pulsar C++ client API
-  // call pulsar::Producer::send().
-  CHECK_PULSAR(producer->send(msg));
-  return Status::OK();
-}
-
-void PublishThread(pulsar::Producer* producer, IpcQueue* queue,
+void PublishThread(void* producer, IpcQueue* queue,
                    std::atomic<bool>* shutdown, std::atomic<size_t>* count,
                    std::promise<Metrics>&& metrics) {
-  // Set up timers.
-  auto thread_timer = putong::Timer(true);
-  auto publish_timer = putong::Timer(false);
-
   Metrics s;
-
-  // Try pulling stuff from the queue until the stop signal is given.
-  IpcQueueItem ipc_item;
-  while (!shutdown->load()) {
-    if (queue->wait_dequeue_timed(ipc_item,
-                                  std::chrono::microseconds(BOLSON_QUEUE_WAIT_US))) {
-      // Start measuring time to handle an IPC message on the Pulsar side.
-      publish_timer.Start();
-
-      // Publish the message
-      ipc_item.time_points[TimePoints::popped] = illex::Timer::now();
-      auto status = Publish(producer, ipc_item.message->data(), ipc_item.message->size());
-      ipc_item.time_points[TimePoints::published] = illex::Timer::now();
-
-      // Deal with Pulsar errors.
-      // In case the Producer causes some error, shut everything down.
-      if (!status.ok()) {
-        spdlog::error("Pulsar error: {} for message of size {} B with {} rows.",
-                      status.msg(), ipc_item.message->size(),
-                      ipc_item.seq_range.last - ipc_item.seq_range.first);
-        // Fulfill the promise.
-        s.status = status;
-        metrics.set_value(s);
-        shutdown->store(true);
-        return;
-      }
-
-      // Add number of rows in IPC message to the count, signaling the main thread how
-      // many JSONs are published.
-      assert(RecordSizeOf(ipc_item) != 0);
-      count->fetch_add(RecordSizeOf(ipc_item));
-
-      // Update some statistics.
-      s.ipc++;
-      s.rows += RecordSizeOf(ipc_item);
-      publish_timer.Stop();
-      s.publish_time += publish_timer.seconds();
-      // Dump the latency stats.
-      s.latencies.push_back({ipc_item.seq_range, ipc_item.time_points});
-    }
-  }
-  // Stop thread timer.
-  thread_timer.Stop();
-  s.thread_time = thread_timer.seconds();
-
-  // Fulfill the promise.
   metrics.set_value(s);
 }
 
@@ -275,30 +89,6 @@ void AddPublishOptsToCLI(CLI::App* sub, publish::Options* pulsar) {
   sub->add_option("--pulsar-batch-max-delay", pulsar->batching.max_delay_ms,
                   "Pulsar batching max. delay (ms).")
       ->default_val(10);
-}
-
-/// A custom logger to redirect Pulsar client log messages to the Bolson logger.
-class bolsonLogger : public pulsar::Logger {
-  std::string _logger;
-
- public:
-  explicit bolsonLogger(std::string logger) : _logger(std::move(logger)) {}
-  auto isEnabled(Level level) -> bool override { return level >= Level::LEVEL_WARN; }
-  void log(Level level, int line, const std::string& message) override {
-    if (level == Level::LEVEL_WARN) {
-      spdlog::warn("Pulsar warning: {}:{} {}", _logger, line, message);
-    } else {
-      spdlog::error("Pulsar error: {}:{} {}", _logger, line, message);
-    }
-  }
-};
-
-auto bolsonLoggerFactory::getLogger(const std::string& file) -> pulsar::Logger* {
-  return new bolsonLogger(file);
-}
-
-auto bolsonLoggerFactory::create() -> std::unique_ptr<bolsonLoggerFactory> {
-  return std::make_unique<bolsonLoggerFactory>();
 }
 
 void Options::Log() const {

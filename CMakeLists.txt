@@ -4,7 +4,6 @@ project(bolson VERSION 0.1.0 LANGUAGES CXX)
 
 find_package(Threads REQUIRED)
 find_package(Arrow 3.0.0 CONFIG REQUIRED)
-find_library(pulsar 2.7.0)
 
 include(FetchContent)
 
@@ -113,7 +112,6 @@ add_compile_unit(
   DEPS
     arrow_shared
     CLI11::CLI11
-    pulsar
     spdlog::spdlog
     Threads::Threads
     illex::static
