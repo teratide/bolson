@@ -43,30 +43,30 @@ using bolson::parse::fpga::WriteMMIO;
 auto TripParser::input_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = arrow::schema(
       {arrow::field("timestamp", arrow::utf8(), false),
-       arrow::field("timezone", arrow::uint64(), false),
-       arrow::field("odometer", arrow::uint64(), false),
+       arrow::field("timezone", arrow::uint32(), false),
+       arrow::field("odometer", arrow::uint32(), false),
        arrow::field("hypermiling", arrow::boolean(), false),
-       arrow::field("avgspeed", arrow::uint64(), false),
+       arrow::field("avgspeed", arrow::uint32(), false),
        arrow::field(
            "sec_in_band",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
+           arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 12),
            false),
        arrow::field(
            "braking",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6),
+           arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 6),
            false),
        arrow::field(
            "accel",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6),
+           arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 6),
            false),
        arrow::field("orientation", arrow::boolean(), false),
        arrow::field(
            "small_speed_var",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
+           arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 13),
            false),
        arrow::field(
            "large_speed_var",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
+           arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 13),
            false)});
   return result;
 }
@@ -76,16 +76,16 @@ static auto output_schema_hw() -> std::shared_ptr<arrow::Schema> {
       *arrow::schema(
           {fletcher::WithMetaEPC(*arrow::field("timestamp", arrow::utf8(), false), 1),
            arrow::field("tag", arrow::uint64(), false),
-           arrow::field("timezone", arrow::uint64(), false),
-           arrow::field("odometer", arrow::uint64(), false),
+           arrow::field("timezone", arrow::uint32(), false),
+           arrow::field("odometer", arrow::uint32(), false),
            arrow::field("hypermiling", arrow::uint8(), false),
-           arrow::field("avgspeed", arrow::uint64(), false),
-           arrow::field("sec_in_band", arrow::uint64(), false),
-           arrow::field("braking", arrow::uint64(), false),
-           arrow::field("accel", arrow::uint64(), false),
+           arrow::field("avgspeed", arrow::uint32(), false),
+           arrow::field("sec_in_band", arrow::uint32(), false),
+           arrow::field("braking", arrow::uint32(), false),
+           arrow::field("accel", arrow::uint32(), false),
            arrow::field("orientation", arrow::uint8(), false),
-           arrow::field("small_speed_var", arrow::uint64(), false),
-           arrow::field("large_speed_var", arrow::uint64(), false)}),
+           arrow::field("small_speed_var", arrow::uint32(), false),
+           arrow::field("large_speed_var", arrow::uint32(), false)}),
       "output", fletcher::Mode::WRITE);
   return result;
 }
@@ -95,30 +95,30 @@ static auto output_schema_sw() -> std::shared_ptr<arrow::Schema> {
       *arrow::schema(
           {arrow::field("timestamp", arrow::utf8(), false),
            arrow::field("tag", arrow::uint64(), false),
-           arrow::field("timezone", arrow::uint64(), false),
-           arrow::field("odometer", arrow::uint64(), false),
+           arrow::field("timezone", arrow::uint32(), false),
+           arrow::field("odometer", arrow::uint32(), false),
            arrow::field("hypermiling", arrow::uint8(), false),
-           arrow::field("avgspeed", arrow::uint64(), false),
+           arrow::field("avgspeed", arrow::uint32(), false),
            arrow::field(
                "sec_in_band",
-               arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
+               arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 12),
                false),
            arrow::field(
                "braking",
-               arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6),
+               arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 6),
                false),
            arrow::field(
                "accel",
-               arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6),
+               arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 6),
                false),
            arrow::field("orientation", arrow::uint8(), false),
            arrow::field(
                "small_speed_var",
-               arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
+               arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 13),
                false),
            arrow::field(
                "large_speed_var",
-               arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
+               arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 13),
                false)}),
       "output", fletcher::Mode::WRITE);
   return result;
@@ -128,30 +128,30 @@ auto TripParser::output_schema() -> std::shared_ptr<arrow::Schema> {
   static auto result = arrow::schema(
       {arrow::field("bolson_seq", arrow::uint64(), false),
        arrow::field("timestamp", arrow::utf8(), false),
-       arrow::field("timezone", arrow::uint64(), false),
-       arrow::field("odometer", arrow::uint64(), false),
+       arrow::field("timezone", arrow::uint32(), false),
+       arrow::field("odometer", arrow::uint32(), false),
        arrow::field("hypermiling", arrow::boolean(), false),
-       arrow::field("avgspeed", arrow::uint64(), false),
+       arrow::field("avgspeed", arrow::uint32(), false),
        arrow::field(
            "sec_in_band",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 12),
+           arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 12),
            false),
        arrow::field(
            "braking",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6),
+           arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 6),
            false),
        arrow::field(
            "accel",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 6),
+           arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 6),
            false),
        arrow::field("orientation", arrow::boolean(), false),
        arrow::field(
            "small_speed_var",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
+           arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 13),
            false),
        arrow::field(
            "large_speed_var",
-           arrow::fixed_size_list(arrow::field("item", arrow::uint64(), false), 13),
+           arrow::fixed_size_list(arrow::field("item", arrow::uint32(), false), 13),
            false)});
   return result;
 }
@@ -286,12 +286,12 @@ static auto ResizeArray(const std::shared_ptr<arrow::StringArray>& array, size_t
 static auto ResizeArray(const std::shared_ptr<arrow::FixedSizeListArray>& array,
                         const std::shared_ptr<arrow::DataType>& type, size_t num_rows)
     -> std::shared_ptr<arrow::FixedSizeListArray> {
-  assert(array->type()->field(0)->type()->id() == arrow::Type::UINT64);
+  assert(array->type()->field(0)->type()->id() == arrow::Type::UINT32);
   size_t list_size = array->list_type()->list_size();
   auto values_buf = array->values()->data()->buffers[1];
   auto num_values = num_rows * list_size;
 
-  auto values = std::make_shared<arrow::UInt64Array>(num_values, values_buf, nullptr, 0);
+  auto values = std::make_shared<arrow::UInt32Array>(num_values, values_buf, nullptr, 0);
 
   auto list_array = arrow::FixedSizeListArray::FromArrays(values, list_size).ValueOrDie();
   return std::static_pointer_cast<arrow::FixedSizeListArray>(list_array);
@@ -304,16 +304,19 @@ static auto WrapTripReport(int32_t num_rows,
   std::vector<std::shared_ptr<arrow::Array>> resized_arrays;
 
   for (const auto& array : arrays) {
-    if (array->type()->Equals(arrow::uint64())) {
+    if (array->type()->Equals(arrow::uint32())) {
+      auto field = std::static_pointer_cast<arrow::UInt32Array>(array);
+      resized_arrays.push_back(ResizeArray(field, arrow::uint32(), num_rows)); }
+    else if (array->type()->Equals(arrow::uint64())) {
       auto field = std::static_pointer_cast<arrow::UInt64Array>(array);
       resized_arrays.push_back(ResizeArray(field, arrow::uint64(), num_rows));
     } else if (array->type()->Equals(arrow::uint8())) {
       auto field = std::static_pointer_cast<arrow::UInt8Array>(array);
       resized_arrays.push_back(ResizeArray(field, arrow::uint8(), num_rows));
     } else if (array->type()->id() == arrow::Type::FIXED_SIZE_LIST) {
-      if (array->type()->field(0)->type()->id() == arrow::Type::UINT64) {
+      if (array->type()->field(0)->type()->id() == arrow::Type::UINT32) {
         auto field = std::static_pointer_cast<arrow::FixedSizeListArray>(array);
-        resized_arrays.push_back(ResizeArray(field, arrow::uint64(), num_rows));
+        resized_arrays.push_back(ResizeArray(field, arrow::uint32(), num_rows));
       } else {
         return Status(Error::GenericError,
                       "Unexpected fixed size list item type when wrapping trip report "
@@ -334,7 +337,13 @@ static auto WrapTripReport(int32_t num_rows,
 
 auto TripParserContext::PrepareOutputBatch() -> Status {
   for (const auto& f : output_schema_sw()->fields()) {
-    if (f->type()->Equals(arrow::uint64())) {
+    if (f->type()->Equals(arrow::uint32())) {
+      std::shared_ptr<arrow::PrimitiveArray> array;
+      BOLSON_ROE(AllocatePrimitiveArray(&allocator, arrow::uint32(),
+                                        allocator.fixed_capacity(), &array));
+      output_arrays_sw.push_back(array);
+      output_arrays_hw.push_back(array); }
+    else if (f->type()->Equals(arrow::uint64())) {
       std::shared_ptr<arrow::PrimitiveArray> array;
       BOLSON_ROE(AllocatePrimitiveArray(&allocator, arrow::uint64(),
                                         allocator.fixed_capacity(), &array));
@@ -356,7 +365,7 @@ auto TripParserContext::PrepareOutputBatch() -> Status {
       std::shared_ptr<arrow::PrimitiveArray> values_array;
       std::shared_ptr<arrow::FixedSizeListArray> fixed_size_list_array;
       auto field = std::static_pointer_cast<arrow::FixedSizeListType>(f->type());
-      BOLSON_ROE(AllocatePrimitiveArray(&allocator, arrow::uint64(),
+      BOLSON_ROE(AllocatePrimitiveArray(&allocator, arrow::uint32(),
                                         allocator.fixed_capacity(), &values_array));
       BOLSON_ROE(AllocateFixedSizeListArray(field->value_type(), values_array,
                                             field->list_size(), &fixed_size_list_array));
@@ -579,6 +588,9 @@ auto TripReportBatchToString(const arrow::RecordBatch& batch) -> std::string {
     for (size_t c = 0; c < batch.num_columns(); c++) {
       ss << std::setw(25) << batch.column_name(c) << " : ";
       switch (batch.column(c)->type_id()) {
+        case arrow::Type::UINT32:
+          ss << std::static_pointer_cast<arrow::UInt32Array>(batch.column(c))->Value(r);
+          break;
         case arrow::Type::UINT64:
           ss << std::static_pointer_cast<arrow::UInt64Array>(batch.column(c))->Value(r);
           break;
@@ -587,7 +599,7 @@ auto TripReportBatchToString(const arrow::RecordBatch& batch) -> std::string {
           break;
         case arrow::Type::FIXED_SIZE_LIST: {
           assert(batch.column(c)->type()->field(0)->type()->id() == arrow::Type::UINT64);
-          auto slice = std::static_pointer_cast<arrow::UInt64Array>(
+          auto slice = std::static_pointer_cast<arrow::UInt32Array>(
               std::static_pointer_cast<arrow::FixedSizeListArray>(batch.column(c))
                   ->value_slice(r));
           ss << "[";
